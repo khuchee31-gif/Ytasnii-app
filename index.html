@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Ytasnii — 3D, scroll animation, cursor interaction бүхий орчин үеийн вэб туршлага." />
+  <title>Ytasnii · Immersive Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Custom cursor -->
+  <div class="cursor" data-cursor></div>
+  <div class="cursor-dot" data-cursor-dot></div>
+
+  <!-- Scroll progress bar -->
+  <div class="progress" data-progress></div>
+
+  <!-- 3D canvas (fixed background) -->
+  <canvas id="scene" data-scene></canvas>
+
+  <!-- Loader -->
+  <div class="loader" data-loader>
+    <span class="loader__num" data-loader-num>0</span>
+    <span class="loader__label">Loading experience</span>
+  </div>
+
+  <header class="nav">
+    <a class="nav__logo" href="#" data-hover>YTASNII</a>
+    <nav class="nav__links">
+      <a href="#work" data-hover>Work</a>
+      <a href="#about" data-hover>About</a>
+      <a href="#contact" data-hover>Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <h1 class="hero__title">
+        <span class="line" data-reveal>WE CRAFT</span>
+        <span class="line" data-reveal>IMMERSIVE</span>
+        <span class="line line--accent" data-reveal>WORLDS</span>
+      </h1>
+      <p class="hero__sub" data-reveal>
+        3D assets · scroll motion · cursor interaction —
+        хулганаа хөдөлгөж, доош гүйлгэж туршаарай.
+      </p>
+      <div class="hero__scroll" data-reveal>
+        <span>SCROLL</span>
+        <span class="hero__scroll-line"></span>
+      </div>
+    </section>
+
+    <!-- WORK -->
+    <section class="section" id="work">
+      <span class="section__index" data-reveal>01 — Selected Work</span>
+      <div class="cards">
+        <article class="card" data-hover data-tilt>
+          <span class="card__num">001</span>
+          <h3>Neon Atlas</h3>
+          <p>WebGL аялал, real-time гэрэлтүүлэг.</p>
+        </article>
+        <article class="card" data-hover data-tilt>
+          <span class="card__num">002</span>
+          <h3>Drift Engine</h3>
+          <p>Scroll-driven 3D storytelling.</p>
+        </article>
+        <article class="card" data-hover data-tilt>
+          <span class="card__num">003</span>
+          <h3>Pulse OS</h3>
+          <p>Cursor-reactive интерфэйс.</p>
+        </article>
+        <article class="card" data-hover data-tilt>
+          <span class="card__num">004</span>
+          <h3>Halo Field</h3>
+          <p>Particle систем, GPU shader.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="section section--about" id="about">
+      <span class="section__index" data-reveal>02 — Studio</span>
+      <p class="big-text" data-reveal>
+        Бид brand-уудыг хөдөлгөөн, гэрэл, гүн рүү хувиргадаг
+        бяцхан студи. Кодоор удирдагдсан дизайн.
+      </p>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="section section--contact" id="contact">
+      <span class="section__index" data-reveal>03 — Contact</span>
+      <a class="cta" href="mailto:hello@ytasnii.studio" data-hover>
+        LET'S TALK
+      </a>
+      <footer class="footer">
+        <span>© 2026 Ytasnii Studio</span>
+        <span>Built with Claude Code</span>
+      </footer>
+    </section>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
