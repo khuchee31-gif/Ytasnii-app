@@ -46,13 +46,21 @@
     </div>
   </div>
 
-  <!-- Click-to-play hint -->
+  <!-- Touch controls (mobile only) -->
+  <div class="touchpad" data-touch>
+    <div class="stick" data-stick><div class="stick__base"><span class="stick__knob" data-knob></span></div></div>
+    <button class="btn-jump" data-jump aria-label="Jump">⤒</button>
+  </div>
+
+  <!-- Click / tap-to-play hint -->
   <div class="hint" data-hint>
     <div class="hint__card">
       <h1>Орчинд ал</h1>
-      <p>Дэлгэц дээр <b>дарж</b> хулганын заагчийг түгжээд камераа эргүүл.<br />
+      <p class="hint__desktop">Дэлгэц дээр <b>дарж</b> хулганын заагчийг түгжээд камераа эргүүл.<br />
          <kbd>W A S D</kbd> алхах · <kbd>Shift</kbd> гүйх · <kbd>Space</kbd> үсрэх · <kbd>Esc</kbd> чөлөөлөх</p>
-      <div class="hint__go">CLICK TO ENTER</div>
+      <p class="hint__touch">Зүүн доод <b>joystick</b> — хөдөл (хол түлхвэл гүйнэ).<br />
+         Баруун талыг <b>чирж</b> камер эргүүл · <b>⤒</b> товч — үсрэх.</p>
+      <div class="hint__go">TAP TO ENTER</div>
     </div>
   </div>
 

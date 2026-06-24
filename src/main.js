@@ -23,6 +23,23 @@ const ui = {
   fps: document.querySelector('[data-fps]'),
 };
 
+// ---- mobile performance profile -------------------------------------------
+// Phones can't sustain the full desktop pipeline, so scale the world and
+// disable the most expensive passes BEFORE anything reads CONFIG.
+const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+if (IS_MOBILE) {
+  CONFIG.quality.maxPixelRatio = 1.0;
+  CONFIG.quality.shadowMapSize = 1024;
+  CONFIG.quality.cascades = 3;
+  CONFIG.quality.shadowFar = 150;
+  CONFIG.vegetation.trees = 170;
+  CONFIG.vegetation.rocks = 80;
+  CONFIG.vegetation.grassBlades = 26000;
+  CONFIG.vegetation.grassRadius = 40;
+  CONFIG.fog.far = 260;
+  ASSETS.hdri.primary = ASSETS.hdri.fallback; // 1k sky
+}
+
 // ---- renderer ----
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.quality.maxPixelRatio));
@@ -67,12 +84,23 @@ let running = false;
     rig = new CameraRig(camera, terrain);
     postfx = new PostFX(renderer, scene, camera);
 
+    // mobile: drop the two most expensive passes, keep bloom + grade + FXAA
+    if (IS_MOBILE) {
+      postfx.ssao.enabled = false;
+      postfx.bokeh.enabled = false;
+    }
+
     loader.dispose();
 
     // reveal
     ui.loader.classList.add('hidden');
     ui.hint.classList.add('show');
-    ui.hint.addEventListener('click', () => canvas.requestPointerLock?.());
+    const startPlay = () => {
+      ui.hint.classList.add('hidden');
+      if (!input.isTouch) canvas.requestPointerLock?.();
+    };
+    ui.hint.addEventListener('click', startPlay);
+    ui.hint.addEventListener('touchstart', (e) => { e.preventDefault(); startPlay(); }, { passive: false });
     running = true;
     clock.start();
   } catch (err) {
