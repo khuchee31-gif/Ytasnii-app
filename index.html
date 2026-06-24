@@ -2,12 +2,9 @@
 <html lang="mn">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Ytasnii Studio — WebGL shaders, scroll motion & cursor interaction. Awwwards-level immersive web." />
-  <title>Ytasnii® — Immersive Studio</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description" content="GTA/RDR2-style photorealistic third-person WebGL demo — Three.js, HDRI IBL, PBR terrain, CSM shadows, cinematic post-processing." />
+  <title>Ytasnii — Photoreal WebGL Demo</title>
   <link rel="stylesheet" href="style.css" />
   <script type="importmap">
   {
@@ -19,123 +16,46 @@
   </script>
 </head>
 <body>
-  <!-- Film grain + vignette overlay -->
-  <div class="grain"></div>
-  <div class="vignette"></div>
+  <canvas id="scene"></canvas>
 
-  <!-- Custom cursor -->
-  <div class="cursor" data-cursor><span class="cursor__label" data-cursor-label></span></div>
-  <div class="cursor-dot" data-cursor-dot></div>
-
-  <!-- Scroll progress -->
-  <div class="progress"><span data-progress></span></div>
-
-  <!-- WebGL canvas -->
-  <canvas id="scene" data-scene></canvas>
-
-  <!-- Loader -->
+  <!-- Loading screen -->
   <div class="loader" data-loader>
-    <div class="loader__inner">
-      <span class="loader__num" data-loader-num>00</span>
-      <span class="loader__label">Ytasnii® — loading experience</span>
+    <div class="loader__brand">YTASNII<span>®</span></div>
+    <div class="loader__title">PHOTOREAL WEBGL FIELD</div>
+    <div class="loader__barwrap"><span class="loader__bar" data-bar></span></div>
+    <div class="loader__meta">
+      <span class="loader__pct"><b data-pct>0</b>%</span>
+      <span class="loader__status" data-status>booting renderer…</span>
     </div>
-    <div class="loader__bar"><span data-loader-bar></span></div>
+    <div class="loader__note">Загвар + орчны asset-ууд CDN-ээс ачаалж байна (HDRI, PBR, rigged GLB)</div>
   </div>
 
-  <!-- Smooth-scroll wrapper -->
-  <div class="smooth" data-smooth>
-    <div class="smooth__inner" data-smooth-inner>
-
-      <header class="nav">
-        <a class="nav__logo" href="#top" data-hover>YTASNII®</a>
-        <span class="nav__meta">Immersive Studio — UB / 2026</span>
-        <nav class="nav__links">
-          <a href="#work" data-hover>Work</a>
-          <a href="#about" data-hover>Studio</a>
-          <a href="#contact" data-hover>Contact</a>
-        </nav>
-      </header>
-
-      <main>
-        <!-- HERO -->
-        <section class="hero" id="top">
-          <h1 class="hero__title">
-            <span class="line" data-split>WE BUILD</span>
-            <span class="line" data-split>IMMERSIVE</span>
-            <span class="line line--accent" data-split>WORLDS</span>
-          </h1>
-          <div class="hero__foot">
-            <p class="hero__sub" data-reveal>
-              Shader-driven 3D · scroll motion · cursor interaction.
-              Хулганаа хөдөлгөж, доош гүйлгээрэй.
-            </p>
-            <div class="hero__scroll" data-reveal>
-              <span>SCROLL TO EXPLORE</span>
-              <span class="hero__scroll-line"></span>
-            </div>
-          </div>
-        </section>
-
-        <!-- MARQUEE -->
-        <section class="marquee" aria-hidden="true">
-          <div class="marquee__track" data-marquee>
-            <span>WEBGL —</span><span>SHADERS —</span><span>MOTION —</span><span>3D —</span><span>INTERACTION —</span>
-            <span>WEBGL —</span><span>SHADERS —</span><span>MOTION —</span><span>3D —</span><span>INTERACTION —</span>
-          </div>
-        </section>
-
-        <!-- ABOUT -->
-        <section class="section section--about" id="about">
-          <span class="section__index" data-reveal>(01) — Studio</span>
-          <p class="big-text" data-words>
-            Бид brand-уудыг хөдөлгөөн, гэрэл, гүн рүү хувиргадаг
-            бяцхан студи. Кодоор удирдагдсан дизайн, real-time графикаар.
-          </p>
-        </section>
-
-        <!-- WORK / BENTO -->
-        <section class="section" id="work">
-          <span class="section__index" data-reveal>(02) — Selected Work</span>
-          <div class="bento">
-            <article class="bento__card bento__card--lg" data-tilt data-hover data-cursor-text="View">
-              <span class="bento__num">001</span>
-              <div class="bento__body"><h3>Neon Atlas</h3><p>WebGL аялал · real-time гэрэлтүүлэг</p></div>
-            </article>
-            <article class="bento__card" data-tilt data-hover data-cursor-text="View">
-              <span class="bento__num">002</span>
-              <div class="bento__body"><h3>Drift Engine</h3><p>Scroll-driven storytelling</p></div>
-            </article>
-            <article class="bento__card" data-tilt data-hover data-cursor-text="View">
-              <span class="bento__num">003</span>
-              <div class="bento__body"><h3>Pulse OS</h3><p>Cursor-reactive UI</p></div>
-            </article>
-            <article class="bento__card bento__card--wide" data-tilt data-hover data-cursor-text="View">
-              <span class="bento__num">004</span>
-              <div class="bento__body"><h3>Halo Field</h3><p>GPU particle system · custom shaders</p></div>
-            </article>
-          </div>
-        </section>
-
-        <!-- STATS -->
-        <section class="section section--stats">
-          <div class="stat" data-reveal><span class="stat__num" data-count="120">0</span><span class="stat__label">Projects shipped</span></div>
-          <div class="stat" data-reveal><span class="stat__num" data-count="38">0</span><span class="stat__label">Awards & mentions</span></div>
-          <div class="stat" data-reveal><span class="stat__num" data-count="9">0</span><span class="stat__label">Years crafting</span></div>
-        </section>
-
-        <!-- CONTACT -->
-        <section class="section section--contact" id="contact">
-          <span class="section__index" data-reveal>(03) — Contact</span>
-          <a class="cta" href="mailto:hello@ytasnii.studio" data-magnetic data-hover>LET'S TALK</a>
-          <footer class="footer">
-            <span>© 2026 Ytasnii® Studio</span>
-            <span>Crafted with Claude Code</span>
-          </footer>
-        </section>
-      </main>
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud__fps">FPS <b data-fps>–</b></div>
+    <div class="hud__keys">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> хөдөл</span>
+      <span><kbd>Shift</kbd> гүй</span>
+      <span><kbd>Space</kbd> үсэр</span>
+      <span><kbd>Mouse</kbd> камер</span>
+    </div>
+    <div class="hud__fx">
+      <span><kbd>1</kbd> SSAO</span><span><kbd>2</kbd> Bloom</span>
+      <span><kbd>3</kbd> DoF</span><span><kbd>4</kbd> Motion-blur</span>
+      <span><kbd>H</kbd> HUD</span>
     </div>
   </div>
 
-  <script type="module" src="main.js"></script>
+  <!-- Click-to-play hint -->
+  <div class="hint" data-hint>
+    <div class="hint__card">
+      <h1>Орчинд ал</h1>
+      <p>Дэлгэц дээр <b>дарж</b> хулганын заагчийг түгжээд камераа эргүүл.<br />
+         <kbd>W A S D</kbd> алхах · <kbd>Shift</kbd> гүйх · <kbd>Space</kbd> үсрэх · <kbd>Esc</kbd> чөлөөлөх</p>
+      <div class="hint__go">CLICK TO ENTER</div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

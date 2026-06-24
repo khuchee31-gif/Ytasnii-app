@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: ["claude/unclear-request-kgCmA", "main"]
+    branches: ["claude/gta-style-webgl-demo-qv9j0x", "claude/unclear-request-kgCmA", "main"]
   workflow_dispatch:
 
 permissions:
