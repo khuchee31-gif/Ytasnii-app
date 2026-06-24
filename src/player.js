@@ -75,8 +75,9 @@ export class Player {
     if (moving) {
       pos.x += dir.x * this.speed * dt;
       pos.z += dir.z * this.speed * dt;
-      // face travel direction (model forward = +Z)
-      this.yaw = Math.atan2(dir.x, dir.z);
+      // face travel direction. The Soldier model's visual front is -Z, so add
+      // PI to turn the body toward where it is actually walking.
+      this.yaw = Math.atan2(dir.x, dir.z) + Math.PI;
     }
 
     // turn the model smoothly toward yaw
