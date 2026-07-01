@@ -21,6 +21,7 @@ const ui = {
   status: document.querySelector('[data-status]'),
   hint: document.querySelector('[data-hint]'),
   fps: document.querySelector('[data-fps]'),
+  dev: document.querySelector('[data-dev]'),
 };
 
 // ---- mobile performance profile -------------------------------------------
@@ -46,6 +47,24 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.quality.maxPixelRatio))
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// ---- device diagnostics (browser can only report approximate RAM) ----
+(function showDeviceInfo() {
+  let gpu = 'unknown';
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    if (ext) gpu = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+  } catch (e) { /* ignore */ }
+  const ram = navigator.deviceMemory ? `~${navigator.deviceMemory} GB` : 'N/A';
+  const cores = navigator.hardwareConcurrency || '?';
+  const dpr = Math.min(devicePixelRatio, CONFIG.quality.maxPixelRatio).toFixed(2);
+  const profile = IS_MOBILE ? 'Mobile' : 'Desktop';
+  ui.dev.innerHTML =
+    `RAM ${ram} · CPU ${cores} core · DPR ${dpr}<br>` +
+    `GPU ${gpu}<br>` +
+    `${screen.width}×${screen.height} · ${profile} profile`;
+})();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(CONFIG.camera.fov, innerWidth / innerHeight, 0.1, 1200);

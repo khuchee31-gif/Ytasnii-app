@@ -61,6 +61,10 @@ body.locked { cursor: none; }
 }
 .hud__fps { font-size: 13px; letter-spacing: .12em; color: var(--muted); }
 .hud__fps b { color: var(--accent); font-size: 15px; }
+.hud__dev {
+  margin-top: 6px; font-size: 10px; line-height: 1.5; color: var(--muted);
+  letter-spacing: .04em; opacity: .82; max-width: 60vw; word-break: break-word;
+}
 .hud__keys, .hud__fx {
   display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--muted);
   letter-spacing: .06em;
