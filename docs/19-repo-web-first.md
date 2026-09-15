@@ -358,3 +358,222 @@ self.addEventListener('fetch', (e) => {
 
 > **Юу гэсэн үг вэ?** «Vanilla-TS» гэдэг нь React/Vue гэх мэт framework-гүй, цэвэр TypeScript. «Vite» бол
 > хөгжүүлэлтийн сервер ба багцлагч. Энэ хоёрын build нь маш жижиг гардаг тул удаан сүлжээнд хожино.
+
+---
+
+## 4. Эхний гаргалтын гурван зам — харьцуулалт
+
+| | **(a) GitHub Pages дээрх PWA** | **(b) Android APK-г шууд тараах** | **(c) Play + App Store-д гаргах** |
+|---|---|---|---|
+| Ангитайгаа анхны бодит тоглолт-туршилт хийх хүртэлх хугацаа | **Демо build хийсэн тэр өдөртөө** — ангийн группт холбоос эсвэл QR илгээнэ | Ажиллах Flutter Android build хийснээс хойш 1–3 хоног | **Долоо хоногоос сар хүртэл** |
+| Мөнгө | **0 ₮** | 0 ₮ | **$25** нэг удаа (Play) + **$99/жил** (Apple) |
+| Шинэчлэлтийн хурд | `git push` → ~1–2 минутад амьд; дараагийн нээлтэд шинэчлэгдсэн байна | Дахин build, дахин байршуулах, ангийн хүүхэд бүр гараар дахин суулгана | Play internal: минутаас цаг. Production: хяналт «ихэвчлэн долоо хоног ба түүнээс бага». Apple: хувилбар бүрд Beta App Review |
+| iPhone-д хүрэх үү | **Тийм** | **Үгүй** — 08-р бүлгийн дагуу Монголд iOS **44.56 %** (Statcounter 2026-08) | Тийм |
+| Юу нь эвдэрдэг вэ | iOS дээр дэлгэц унтарсан үеийн дуу байхгүй; суулгах нь Share-цэсний гар ажиллагаа; дуугүй товч Web Audio-г хаадаг; зэрэглэл/эсрэг-луйврын гадаргуу байхгүй | iPhone хэрэглэгчид гадуур үлдэнэ; «үл мэдэгдэх апп суулгах» зан үйл; Play Protect анхааруулга; хязгаарлагдмал тохиргооны саад; **баталгаажуулалтын хугацаа 2027** | Техникийн хувьд юу ч биш — эвдэрдэг нь хуанли |
+| Хожим юуг хаадаг вэ | Бүтцийн хувьд юуг ч үгүй. Дүрмийн модулиа хуваалцахгүй бол ганц хаягдах веб codebase-ийн зардал гарна | Юуг ч үгүй, гэхдээ эхний өдрөөс гарын үсгийн түлхүүрийн сахилга батыг шаардана (keystore алдвал → шинэчилж чадахгүй) | Юуг ч үгүй — энэ бол очих газар |
+
+**Санал болгож буй дараалал (тодорхой хуанлитайгаар):**
+
+| Долоо хоног | Үйлдэл |
+|---|---|
+| 0 | Repo-г дахин бүтэцчил, Pages-ийг Actions-аар асаа, `/play/` дээр PWA шөнийн мөчлөгийн демог гарга. Тэр долоо хоногтоо ангитайгаа тогло. |
+| 0–3 | Ширээний бодит эргэх холбооны дагуу PWA-г өдөр бүр сайжруул. Офлайн дүрмийн хөдөлгүүр яг энд зөв болно. |
+| ~2 | **$25-ын Play бүртгэлээ одоо ав, дараа биш.** Арай ядан ажиллах AAB-г **closed testing**-д байршуулаад 12 нь үлдэхийн тулд ангийнхнаасаа 16–18-ыг элсүүл. 12 тестер/14 хоногийн цаг бол *хуанлийн цаг*, ажлын цаг биш — барьж байгаа үедээ эхлүүл. |
+| 3–6 | Flutter Android build → **Play internal testing** (100 тестер, хяналтгүй, минутад амьд) — PWA хийж чадахгүй дэлгэц унтарсан үеийн хөтлөлтийг энд шалга. |
+| 6+ | Closed test 14 хоног тасралтгүй ажилласны дараа production-д өргөдөл гарга. Apple-ийн $99-ийг хүмүүс үнэхээр хүсэж байгаа нотолгоо гарсан үед л шийд. |
+
+> **Баталгаажуулалт (2026-09-15):** «12 тестер / 14 хоног» гэсэн production хандалтын шаардлага болон
+> internal testing-ийн 100 тестерийн хязгаар хоёулаа Play Console Help-ийн албан ёсны хуудсаар батлагдсан:
+> https://support.google.com/googleplay/android-developer/answer/14151465 ба
+> https://support.google.com/googleplay/android-developer/answer/9845334
+
+---
+
+## 5. Дэлгүүргүйгээр 30 ангийн хүүхдийн утсанд build хүргэх
+
+| Суваг | Платформ | Зардал | Дээд хязгаар | Бодит саад | Итгэлцэл |
+|---|---|---|---|---|---|
+| **PWA холбоос / QR код** | Android + iOS | 0 | Хязгааргүй | iOS дээр «Нүүр дэлгэцэд нэмэх»-ийг заавал зааж өгнө; зүгээр табаар ашиглавал OS-ийн суулгалт огт болохгүй | Өндөр |
+| **Drive / Telegram / Messenger-ээр APK** | Зөвхөн Android | 0 | *Өнөөдөр* хязгааргүй | Апп тус бүрд «үл мэдэгдэх апп суулгах» зөвшөөрөл + Play Protect шалгалт | Өндөр |
+| **Play internal testing** | Android | $25 нэг удаа | **100 тестер** | Тестер бүр Google данстай байх ба opt-in холбоосыг нээх ёстой. Хяналтгүй. Эхний тестийн холбоос «хэдэн цаг болж магадгүй»; дараагийн build-ууд минутад бууна | Өндөр (Play Console Help) |
+| **Play closed testing** | Android | $25 нэг удаа | 200 жагсаалт × тус бүр 2,000 хэрэглэгч, track тутамд дээд тал нь 50 жагсаалт | Production хандалтад тооцогддог цорын ганц track | Өндөр (Play Console Help) |
+| **Firebase App Distribution** | Android + iOS | Spark төлөвлөгөөнд үнэгүй | Нийтлэгдсэн тестерийн хязгаар алга | Android: маш хялбар (APK/AAB). iOS: доорхийг үз. Build 150 хоног амьдарна; урилга 30 хоногт дуусна | Android-д өндөр; тестерийн хязгаарын мэдэгдэл **[баталгаажаагүй]** — [firebase.google.com/pricing](https://firebase.google.com/pricing)-ийг шалга |
+| **TestFlight internal** | iOS | $99/жил | **100 дотоод тестер**, тус бүр 30 хүртэл төхөөрөмж дээр | Тестерүүд App Store Connect багийн гишүүн байх ёстой. Beta App Review байхгүй | Өндөр |
+| **TestFlight external** | iOS | $99/жил | Апп тутамд **10,000**, 100 хүртэл групп | Хувилбар бүрийн эхний build Beta App Review шаардана; build 90 хоногийн дараа хүчингүй болно | Өндөр |
+| **Ad hoc / Firebase iOS** | iOS | $99/жил | Төхөөрөмжийн төрөл тутамд **жилд 100 төхөөрөмж** | Тестер бүртгүүлнэ → Firebase чамд түүний UDID-г мэйлдэнэ → чи Apple-ийн порталд нэмнэ → профайлыг дахин үүсгэнэ → **дахин build хийж дахин тараана**. 30 хүнд бол хэрцгий | Өндөр |
+
+**`$99`-ийн асуултын шулуун хариулт:** Apple Developer Program-гүйгээр 30 ангийн хүүхдийн iPhone дээр
+iOS build тавих бодитой арга **байхгүй**. Үнэгүй Apple ID-ийн provisioning нь **7 хоногийн** профайл өгдөг
+бөгөөд Mac болон төхөөрөмж бүрд кабель шаарддаг. Төлбөрийн чөлөөлөлт нь магадлан итгэмжлэгдсэн боловсролын
+байгууллага, мөн үнэгүй апп нийтэлдэг ашгийн бус байгууллагад байдаг — сургууль зарчмын хувьд тэнцэж болох
+ч, элсэх нь *байгууллага*, оюутан/сурагч биш. **Энэ бол эхлээд PWA гаргах хамгийн хүчтэй ганц үндэслэл:
+iPhone дээр хүрэх цорын ганц тэг зардалтай зам мөн.**
+
+> **Баталгаажуулалт (2026-09-15):** Firebase App Distribution-ийн «тестерийн тоо хязгааргүй» гэсэн мэдэгдэл
+> **[баталгаажаагүй]** — албан ёсны үнийн хуудаснаас баттай нотлогдоогүй. Шалгах арга:
+> https://firebase.google.com/pricing дээрх Spark төлөвлөгөөний мөрийг уншаад, App Distribution-ийн квотыг
+> харна. Бусад мэдээллийг https://firebase.google.com/docs/app-distribution ба
+> https://firebase.google.com/docs/app-distribution/register-additional-devices дээрээс шалгаж болно.
+> TestFlight-ийн тоонууд Apple-ийн хуудсаар батлагдсан: https://developer.apple.com/testflight/
+
+### 5.1 15 настай хүүхэд APK суулгахын тулд яг хэдэн товшилт хийх вэ (Android 10–16)
+
+1. Холбоосыг Chrome-оор нээ → **Download**. Chrome «This type of file can harm your device» гэж
+   анхааруулна → **Download anyway**.
+2. Файлаа нээ (Downloads эсвэл Files апп) → Android «энэ эх сурвалжид апп суулгахыг зөвшөөрөөгүй» гэнэ →
+   **Settings**.
+3. Тэр нь **Settings → Apps → Special app access → Install unknown apps → Chrome** (эсвэл Files) рүү
+   аваачна → **Allow from this source** унтраалгыг асаа.
+4. Буц → **Install**.
+5. **Play Protect** таслан зогсооно: «Unsafe app blocked» эсвэл «App scan required» →
+   **Install anyway** / **More details → Install anyway**. 3 дугаар алхмыг асаасан нь Play Protect-ийг
+   *унтраахгүй*; тэдгээр нь бие даасан хоёр шалгалт.
+6. Android 13+ дээр апп **restricted setting** (Accessibility, notification listener) хүсвэл, хэрэглэгч
+   App info → ⋮ → **Allow restricted settings** гэж нээх хүртэл унтраалга саарал хэвээр байна. Эдгээр
+   зөвшөөрлийг огт шаардахгүй бол чи энэ алхмыг бүрэн алгасна.
+
+Зургаан дэлгэц, хоёр айдас төрүүлэм улаан анхааруулга, нэг Settings рүү гүн холбоос — тэгээд ч тоглоомын
+демод. PWA-тай харьцуул: холбоос дар → Share дар → «Нүүр дэлгэцэд нэмэх» дар. Энэ тэгш бус байдал л бүх
+маргааны хариулт.
+
+### 5.2 Уншигчид хэн ч хэлээгүй байгаа хугацаа
+
+Google нь **хөгжүүлэгчийн баталгаажуулалтыг** сертификатлагдсан Android төхөөрөмжид апп суулгах урьдчилсан
+нөхцөл болгож байна — *суулгах эх сурвалжаас үл хамааран*, шууд APK sideload-ыг ч оруулаад
+([Android Developers Blog, 2026-03](https://android-developers.googleblog.com/2026/03/android-developer-verification-rolling-out-to-all-developers.html)):
+
+| Огноо | Үйл явдал |
+|---|---|
+| 2026 оны 4-р сар | Android Developer Verifier системийн үйлчилгээ нээгдэнэ |
+| 2026 оны 6-р сар | Үнэгүй **limited distribution account**-д эрт хандалт |
+| 2026 оны 8-р сар | Limited account болон чадварлаг хэрэглэгчдэд зориулсан «advanced» sideloading урсгалын дэлхийн нээлт |
+| **2026-09-30** | **Бразил, Индонез, Сингапур, Тайланд**-д хэрэгжилт эхэлнэ — Android 7+ сертификатлагдсан төхөөрөмжүүд |
+| **2027** | **Дэлхий даяар тэлэлт** |
+
+Монгол улс 2026 оны 9-р сарын давалгаанд **ороогүй**, тиймээс өнөөдөр (2026-09-15) тэнд APK тараах ажиллаж
+байна. Гэхдээ үнэгүй **limited distribution account** — төлбөргүй, иргэний үнэмлэх шаардахгүй, QR/холбоосын
+гар барилтаар тараадаг, Google Play шаардахгүй — нь **20 төхөөрөмжөөр** хязгаарлагдсан. 30 хүүхэдтэй анги
+багтахгүй. Тиймээс 2027 оноос өмнө **$25-ын баталгаажсан Play данс**, эсвэл **PWA** гэсэн хоёрын аль нэгийг
+төлөвлө.
+
+> **Баталгаажуулалт (2026-09-15):** «20 төхөөрөмж» гэсэн хязгаар ба limited distribution account-ийн
+> нөхцөлүүд Android-ын албан ёсны баримт бичгээр батлагдсан:
+> https://developer.android.com/developer-verification/guides/limited-distribution ба
+> https://developer.android.com/developer-verification . Хугацааны хуваарийг 2026-03-ын блог нийтлэлээс үз:
+> https://android-developers.googleblog.com/2026/03/android-developer-verification-rolling-out-to-all-developers.html
+> Суурь аюулгүй байдлын мэдэгдэл (2025-08):
+> https://android-developers.googleblog.com/2025/08/elevating-android-security.html
+
+> **Юу гэсэн үг вэ?** «Sideload» гэдэг нь албан ёсны дэлгүүрээр биш, APK файлыг гараар суулгахыг хэлнэ.
+> Өнөөдрийг хүртэл Android дээр үүнийг чөлөөтэй хийж болдог байсан; 2027 оноос хөгжүүлэгч нь баталгаажсан
+> байх шаардлагатай болно.
+
+---
+
+## 6. Эхний өдөр README ба Pages сайт дээр юу заавал байх ёстой вэ
+
+### 6.1 `README.md` (монголоор, англи хураангуйтай)
+
+1. **Нэг мөр танилцуулга + hero дэлгэцийн зураг** — «Ангийн мафи тоглоомыг утсаар хөтлөх аппликейшн.»
+2. **▶ Тоглох** — `https://khuchee31-gif.github.io/Ytasnii-app/play/` руу чиглэсэн том холбоос, мөн
+   `docs/assets/qr.png` дотор commit хийсэн QR кодын зураг.
+3. **Төлөвийн badge хүснэгт**: өнөөдөр юу ажиллаж байна, дараа нь юу гарах вэ — шударгаар.
+4. **Судалгааны дэвтрийн индекс** — 14 мөр, бүлгийн нэр + нэг мөрийн хураангуй + холбоос. Энэ бол repo-гийн
+   хамгийн үнэ цэнтэй хөрөнгө; **27,959 үг** холбоосгүй хавтасны жагсаалтын ард суулгаж болохгүй.
+5. **Repo-гийн газрын зураг** — §2.3-ын мод, ингэснээр хувь нэмэр оруулагч юу хаана байгааг олно.
+6. **Локал дээр ажиллуулах** — `cd web && npm install && npm run dev`.
+7. **Суулгах заавар, дэлгэцийн зурагтай, iOS / Android гэж тусад нь** — энэ нь мөн апп доторх зааварчлагчийн
+   эх бичвэр болж давхар ажиллана.
+8. **Санал хүсэлт** — GitHub Issues *ба* Google Form хоёуланд нь холбоос өг, учир нь 15 настай хүүхэд
+   GitHub данс нээхгүй.
+9. **Лиценз + талархал.** Дүрмийн бичвэр CC-BY, код MIT байх эсэхийг **одоо** шийд.
+
+> **Юу гэсэн үг вэ?** «CC-BY» бол Creative Commons Attribution лиценз: хүмүүс чиний бичвэрийг ашиглаж,
+> өөрчилж болно, гэхдээ чамайг заавал нэрлэх ёстой. «MIT» бол кодын хамгийн чөлөөт, хамгийн богино лиценз.
+
+### 6.2 Pages сайт
+
+| Хэсэг | Яагаад эхний өдөр байх ёстой вэ |
+|---|---|
+| Hero + «Тоглох» товч | Ангийн хүүхдийг тестер болгож хувиргадаг цорын ганц зүйл бол демогийн холбоос |
+| Утасны 3–5 дэлгэцийн зураг | Урьдчилан харагдацгүй, танихгүй холбоос дээр хүмүүс дарахгүй |
+| «Яаж тоглох вэ» — 4 алхамт заавар | Оролдохоос нь өмнө утас дамжуулах мөчлөгийг тайлбарлана |
+| Суулгах зааварчлагч, iOS ба Android табтай | Хамгийн том уналтын цэгийг арилгана |
+| **`/docs/` дээр хөрвүүлсэн судалгааны дэвтэр** | Markdown-г CI дотор HTML болгож хөрвүүлэх ёстой — одоогийн түүхий байршуулалт `.md`-г татаж авах файл болгож үйлчилж байна. Хамгийн хялбар засвар: `pages.yml` дотор Markdown→HTML алхам ажиллуулах, эсвэл салбарт суурилсан нийтлэлт рүү буцвал Jekyll/`just-the-docs` тохиргоо нэмэх |
+| Санал хүсэлтийн форм (Google Form embed) | Бүтэцтэй тоглолт-туршилтын өгөгдөл нь группын чат дахь «хөгжилтэй байсан»-аас дээр |
+| Өөрчлөлтийн бүртгэл / замын зураг | Ангид төсөл амьд гэдгийг харуулна; тестерүүдийг эргэж ирүүлнэ, энэ нь Play-ийн 14 хоногийн цагт чухал |
+| Хянагч (tracker) байхгүй, зар байхгүй, энгийн нууцлалын тэмдэглэл | 14-р бүлгийн (хууль/аюулгүй байдал) шаардлага 12–18 насныханд чиглэсэн сайтад мөн хамаарна |
+
+> **Санамж (төслийн шийдвэр №8, №9-тэй уялдана):** Энэ сайт дээр ч, апп дотор ч **мэдээлэл, тоглоомын давуу
+> талыг хэзээ ч зарахгүй**. Мөн v1-д танихгүй хүнтэй чат байхгүй, нас 13+, анги/хаалттай өрөө хэлбэрээр
+> эхэлнэ. Pages сайт нь зөвхөн демо, дэвтэр, суулгах заавар гэсэн гурван зүйлийг л хийнэ.
+
+---
+
+## 7. Үлдэгдэл эрсдэлүүд
+
+| Эрсдэл | Бууруулах арга |
+|---|---|
+| Flutter ирэхэд веб codebase хаягдал болно | Шөнийн шийдвэрлэлтийн дүрмийг нэг цэвэр, framework-гүй модуль болгож салгаад, яг тэр хэвээр нь зөө |
+| Ангийнхан Safari таб дотор тоглож, хэзээ ч суулгахгүй, 7 хоногийн дараа төлөвөө алдана | Тоглоомыг суулгах зааварчлагчийн ард түгжих; `display-mode: standalone`-ыг илрүүлэх |
+| iOS-ийн дуугүй товч бүх дууг хааж, алдаа мэт харагдана | Тестийн дуутай, тодорхой тоглолтын өмнөх шалгах дэлгэц гаргах |
+| Pages-ийн «арилжааны хэрэглээг хориглох» заалт мөнгөжүүлэлт дээр хазах | Ямар нэг төлбөрийн урсгал үүсэхээс өмнө төлбөртэй хостинг руу шилжих |
+| APK-ийн зам 2027 онд чимээгүйхэн үхэх | Тараах стратегиа sideloading дээр бүү бос |
+| Android-ын гарын үсгийн keystore алдах | Хамгийн анхны build дээрээ машинаас гадуур нөөцөл; сэргээх арга **байхгүй** |
+
+> **Баталгаажуулалт (2026-09-15):** iOS дээрх 7 хоногийн хадгалалтын хязгаар ба нүүр дэлгэцийн веб аппын
+> чөлөөлөлт хоёулаа WebKit-ийн албан ёсны Tracking Prevention бодлогоор батлагдсан:
+> https://webkit.org/tracking-prevention/ . Практик талын хээрийн тайлан:
+> https://dev.to/prototyp/what-we-learned-about-pwas-and-audio-playback-50eh
+
+---
+
+## 8. Энэ бүлгээс гарах ажлын жагсаалт (шууд хийх)
+
+Доорх нь дээрх бүх шийдвэрийг нэг богино чеклист болгосон хэлбэр. Дараалал чухал.
+
+| # | Ажил | Хаана | Шалгуур |
+|---|---|---|---|
+| 1 | `main` салбар үүсгэж, үндсэн салбар болгох | GitHub Settings → General | `git ls-remote --heads origin main` мөр буцаана |
+| 2 | Pages-ийн Source-ыг «GitHub Actions» болгох | GitHub Settings → Pages | API дээр `has_pages: true` болно |
+| 3 | Three.js хуудсыг `site/legacy-studio/` руу зөөх | `git mv` | Root дээр `index.html` үлдэхгүй |
+| 4 | `pages.yml` бичих (site + docs + web → нэг артефакт) | `.github/workflows/` | `path: "."` арилсан байх |
+| 5 | Markdown→HTML алхам нэмэх | `pages.yml` | `/docs/01-rules.md` татагдахгүй, уншигдана |
+| 6 | Vite `base`, manifest `start_url`/`scope`, SW-ийн зам — дөрвүүлээ `/Ytasnii-app/play/` | `web/` | Суулгасны дараа хоосон дэлгэц гарахгүй |
+| 7 | 40 мөр монгол хөтлөгчийн дууг бичиж, 64 kbps моно AAC болгох | `web/public/audio/mn/` | Service worker `install` дээр precache хийгдэнэ |
+| 8 | «Эхлүүлэх» товчинд audio unlock + wake lock + fullscreen-ийг нэг товшилтод багтаах | `web/src/` | iPhone дээр эхний шөнө дуу гарна, дэлгэц бүүдийхгүй |
+| 9 | iOS-д зориулсан «Нүүр дэлгэцэд нэмэх» зааварчлагч | `web/src/` | `navigator.standalone === false` үед гарч ирнэ |
+| 10 | README-д ▶ Тоглох холбоос + QR + 14 бүлгийн индекс | `README.md`, `docs/assets/qr.png` | Ангийн группт нэг холбоос илгээгээд тоглолт эхэлнэ |
+| 11 | $25-ын Play бүртгэл авч, closed testing-ийн 14 хоногийн цагийг эхлүүлэх | Play Console | 16–18 ангийн хүүхэд элссэн байна |
+| 12 | Keystore-оо машинаас гадуур нөөцлөх | — | Хоёр өөр газарт хуулбар байна |
+
+---
+
+## Эх сурвалж
+
+- GitHub Pages limits — https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
+- GitHub Pages publishing sources — https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site
+- What is GitHub Pages (URL formats) — https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages
+- Repo metadata — https://api.github.com/repos/khuchee31-gif/Ytasnii-app (fetched 2026-09-15)
+- Screen Wake Lock browser support — https://caniuse.com/wake-lock
+- WebKit bug 254545, Wake Lock in Home Screen Web Apps — https://bugs.webkit.org/show_bug.cgi?id=254545
+- WebKit in Safari 18.4 (Wake Lock + Declarative Web Push) — https://webkit.org/blog/16574/webkit-in-safari-18-4/
+- WebKit Tracking Prevention (7-day cap, home-screen exemption) — https://webkit.org/tracking-prevention/
+- iOS PWA audio lockscreen bug — https://developer.apple.com/forums/thread/762582
+- PWAs and audio playback field report — https://dev.to/prototyp/what-we-learned-about-pwas-and-audio-playback-50eh
+- MDN autoplay guide — https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay
+- Chrome installability criteria — https://developer.chrome.com/blog/update-install-criteria
+- Making PWAs installable (MDN) — https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable
+- What PWAs can and cannot do on iOS in 2026 — https://tips.ojapp.app/en/pwa-ios-2026-complete-guide/
+- PWA iOS limitations and Safari support 2026 — https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide
+- Play Console Help — set up an open, closed or internal test — https://support.google.com/googleplay/android-developer/answer/9845334
+- Play Console Help — production access requirements (12 testers / 14 days) — https://support.google.com/googleplay/android-developer/answer/14151465
+- Android developer verification — https://developer.android.com/developer-verification
+- Android limited distribution account (20 devices, free) — https://developer.android.com/developer-verification/guides/limited-distribution
+- Android Developers Blog, verification rollout (2026-03) — https://android-developers.googleblog.com/2026/03/android-developer-verification-rolling-out-to-all-developers.html
+- Android Developers Blog, a new layer of security (2025-08) — https://android-developers.googleblog.com/2025/08/elevating-android-security.html
+- Firebase App Distribution docs — https://firebase.google.com/docs/app-distribution
+- Firebase App Distribution, register additional iOS devices — https://firebase.google.com/docs/app-distribution/register-additional-devices
+- Firebase pricing — https://firebase.google.com/pricing
+- Apple TestFlight — https://developer.apple.com/testflight/
+- Flutter web / WasmGC state in 2026 — https://foresightmobile.com/blog/wasmgc-and-how-this-is-a-game-changer-for-dart-and-flutter
