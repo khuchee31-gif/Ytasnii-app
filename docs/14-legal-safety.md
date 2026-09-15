@@ -593,3 +593,120 @@ with over 7 million unique email addresses» гэж бичсэн бөгөөд д
 бай» сануулга; хугацаа нь дуусдаг өрөөний код; хөөж чаддаг хөтлөгч; v1-д тогтмол найзын граф байхгүй.
 
 ---
+
+## 5. Шаардлагатай баримт бичиг — чиний гаргах ёстой бүх талбар
+
+**A. Нууцлалын бодлого** — нийтийн URL, PDF биш, засварлагдахгүй, гео-хаалтгүй, мөн монгол ба
+англи хувилбартай. Дотор нь заавал байх зүйлс:
+1. Хуулийн этгээдийн нэр (дэлгүүрийн жагсаалттай тохирсон) + шуудангийн хаяг + холбоо барих имэйл
+2. Ямар мэдээллийг ангилал тус бүрээр, хэрхэн цуглуулдаг (шууд, автоматаар, SDK-аар)
+3. Мэдээллийн төрөл тус бүрийн бүх зорилго
+4. Хуулийн үндэслэл (зөвшөөрөл / гэрээ / хууль ёсны ашиг сонирхол) ба Монголын хуулийн зөвшөөрлийн
+   жагсаалт (зорилго, хянагчийн байдал, мэдээллийн жагсаалт, хугацаа, нийтлэгдэх эсэх, хүлээн
+   авагчид, буцаах арга)
+5. Мэдээлэл хүлээн авдаг гуравдагч тал бүрийг нэрлэсэн байдлаар (аналитик, эвдрэл, зар, хостинг, TTS)
+6. Мэдээлэл Монголоос гарах эсэх, аль улс руу гарах
+7. Хүүхдийн хэсэг: доод нас, юу цуглуулдаггүй, сургууль/эцэг эхийн зөвшөөрөл, устгал
+8. Мэдээллийн төрөл тус бүрийн хадгалах хугацаа (§3.6-гийн хүснэгт)
+9. Хэрэглэгчийн эрх: хандах, засах, устгах, зөвшөөрлөө буцаах — мөн эдгээрийг **хэрхэн** хэрэгжүүлэх
+10. Аюулгүй байдлын арга хэмжээ
+11. Задралын мэдэгдлийн амлалт
+12. Бодлого өөрчлөх журам ба хүчин төгөлдөр болох огноо
+
+**B. Terms of Service** — бүртгэлийн дүрэм, доод нас, лицензийн олголт, хориглох зан үйлийн
+жагсаалт (дарамт, үзэн ядалт, бэлгийн контент, насанд хүрээгүй хүнтэй холбоо барих, платформоос
+гадуур уриалга, залилах), хэрэгжүүлэх шат, гомдол, гэрээ цуцлах, үйлчлэх хууль, маргаан шийдвэрлэх.
+
+**C. EULA** — Apple-ийн Standard EULA анхдагчаар үйлчилнэ (энэ нь External Services-ийг «to harass,
+abuse, stalk, threaten or defame any person» ашиглахыг хориглодог). Дээр нь зохисгүй контент ба
+хүчирхийлэгч хэрэглэгчид **тэвчихгүй (zero-tolerance) заалт**-тай өөрийн EULA/ToS нэмээд, ямар
+нэг UGC гарахаас өмнө апп доторх хүлээн зөвшөөрөх хаалт тавь (Play-ийн UGC бодлого үүнийг шууд
+шаарддаг).
+
+**D. Google Play Data safety маягт** — мэдээллийн төрөл тус бүрээр зарла: цуглуулдаг уу? хуваалцдаг
+уу? заавал уу сонголт уу? зорилго (App functionality / Analytics / Developer communications /
+Advertising or marketing / Fraud prevention, security and compliance / Personalization / Account
+management); дээр нь «all user data encrypted in transit» ба «users can request data deletion».
+Гуравдагч талын SDK-ийн цуглуулалт чинийх гэж тооцогдоно.
+
+**E. Apple App Privacy шошго** — төрөл бүрийг **Data Used to Track You**, **Data Linked to You**,
+**Data Not Linked to You** гэж ангил, Contact Info, Health & Fitness, Financial Info, Location,
+Sensitive Info, Contacts, User Content (Gameplay Content, Customer Support оруулаад), Browsing
+History, Identifiers (User ID, Device ID), Purchases, Usage Data, Diagnostics, Surroundings, Body,
+Other багануудаар. Зорилго: Third-Party Advertising, Developer's Advertising or Marketing,
+Analytics, Product Personalization, App Functionality, Other.
+
+**F. IARC асуулга** (Play Console → Policy → App content) — үнэгүй, ESRB/PEGI/USK/ClassInd/ACB/
+GRAC/IARC-generic-ийг нэг дор гаргана.
+
+**G. Хэрэв чат гарвал:** дэлхий даяар хүртээмжтэй URL дээр аппын нэр ба хөгжүүлэгчийг нэрлэсэн
+**CSAE стандартын хуудас**, нэр заасан **CSAE холбоо барих хүн**, апп доторх мэдээлэх механизм
+(Play Child Safety Standards). Дээр нь нийтэлсэн холбоо барих мэдээлэл (Apple 1.2).
+
+**H. Дотоод, нийтлэхгүй:** бичмэл мэдээллийн аюулгүй байдлын хөтөлбөр; бичмэл мэдээлэл хадгалах
+бодлого; боловсруулалтын үйл ажиллагааны бүртгэл; жил бүрийн задралын хариу арга хэмжээний тайлан
+(Монгол, ХЭҮК-т); `LICENSES.md`.
+
+---
+
+## 6. Код бичихээс өмнө шийдэх нээлттэй асуултууд
+
+1. **[ЗЭРЭГЛЭЛ БУУРСАН 2026-09-15]** Монголын 2023 оны 9-р сарын 11-ний Мэдээллийн аюулгүй байдлын
+   шаардлага (сервер Монголд, KHUR холболт). DLA Piper үүнийг ***эмзэг* хувийн мэдээллийн
+   хянагчид**-ыг хүлдэг гэж хэлдэг. Эмзэг ангиллын мэдээлэл цуглуулдаггүй тоглоом үүнээс гадуур
+   байх ёстой, тиймээс гадаад дахь Firebase/Supabase магадгүй зүгээр — **гэхдээ** хил дамнасан
+   шилжүүлгийн тодорхой зөвшөөрлийг авсан байх ёстой. Монгол хуульчид үлдсэн асуулт: ямар нэг
+   салбарын дүрэм үүнийг цааш өргөтгөж байгаа юу? Энэ нь хамгийн үнэтэй нээлттэй асуулт байхаа
+   больсон — одоо хичээлийн горим/COPPA-гийн асуулт (7-р зүйл) тэр байрыг эзэлж байна.
+2. Монголын мэдээллийн хууль зөвшөөрөлд **хүүхдийн насны босго** тогтоосон уу? Хоёрдогч эх
+   сурвалжаас олдсонгүй.
+3. §1.3-ын таван брэндийн барааны тэмдгийн яг байдал — `tmsearch.uspto.gov`,
+   `euipo.europa.eu/eSearch`, `branddb.wipo.int`, `ipom.gov.mn` дээр шалга.
+4. Апп доторх шат ахиулах дэлгэцэд тавих Монголын хүүхдийн тусламжийн утасны одоогийн дугаар ба
+   цагдаагийн кибер гэмт хэргийн холбоо барих мэдээлэл.
+5. Чиний TTS/дуу хоолойн нийлүүлэгчийн лиценз нь арилжааны апп дотор нийлэгжүүлсэн монгол
+   хөтлөгчийн дууг тээж түгээхийг зөвшөөрдөг эсэх.
+6. Apple Developer Program ба Google Play Console-ийн бүртгэлийн хураамж, монгол төлбөр/татварын
+   зам — **[энэ давтлагад баталгаажаагүй]**; developer.apple.com/programs ба
+   play.google.com/console/signup дээр шалга.
+7. **[ШИНЭ 2026-09-15]** Арилжааны хэрэглээний тоглоом хичээлийн горимд FTC-ийн сургуулийн
+   зөвшөөрлийн зөвлөмжид найдаж болох уу? 2025 оны COPPA-гийн нэмэлт өөрчлөлт ed-tech/сургуулийн
+   зөвшөөрлийн заалтуудыг санаатайгаар эцэслээгүй үлдээсэн тул энэ нь сургуулийн зөвшөөрлийг зөвхөн
+   сургуулийн хэрэглээ, ашиг тусын тулд, сургуулиас зөвшөөрсөн боловсролын зорилгоор цуглуулахаар
+   хязгаарладаг зөвлөмж дээр тулгуурлаж байна. Хичээлийн горимыг тэр үл хамаарах заалт **шаардахгүй**
+   ажилладаг байхаар төлөвлө (бүртгэлгүй, 13-аас доош насныхнаас хувийн мэдээлэл авахгүй).
+
+---
+
+## Эх сурвалж
+
+- Apple, App Review Guidelines — https://developer.apple.com/app-store/review/guidelines/ (2026-09-15-нд татсан)
+- Apple, App Store Connect — Age ratings reference — https://developer.apple.com/help/app-store-connect/reference/age-ratings
+- Apple, Kids Apps / parental gates — https://developer.apple.com/app-store/kids-apps/
+- Apple, App Privacy Details — https://developer.apple.com/app-store/app-privacy-details/
+- Apple, Age assurance for developers (Declared Age Range API, PermissionKit) — https://developer.apple.com/support/age-assurance/
+- Apple, Licensed Application End User License Agreement — https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+- Google Play, Families policy requirements — https://support.google.com/googleplay/android-developer/answer/9893335
+- Google Play, User Generated Content policy — https://support.google.com/googleplay/android-developer/answer/9876937
+- Google Play, Child Safety Standards policy — https://support.google.com/googleplay/android-developer/answer/14747720
+- Google Play, Data safety form — https://support.google.com/googleplay/android-developer/answer/10787469
+- Google Play, Privacy policy requirement — https://support.google.com/googleplay/android-developer/answer/13316080
+- Google Play, Content ratings / IARC — https://support.google.com/googleplay/android-developer/answer/9859655
+- Google Play Developer Policy Center — https://play.google/developer-content-policy/
+- IARC — https://www.globalratings.com/
+- PEGI, What do the labels mean — https://pegi.info/what-do-the-labels-mean
+- ESRB Ratings Guide (Interactive Elements) — https://www.esrb.org/ratings-guide/
+- US Copyright Office, Circular 33 «Works Not Protected by Copyright» — https://www.copyright.gov/circs/circ33.pdf (бүрэн бичвэрийг 2026-09-15-нд гаргаж шалгасан; тоглоом ба тоглоомын дүрмийн тухай ямар ч дурдлага байхгүй)
+- 17 U.S.C. § 102(b) ба 37 CFR 202.1(b) — «тоглоомын дүрэм хамгаалагдахгүй» гэдгийн жинхэнэ эрх зүйн үндэслэл
+- FTC, Complying with COPPA: Frequently Asked Questions (COPPA and Schools оруулаад) — https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions
+- COPPA Rule final amendments, Federal Register doc 2025-05904, 2025-04-22-нд нийтлэгдсэн — 2025-06-23-нд хүчин төгөлдөр, нийцлийн огноо 2026-04-22 — https://www.govinfo.gov/content/pkg/FR-2025-04-22/html/2025-05904.htm
+- GDPR Article 8 — https://gdpr-info.eu/art-8-gdpr/
+- Digital Services Act Article 28 (Online protection of minors) — https://www.eu-digital-services-act.com/Digital_Services_Act_Article_28.html
+- DLA Piper, Data Protection Laws of the World — Mongolia (хууль, шилжүүлэг, цуглуулалт ба боловсруулалт) — https://www.dlapiperdataprotection.com/index.html?t=law&c=MN
+- Innersloth Fan Creation Policy — https://www.innersloth.com/fan-creation-policy/
+- Innersloth legal index — https://www.innersloth.com/
+- The Pandemonium Institute, Community Created Content Policy — https://bloodontheclocktower.com/pages/community-created-content-policy
+- Wikipedia, Mafia (party game) — https://en.wikipedia.org/wiki/Mafia_(party_game)
+- NCMEC CyberTipline data (2025) — https://www.missingkids.org/gethelpnow/cybertipline/cybertiplinedata
+- Have I Been Pwned breach API (BlankMediaGames, Animal Jam) — https://haveibeenpwned.com/api/v3/breaches
+- Монгол Улсын Оюуны өмчийн газар — https://www.ipom.gov.mn/
