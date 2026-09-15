@@ -534,3 +534,185 @@ device is in Doze mode»*; high priority нь шуурхай хүргэхийг 
 5. Зөвхөн дараа нь: push.
 
 ---
+
+## 7. Хадгалалт ба ликвидити — асинхрон нь бодит цагийн онлайноос дээгүүр орох уу?
+
+### 7.1 Ликвидитийн шал (шударга загвар)
+
+05 §5-ын 4 дэх зүйл нь нимгэн ликвидитийг *«хаана ч шийдэгдээгүй асуудал»* гэж тодорхойлсон, үлдсэн
+нотолгоо нь Steam-ийн урт сүүл — нийгмийн таамаглалын долоон PvP тоглоомоос тав нь 200-аас доош
+зэрэг тоглогчтой. Асинхрон бол энэ дүгнэлт дэх түүн рүү дайрдаг цорын ганц механизм. **Дараах загвар
+нь минийх; таамаглал бүрийг бичсэн.** **[тооцоолол]**
+
+**Юу гэсэн үг вэ?** *Ликвидити* гэдэг нь «тоглоом эхлүүлэхэд хангалттай хүн байгаа эсэх». Хүн цөөн
+байвал хүлээх дараалалд гацна. *MAU* = сард идэвхтэй хэрэглэгч, *DAU* = өдөрт идэвхтэй хэрэглэгч.
+
+*Синхрон:* тоглоом зөвхөн `P` тоглогч нэг богино цонхонд тааруулалтын санд байвал эхэлнэ.
+
+```
+E[concurrent] = DAU x (session_minutes_per_day / 1440)
+Required:       E[concurrent] >= k x P
+```
+
+`P = 12`, аюулгүйн коэффициент `k = 2` (бүс нутаг/тохиргоо/чадварын хуваалт), `session = 30 мин/өдөр`,
+наалдац `DAU/MAU = 20%` (07 §4.1-ийн өөрийнх нь таамаг) байхад:
+
+```
+0.20 x MAU x (30/1440) >= 24   ->   MAU >= 5,760
+```
+
+*Асинхрон:* `P` тоглогч тус бүр олон цагийн цонхонд **нэг удаа** бүртгүүлбэл тоглоом үргэлжилнэ.
+
+```
+Required: DAU x r >= P,   r = per-phase response rate
+```
+
+`r = 0.7` (бие биенээ мэддэг, мэдэгдэл авдаг, нийгмийн хариуцлагатай найзуудын анги) ба `P = 12`
+байхад:
+
+```
+DAU >= 17   ->   MAU >= 86 at 20% stickiness
+```
+
+| | Синхрон онлайн | Асинхрон |
+|---|---|---|
+| Зохицуулалтын цонх | ~2–3 мин | 180–240 мин |
+| 12 тоглогчийн тоглоом *найдвартай* эхлэхэд шаардагдах MAU | **~5,760** | **~86** |
+| Харьцаа | — | **~67 дахин бага** |
+| Хатуу доод хязгаар (нэг анги, танихгүй хүнгүй) | зэрэг онлайн 12 хүн | **утастай 12 хүн** |
+
+Хатуу доод хязгаарын мөр л хамгийн чухал. **Асинхрон горим нь 12 хэрэглэгчтэй ганц анги, тэг
+маркетингаар эхний өдрөөсөө ажиллана.** Синхрон онлайн горим нь апп Монголд хэдэн мянган MAU-тай
+болтол огт ажиллахгүй — энэ бол 05 §5-ын 4 дэх зүйлд «хэн ч шийдээгүй» гэсэн тахиа-өндөгний асуудал.
+
+### 7.2 Нэг суулгацад ногдох оролцоо
+
+| Хэмжүүр | Mode A (офлайн) | Mode B (синхрон онлайн) | **Mode C (асинхрон)** |
+|---|---|---|---|
+| Нэг тоглоомд ногдох оролцооны хоногууд | 1 орой | ~40 мин | **4–6 хоног** |
+| Тоглогч тутамд нэг тоглоомд апп нээх тоо | 1 (зөвхөн хөтлөгч) | 1 | **~20–30** (≈5/өдөр × 5 хоног) |
+| Апп мэдэгдэл илгээх хууль ёсны шалтгаантай хоног | 0 | 0 | **тоглоом тутамд 4–6** |
+| Бусад хүмүүс *яг одоо* онлайн байхыг шаардах уу | үгүй | **тийм** | үгүй |
+| Дуу хоолой (09) шаардах уу | үгүй | бараг тийм | **үгүй** |
+| Серверийн өртөг | $0 | 07 §4.2-ын загвар | **~$5/сар** ~100 тоглоом хүртэл (§5.2) |
+
+> ⚠️ **Миний угаахгүй нэхэмжлэл.** Маркетингийн блог (wayline.io) нь *«a 30% increase in player
+> retention for asynchronous games compared to synchronous ones over a six-month period»* гэж
+> баталсан ч ямар ч судалгаа иш татаагүй. Skillz-ийн нийтлэл ч мөн адил чиглэлийн нэхэмжлэлийг
+> өгөгдөлгүй хийсэн. **Аль ч тоог энэ дүгнэлтэд бүү оруул.** Дээрх бүтцийн аргумент — суулгац тутмын
+> нээлт, ба ликвидитийн шал — эдгээргүйгээр зогсож байна.
+
+> **Баталгаажуулалт (2026-09-15):** «30% хадгалалтын өсөлт» гэсэн тоог **татгалзсан**. Эх сурвалж нь
+> иш татаагүй маркетингийн блог: https://www.wayline.io/blog/asynchronous-multiplayer-reclaiming-time-mobile-gaming
+> Мөн https://www.skillz.com/news/competitive-multiplayer-mobile-games-synchronous-vs-asynchronous/
+> **Хэрхэн шалгах вэ:** эдгээр тоог хэрэглэхийн өмнө үе тэнгийн хяналттай судалгаа (peer-reviewed)
+> эсвэл өөрийн аналитик өгөгдөл шаардлагатай. Одоохондоо бүү дурд.
+
+### 7.3 Барих дарааллын зөвлөмж
+
+05 §6 одоогоор ингэж эрэмбэлсэн: Mode A эхлээд → нэг өрөөнд олон утас v1.1 → Mode B онлайн (найзын
+өрөө, глобал тааруулалтгүй). **Асинхроныг Mode C болгож, Mode B-ээс өмнө оруул:**
+
+| № | Горим | Яагаад энд байна вэ |
+|---|---|---|
+| 1 | **Mode A** — офлайн, нэг утас, картаа дамжуулах | 05 §6.1-ээс өөрчлөгдөөгүй. Монголд өрсөлдөгчгүй, сервергүй, ликвидитигүй |
+| 2 | **Нэг өрөөнд олон утас** (v1.1) | 05 §6.3-аас өөрчлөгдөөгүй. Хамгийн чанга нотлогдсон хангагдаагүй хүсэлт; жижиг |
+| 3 | **→ Mode C — асинхрон ангийн тоглоом ←** | **шинэ.** ~17–26 хөгжүүлэлтийн өдөр. Хөдөлгүүрийн тэг өөрчлөлт. ~$5/сар. 5,760 биш, 12 хэрэглэгч хэрэгтэй. Тоглоом тутамд 4–6 хоногийн оролцоо үүсгэнэ. Дуут чат шаардахгүй. 05 §5-ын 4 дэх зүйлийн хариулт |
+| 4 | Mode B — бодит цагийн онлайн, найзын өрөө | зөвхөн Mode C тааруулах хэрэглэгчийн бааз байгааг нотолсны дараа |
+| 5 | Глобал тааруулалт / зэрэглэлтэй тоглолт | одоо ч гэсэн «DAU > ~2,000 болтол үгүй» (05 §6.7) |
+
+Mode C-г #3-т тавих гурван нэмэлт аргумент:
+
+- **Энэ нь Mode A-ийн бүх хөдөлгүүрийг дахин ашиглана.** 1–3-р алхмууд бүгд ижил цэвэр `resolveNight`
+  функцийг ажиллуулна. Шинэ ажиллах загвар шаардах анхных нь 4-р алхам.
+- **Энэ бол хуулийн хувьд хамгийн аюулгүй горим.** Танихгүй хүнтэй чатгүй, зөвхөн урилгаар ордог
+  ангийн өрөөнүүд нь 16-аас доош насны сошиал сүлжээний бүртгэлийн хуулийн төслийн (2026-03-11-нд
+  танилцуулсан, Засгийн газраас засварлахаар буцаасан, **төлөв: төсөл**) ямар ч боломжит тайлалд
+  хамаарахгүй. Харин нээлттэй чаттай глобал тааруулалт хамаарна.
+- **Энэ бол 2026 оны хоригийг даван гарах горим.** Хэрэв ангиуд Facebook группээ алдвал (§1.1), энэ
+  аппын үйлчилдэг нүүр тулсан нийгмийн зан үйл *илүү* төвлөрнө, багасахгүй. ⚠️ **Аппыг хориглосон
+  сургуулийн харилцааны сувгийн орлуулагч гэж бүү сурталчил** — тийм байр суурь нь урилгаар ордог
+  дизайн яг зайлсхийхийг зорьж буй зохицуулалтын анхаарлыг татна.
+
+---
+
+## 8. Нээлттэй асуулт ба эрсдэл
+
+| № | Эрсдэл | Ноцтой байдал | Бууруулах арга / дараагийн алхам |
+|---|---|---|---|
+| 1 | **Гадуур хуйвалдаан.** Анги өдөржин хамт суудаг; нуугдмал мэдээллийг зүгээр л амаар хэлж болно. | **Өндөр — бүтцийн** | Хэсэгчлэн давуу тал: нүүр тулсан өдрийн үе шат *өөрөө* тоглоом мөн. Гэхдээ **шөнө** хувийн хэвээр байх ёстой. §4.1-ийн далдлах хөдөлгөөн, 12 §5-ын дараад-барих илчлэлт, бас UI дээр гаргасан гэрийн дүрмээр бууруул: *«Шөнийн үйлдлээ хэнд ч бүү үзүүл.»* Техникээр шийдэгдэхгүй; шийдэгдсэн дүр бүү үзүүл |
+| 2 | **Нэг хаясан хүн таван өдрийг сүйтгэнэ.** | Өндөр | §3.2-ын орлуулах урсгал, дээр нь тоглоом үүсгэхэд «орлох сандал» (2 нөөц ангийн хүүхэд) |
+| 3 | 2026 оны хоригийн **жинхэнэ тушаалын бичвэр** харагдаагүй; гурван эх сурвалж бүгд сэтгүүл зүй, хэн гаргасан дээр зөрчилдөж байна | Дунд | Хэн нэгэн тушаалыг `moe.gov.mn` / `legalinfo.mn`-ээс олох ёстой. Тэр хүртэл §1.1-ийн дүгнэлт хоёр нийцтэй хоёрдогч тайлалд тулгуурлана |
+| 4 | mafiascum-ын үе шатны уртын тоо нь **хайлтын индексийн хэсэгт** тулгуурладаг; wiki нь Cloudflare-ээр хаагдсан (2026-09-15-нд WebFetch *бас* curl-ээр дахин батлагдсан) | Бага | Манай тохиргоонууд mafiascum-аас биш, сургуулийн цагийн хуваариас гарсан; тэр хэсэг бол баталгаа, суурь биш |
+| 5 | iOS-ийн `timeSensitive` эрхийн шаардлага OneSignal/Batch ба Apple-ийн татагдахгүй баримт бичгийн хооронд **маргаантай** | Бага | `timeSensitive`-аас бүү хамаар. §6.2-ын бүх push-д `active` хангалттай |
+| 6 | Мэдэгдлийн зөвшөөрөл татгалзсан → тоглогч тоглоомын гогцоонд үл үзэгдэх болно | Дунд | §6.5-ын таван давхар сэлгээ зам; виджет нь гол нь |
+| 7 | 13-15/16-17 гэж мэдүүлэх нь заасан үзэгчид байгаа 12 настнуудыг хасна | Дунд | Хүлээж ав. 9-12 бүсэд орох нь Families Policy-г **Mode A-г оруулаад** бүх апп дээр идэвхжүүлнэ. Аналитик 13-аас доош насны бодит бүлэг байгааг харуулсан үед л дахин үз |
+| 8 | DO сэрүүлгийн **дээд хугацааны хязгаар баримтжуулагдаагүй** — 17 цагийн сэрүүлэг ажиллана гэж таамагласан | Бага | Ганц урт сэрүүлгээс хамаарахаас өмнө туршилтаар шалга; аюулгүй сэлгээ зам нь 1 цагийн зүрхний цохилт сэрүүлэг — өөрийгөө дахин зэвсэглээд `phaseEndsAt`-ыг шалгана |
+
+---
+
+## 9. Энэ бүлгийг төслийн үндсэн шийдвэрүүдтэй уях
+
+Энэ бүлэг өмнөх шийдвэрүүдийг зөрчихгүй, харин тэдгээрийн дээр давхарлана:
+
+| Төслийн шийдвэр | Асинхрон горимд яаж таарч байна |
+|---|---|
+| Эхлээд **офлайн горим** (нэг утас ширээгээр дамжина) | Хэвээрээ. Асинхрон бол **Mode C**, офлайны дараа, онлайны өмнө. Офлайн горимын `resolveNight` цэвэр функцийг яг тэр хэвээр нь ашиглана |
+| Дүрмийн суурь нь **оросын «спорт мафи»** салаа | Хэвээрээ. Дугаарласан суудал, танилцах шөнө, ээлжит үг хэлэх нь зарлалын самбар дээр бүр ч сайн ажиллана — ээлжит үг нь бичвэр болно |
+| **Шөнө эхэлдэг**, мафи M ≥ T үед хождог | Хэвээрээ. §2.1-ийн мөчлөг `NIGHT` -ээс эхэлж байна |
+| Монгол **хөтлөгчийн дуу хоолойг урьдчилан бичсэн** | Хэвээрээ, гэхдээ асинхронд хоолой нь зөвхөн апп нээхэд л тоглоно (мэдэгдэл дотор биш) |
+| Клиент: **Flutter**, локал P2P хийхгүй | Хэвээрээ. Асинхрон нь HTTPS `GET`/`POST` дээр ажиллана — P2P-ийн iOS 8 төхөөрөмжийн хязгаар энд огт хамаарахгүй |
+| **Онлайн горим нь хожим нэмэгдэх сонголт** | Асинхрон нь өрөөний кодоор нэгддэг тэр л замыг ашиглана, гэхдээ socket биш |
+| Мөнгөжүүлэлт: Android дээр **апп доторх худалдан авалт боломжгүй** | Хэвээрээ. Асинхрон горим нь мөнгөжүүлэлтийг өөрчлөхгүй — зар + гадуур QPay веб дэлгүүр, iOS дээр StoreKit |
+| **Мэдээлэл болон тоглоомын давуу талыг хэзээ ч зарахгүй** | §6.1–§6.4 бол энэ зарчмын хамгийн хатуу хэрэгжүүлэлт. Мэдэгдэл ч давуу тал зарахгүй |
+| **13+ нас**, танихгүй хүнтэй чат v1-д байхгүй | Хэвээрээ, бас §1.3-аар бэхжсэн: Play дээр зөвхөн 13-15 / 16-17 / 18+ гэж мэдүүлнэ |
+| Үндсэн сэдэв **«Улаанбаатар ноар»** | Хэвээрээ. «Шөнө боллоо. Хот унтлаа.» гэсэн мэдэгдлийн бичвэр яг тэр сэдэвт тохирно |
+
+---
+
+## Эх сурвалж
+
+**Монгол — сургуулийн дүрэм ба хууль**
+- Xinhua, "Mongolia to ban social media use in schools", 2026-08-20 — https://english.news.cn/20260820/d1b603739999404db5e65140f14351ba/c.html
+- urug.mn (монгол хэл), "Энэ хичээлийн жилээс сургуулиуд фэйсбүүк болон цахим платформыг сургалтын үйл ажиллагаанд ашиглахыг хориглолоо" — https://urug.mn/238517/
+- AzerNews, "Mongolia ban social media in schools", 2026-08-20 (06 §7-д иш татсан эх сурвалж) — https://www.azernews.az/region/262645.html
+- BERNAMA, "Mongolia To Ban Social Media Use In Schools" — https://www.bernama.com/en/world/news.php?id=2597119
+- **legalinfo.mn — Засгийн газрын 276 дугаар тогтоол, 2018-09-05, "СУРГАЛТЫН ОРЧИНД АВАХ АРГА ХЭМЖЭЭНИЙ ТУХАЙ"** (анхдагч бичвэр) — https://legalinfo.mn/mn/detail?lawId=13638
+- peak.mn, 21:00 гэр бүлийн төхөөрөмжийн зөвлөмж (хоёрдогч; 21:00-ийн заалт 276 тогтоолд ОЛДООГҮЙ) — https://www.peak.mn/news/21-tsagaas-khoish-ger-buleeree-ukhaalag-gar-utas-tsakhim-kheregsel-ashiglakhgui-baikhiig-uriallaa
+- gogo.mn, "Mongolia considers law restricting social media registration for minors under 16" (төсөл, 2026-03-11-нд танилцуулсан) — https://mongolia.gogo.mn/r/vmxxk
+- The Diplomat, "Mongolia Badly Needs Education Reform", 2025-11 (ангийн хэмжээ, олон ээлжийн сургалт) — https://thediplomat.com/2025/11/mongolia-badly-needs-education-reform/
+- Asian Development Bank, "ADB Expands Access to Quality Education in Mongolia" ($130 сая, 33 байгууламж) — https://www.adb.org/news/adb-expands-access-quality-education-mongolia
+- The UB Post, "School holiday schedule announced" — https://www.ubpost.mn/a/13341
+
+**Апп дэлгүүрийн бодлого (анхдагч)**
+- Apple App Review Guidelines — 4.5.4 Push Notifications, 1.3 Kids Category, 2.3.8, 5.1.4 — https://developer.apple.com/app-store/review/guidelines/
+- Google Play Families Policies — https://support.google.com/googleplay/android-developer/answer/9893335?hl=en
+- Google Play target audience and content / age bands — https://support.google.com/googleplay/android-developer/answer/9285070?hl=en
+- Preview: Google Play Families Policies — https://support.google.com/googleplay/android-developer/answer/17122218
+- App Store Review Guidelines History — 2020-03-04 push notification marketing change — https://www.appstorereviewguidelineshistory.com/articles/2020-03-04-push-notifications-marketing-and-more/
+
+**Мэдэгдлийн платформын механик (анхдагч)**
+- Android — Notification runtime permission (`POST_NOTIFICATIONS`, API 33) — https://developer.android.com/develop/ui/views/notifications/notification-permission
+- FCM — Set and manage Android message priority (high vs normal, Doze, deprioritisation) — https://firebase.google.com/docs/cloud-messaging/android-message-priority
+- FCM — Understanding message delivery — https://firebase.google.com/docs/cloud-messaging/understand-delivery
+- FCM — Non-collapsible and collapsible messages (20-burst / 3 минут тутамд 1 / 4 түлхүүр / 100 хадгалагдана) — https://firebase.google.com/docs/cloud-messaging/customize-messages/collapsible-message-types
+- FCM — Message lifespan (TTL) — https://firebase.google.com/docs/cloud-messaging/customize-messages/setting-message-lifespan
+- FCM — Throttling and quotas — https://firebase.google.com/docs/cloud-messaging/throttling-and-quotas
+- Apple — UNNotificationInterruptionLevel (⚠️ JS-ээр зурагддаг, 2026-09-15-нд татагдсангүй) — https://developer.apple.com/documentation/usernotifications/unnotificationinterruptionlevel
+- Apple WWDC21-10091, "Send communication and Time Sensitive notifications" — https://developer.apple.com/videos/play/wwdc2021/10091/
+- OneSignal — iOS Focus modes and interruption levels (хоёрдогч; эрхийн нэхэмжлэл маргаантай) — https://documentation.onesignal.com/docs/en/ios-focus-modes-and-interruption-levels
+- Batch — Understanding and managing iOS 15 time-sensitive interruption level (хоёрдогч) — https://help.batch.com/en/articles/5543431-understanding-and-managing-ios-15-time-sensitive-interruption-level
+
+**Backend (анхдагч)**
+- Cloudflare Durable Objects — Alarms API (at-least-once, 2 сек backoff, 6 дахин оролдлого, объект тутамд нэг сэрүүлэг) — https://developers.cloudflare.com/durable-objects/api/alarms/
+- Cloudflare Durable Objects — Pricing ($0.15/сая хүсэлт, 1 сая багтсан; $12.50/сая GB-s, 400k багтсан; сул зогсолт + hibernation-д тохирсон бол үргэлжлэх хугацааны төлбөргүй) — https://developers.cloudflare.com/durable-objects/platform/pricing/
+
+**Play-by-post уламжлал**
+- MafiaWiki — Normal Game (⚠️ WebFetch болон browser UA-тай curl хоёуланд нь HTTP 403, 2026-09-15; үе шатны уртын тоо нь зөвхөн хайлтын индексийн хэсгээс) — https://wiki.mafiascum.net/index.php?title=Normal_Game
+- MafiaWiki — Deadline (⚠️ мөн ижил 403) — https://wiki.mafiascum.net/index.php?title=Deadline
+- Mafiascum forum — "Modkilling Inactives" (modkill биш, орлуул) — https://forum.mafiascum.net/viewtopic.php?f=5&t=15383
+- Mafiascum forum — Micro 322 (тоглоом тус бүрийн prod/орлуулах дүрмийн жишээ) — https://forum.mafiascum.net/viewtopic.php?f=84&t=46314
+
+**Асинхрон хадгалалтын нэхэмжлэл (⚠️ маркетингийн эх сурвалж, тоог АШИГЛААГҮЙ)**
+- Skillz — "Competitive Multiplayer Mobile Games: Synchronous vs. Asynchronous" — https://www.skillz.com/news/competitive-multiplayer-mobile-games-synchronous-vs-asynchronous/
+- Wayline — "Asynchronous Multiplayer: Reclaiming Time in Mobile Gaming" (иш татаагүй "30%" тооны эх сурвалж — татгалзсан) — https://www.wayline.io/blog/asynchronous-multiplayer-reclaiming-time-mobile-gaming
