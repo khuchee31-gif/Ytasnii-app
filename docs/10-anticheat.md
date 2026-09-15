@@ -376,3 +376,35 @@ flag if lift > 20 AND winrate(A | B present) - winrate(A | B absent) > 0.25
 **Илэрхий бүү бүтээ:** mental poker-ийн картын протокол; kernel түвшний анти-чит (мобайл дээр боломжгүй); IP хориг; бүртгэлд заавал SMS (Монголд $0.16/SMS); нэг өрөөнд байгааг илрүүлэхийн тулд BLE-ээр үнэрлэх; чөлөөт текстэн гомдлын модерац.
 
 ---
+
+## Эх сурвалж
+
+- Town of Salem-ийн албан ёсны дүрэм ба шийтгэлийн шатлал — https://www.blankmediagames.com/rules/ (2026-09-15-нд татав)
+- Town of Salem-ийн Steam Community хэлэлцүүлэг (хууран мэхлэлт/gamethrowing-ийн идэвхтэй thread-үүд, 2026 оны 7–9 сар) — https://steamcommunity.com/app/334230/discussions/
+- Among Us — хакерын халдлага, яаралтай серверийн шинэчлэл, данс ба QuickChat-ийн он дараалал — https://en.wikipedia.org/wiki/Among_Us
+- Discord Community Guidelines (чит #24, данс худалдах #16, хоригоос зугтах #19, CAPTCHA тайлах/данс үүсгэх хэрэгсэл #13; 2025-09-29-наас хүчинтэй) — https://discord.com/guidelines. **13+ насны доод хязгаар нь Terms of Service дотор** байдаг, эдгээр Guidelines дотор биш.
+- Онлайн тоглоом дахь хууран мэхлэлт — ангилал ба эсрэг арга хэмжээ — https://en.wikipedia.org/wiki/Cheating_in_online_games (2026-09-15-нд татав).
+
+> **Баталгаажуулалт (2026-09-15):** Энэ өгүүлэлд *smurfing*, *win trading*, *replay* гэсэн үг **байхгүй**, мөн *server-side fog of war* нь түүний эсрэг арга хэмжээний нэг биш. Бодит «Unsporting play» хэсгүүд нь: Boosting, Disconnecting, Macros, Exploits, Farming, Twinking, Ghosting, Stacking, Scripting, «Shadow» PC. Бодит эсрэг арга хэмжээний хэсгүүд нь: **Authoritative and mirrored server design, Software obfuscation, Player supervision, Anomaly detection, Pattern detection, Sandboxing**. Boosting-ийг тэнд «the primary account will be allowed to win… those players agreeing to lose» гэсэн олон дансны үйлдэл гэж тодорхойлсон — энэ нь өөр нэрээр илэрхийлэгдсэн ялалт солилцох зан үйл юм. Бусад нэр томьёог өөр эх сурвалжид хамааруулах, эсвэл огт бүү хэрэглэ. Эх сурвалж: https://en.wikipedia.org/wiki/Cheating_in_online_games
+
+- Мафи (үдэшлэгийн тоглоом) — хөтлөгчийн үүрэг, шөнийн үе шат, нуугдмал харах — https://en.wikipedia.org/wiki/Mafia_(party_game)
+- Google Play Integrity API-ийн тойм — https://developer.android.com/google/play/integrity/overview
+- Google Play Integrity API-ийн тохиргоо, квот (10,000/өдөр), classic vs standard — https://developer.android.com/google/play/integrity/setup
+- Firebase App Check — https://firebase.google.com/docs/app-check
+- Apple DeviceCheck ба App Attest — https://developer.apple.com/documentation/devicecheck
+- Apple `UIScreen.isCaptured` / дэлгэцийн зургийн мэдэгдэл — https://developer.apple.com/documentation/uikit/uiscreen/iscaptured
+- Android `FLAG_SECURE` — https://developer.android.com/reference/android/view/WindowManager.LayoutParams#FLAG_SECURE
+- Android-ийн давтагдашгүй танигчийн шилдэг туршлага (AAID, App Set ID, FID; IMEI/MAC-ийн хязгаарлалт) — https://developer.android.com/training/articles/user-data-ids
+- Google Play Families / Designed for Families бодлого (хүүхэд ба насыг нь мэдэхгүй хэрэглэгчийн танигчийн хориг) — https://support.google.com/googleplay/android-developer/answer/9893335
+- Google Play-ийн Device and Network Abuse бодлого (тоглоомын чит апп) — https://support.google.com/googleplay/android-developer/answer/9888379
+- Apple App Store Review Guidelines (5.1.1(v), 4.8, 1.3, 5.1.4) — https://developer.apple.com/app-store/review/guidelines/
+- Firebase-ийн үнэ (Spark/Blaze түвшин) — https://firebase.google.com/pricing (2026-09-15-нд татав). **Залруулга:** өмнөх ноорогт иш татсан «page generated 2026-09-02» гэсэн тэмдэг хуудсан дээр байхгүй; түүнийг бүү иш тат. Cloud Functions нь зөвхөн Blaze; Spark дээрх RTDB-ийн татаж авах эрх сард 10 GB.
+- Google Cloud Identity Platform-ийн үнэ — https://cloud.google.com/identity-platform/pricing (2026-09-15-нд үгчлэн дахин баталгаажуулав: *«The first ten SMS that you send per day are not billed»*, үнэ нь *«per SMS sent»*; **Монгол (MN) $0.16**, **АНУ (US) $0.01**; MAU түвшин 0–50 мянга үнэгүй, 50–100 мянга $0.0055, 100 мянга–1 сая $0.0046, 1–10 сая $0.0032, 10 сая+ $0.0025). Энэ мэдэгдэл шалгалтыг өөрчлөлтгүй давсан.
+- reCAPTCHA-гийн үнэ (Essentials үнэгүй сард 10 мянга, **байгууллага тутамд**; Premium 10–100 мянгад $8 тогтмол, түүнээс дээш 1,000 тутамд $1; Enterprise 12 сарын амлалт) — https://cloud.google.com/security/products/recaptcha (2026-09-15-нд татав). **Мобайл SDK нь Premium ба Enterprise дээр дэмжигддэг**, үнэгүй түвшинд биш — reCAPTCHA бол зөвхөн вебийнх биш.
+- Colyseus-ийн Schema ба StateView, клиент тус бүрийн шүүлт — https://docs.colyseus.io/state/schema/ · https://docs.colyseus.io/state/view/
+- Commitment scheme (hiding/binding, H(nonce‖msg), зоос шидэх) — https://en.wikipedia.org/wiki/Commitment_scheme
+- Fisher–Yates холилт, modulo-ийн хазайлт, seed-тэй PRNG-ийн төлвийн хэмжээ — https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+- Mental poker (SRA коммутатив шифрлэлт, хэрэгжих боломжгүй байдал) — https://en.wikipedia.org/wiki/Mental_poker
+- drand тархсан санамсаргүй байдлын beacon — https://drand.love/docs/concepts/ · сүлжээний шууд мэдээлэл https://api.drand.sh/v2/beacons/quicknet/info (2026-09-15-нд дахин татав; `period` 3, `genesis_time` 1692803367, `hash` 52db9ba7…e971, `schemeID` bls-unchained-g1-rfc9380 — дөрвөүлээ байт байтаараа таарсан)
+- Google Nearby Connections API-ийн тойм ба стратеги — https://developers.google.com/nearby/connections/overview · https://developers.google.com/nearby/connections/strategies (2026-09-15-нд татав; ~100 м радио хүрээ ба Bytes ≤32k үгчлэн батлагдсан; баримт бичиг мультиплэер тоглоомд Star биш **Cluster**-ийг зөвлөдөг; стратегийн хуудас сүүлд 2025-08-12-нд шинэчлэгдсэн)
+- OWASP MASVS-NETWORK-1 / MASVS-RESILIENCE — https://mas.owasp.org/MASVS/controls/MASVS-NETWORK-1/

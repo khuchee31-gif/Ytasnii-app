@@ -352,3 +352,104 @@ Flutter 3.47+                    # stable суваг, Impeller; SDK-тай ха�
 - CI дотор framework-ийн яг хувилбарыг тогтоо (pin); Flutter, RN хоёул 2026 онд эвдрэлтэй хувилбар гаргасан.
 
 ---
+
+## 10. Тэгээс дэлгүүр хүртэлх шалгах хуудас
+
+**0-р үе шат — код бичихээс өмнө (0 дэх долоо хоног)**
+- [ ] Монголын банкны данс Google Payments profile **ба** App Store Connect дээр хүлээн зөвшөөрөгдөж байгааг батал (§8.1).
+- [ ] Ангид зориулж **үнэгүй Android хязгаарлагдмал тархалтын данс** (хураамжгүй, ID шаардахгүй, 20 төхөөрөмж) бүртгүүл.
+- [ ] Package id-г `mn.<name>.mafia` гэж тогтоо — үүнийг хэзээ ч өөрчилж болохгүй. Домэйн + `support@` шуудан бүртгүүл.
+
+**1-р үе шат — бүтээх (1–8 дахь долоо хоног)**
+- [ ] Flutter төсөл: `minSdk 24`, `compileSdk 36`, `targetSdk 36`.
+- [ ] **cyrillic + cyrillic-ext** хамарсан кирилл фонтуудыг суулга; `ӨГЛӨӨ` / `ҮЙЛДЭЛ` дээр golden тест.
+- [ ] Утсаа дамжуулах бүрэн тоглоом: дүр хуваарилах, шөнө, Эмч, Мөрдөгч, өдрийн санал хураалт, ялалт тодорхойлох.
+- [ ] Монгол хөтлөгчийн дуу бичлэг хий (Opus mono 24–32 kbps); дэлгэц унтарсан үед тоглогдож байгааг шалга.
+- [ ] Бодит Redmi зэрэглэлийн Android **ба** iPhone дээр profile хий (`flutter run --profile`).
+
+**2-р үе шат — дэлгүүрийн данснууд (4–6 дахь долоо хоног, зэрэгцээ)**
+- [ ] Play-ийн бүртгэлд **$25** төл + төрийн үнэмлэхээр баталгаажуул (2–5 ажлын өдөр тооц).
+- [ ] Apple-д **жилд $99** төл; Paid Apps гэрээг хүлээн ав; **Small Business Program (15 %)-д бүртгүүл**.
+- [ ] Play-ийн IARC асуумж ба Apple-ийн шинэчилсэн насны зэрэглэлийн асуумжийг бөглө (13+/16+ хүлээ).
+- [ ] Нууцлалын бодлого + Play-ийн **Data safety** + Apple-ийн **Privacy Nutrition Labels**, монгол *ба* англи хэлээр.
+
+**3-р үе шат — хаалттай тест (8–10 дахь долоо хоног)**
+- [ ] Гарын үсэгтэй AAB (Play App Signing)-г **closed** track руу, **API 36** зорьсон байдлаар.
+- [ ] 12 нь тасралтгүй 14 хоног үлдэхээр **16–18** тестер элсүүл; өдөр бүр бүртгэлийг хянаж, бодит хэрэглээг өдөөж бай.
+- [ ] 15 дахь өдөр: production эрх хүс (шалгалт ихэвчлэн ≤7 хоног).
+
+**4-р үе шат — илгээлт (10–12 дахь долоо хоног)**
+- [ ] Эхлээд **mn-MN** дээр жагсаалт, дараа нь en-US / ru-RU, бодит монгол дэлгэцийн зурагтай.
+- [ ] Apple: демо данс, англи хэл дээрх шалгагчид зориулсан тэмдэглэл, нэг шалгагч тоглолтоо дуусгаж чадах ботуудтай зам.
+- [ ] Хэрэв чат гарах бол: шүүлтүүр + мэдээлэх + блоклох + холбоо барих мэдээлэл ажиллаж, үзүүлж болохуйц байх (Guideline 1.2).
+- [ ] Crashlytics + analytics-ыг гарахаас **өмнө** холбо; App Bundle Explorer дотор бодит татах хэмжээг шалга.
+
+**5-р үе шат — үргэлжлэх ажил**
+- [ ] Жил бүрийн сануулга: **8-р сар бүр target API-г ахиулах** (2026-08-31 гэхэд API 36; 2027 оны 8-р сард API 37 хүлээ).
+- [ ] 2027 онд **Android-ын хөгжүүлэгчийн баталгаажуулалтын** дэлхийн тархалтыг хянаж бай (Play-ээс гадуурх тархалтад нөлөөлнө).
+- [ ] Small Business Program-д хамрагдах эрхээ 1-р сар бүр дахин батал.
+
+---
+
+## 11. Эрсдэлүүд
+
+1. **Төлбөр гацах (хамгийн өндөр).** Худалдаачин бүртгэл дэмжигддэг ч wire transfer-ийн жагсаалтад Монгол байхгүй. Хуулийн этгээдийн тойрог зам эсвэл зөвхөн зарын мөнгөжүүлэлт рүү хүчээр түлхэж болзошгүй. **0 дэх долоо хоногт шалга.**
+2. **Платформын буруу таамаг.** Хэрэв Монголд iOS үнэхээр 30–45 % бол зөвхөн Android-ын төлөвлөгөө зах зээлийг хагасаар нь хасна.
+3. **12 тестерийн дүрэм бол хатуу 14 хоногийн календарын саад** — шинэ хувийн Play дансанд алгасах боломжгүй.
+4. **Apple-ийн Guideline 1.2** — шүүлтүүр/мэдээлэх/блоклохгүй чатын улмаас татгалзвал 1–2 шалгалтын мөчлөг алдана.
+5. **Flutter-ийн Material → `material_ui` шилжилт.** «12 сар»-аас эрт: framework доторх хуулбарууд **2026 оны 11-р сарын stable хувилбарт албан ёсоор хуучирна** (Flutter 3.47 блог). Refactor-ыг ирэх жил гэж биш, дараагийн хоёр хувилбарын мөчлөгт төсөвлө.
+6. **Арын дэвсгэрийн дууны OEM хэлбэлзэл** — Xiaomi/Huawei-ийн батарейн менежер дээр; зах зээл дээрх бодит төхөөрөмж дээр тест.
+7. **Монгол TTS-ийн чанар** хөтлөгчийн ярианд хүрэлцэхгүй байж болзошгүй; хүн дуу оруулах жүжигчинд төсөв тавь.
+
+---
+
+## Эх сурвалж
+
+- Statcounter Global Stats — Гар утасны ОС-ын эзлэх хувь, Монгол: https://gs.statcounter.com/os-market-share/mobile/mongolia
+- Statcounter Global Stats — Android хувилбарын эзлэх хувь, Монгол: https://gs.statcounter.com/android-version-market-share/mobile/mongolia
+- Statcounter Global Stats — Үйлдвэрлэгчийн эзлэх хувь, Монгол: https://gs.statcounter.com/vendor-market-share/mobile/mongolia
+- DataReportal — Digital 2026: Mongolia: https://datareportal.com/reports/digital-2026-mongolia
+- Flutter блог — What's new in Flutter 3.44: https://flutter.dev/blog/whats-new-in-flutter-3-44
+- Flutter блог — What's new in Flutter 3.47: https://flutter.dev/blog/whats-new-in-flutter-3-47
+- Flutter release notes 3.47.0 (Dart SDK хязгаарын түүх; 2026-09-15-нд баталгаажуулав): https://docs.flutter.dev/release/release-notes/release-notes-3.47.0
+- Flutter docs — Impeller rendering engine: https://docs.flutter.dev/perf/impeller
+- Flutter cookbook — Play or stream sound with flutter_soloud: https://docs.flutter.dev/cookbook/audio/soloud
+- pub.dev — audio_service: https://pub.dev/packages/audio_service
+- pub.dev — just_audio_background: https://pub.dev/packages/just_audio_background
+- pub.dev — flutter_soloud: https://pub.dev/packages/flutter_soloud
+- pub.dev — nearby_connections: https://pub.dev/packages/nearby_connections
+- pub.dev — flutter_nearby_connections: https://pub.dev/packages/flutter_nearby_connections
+- React Native блог (хувилбарын индекс, 0.82–0.87): https://reactnative.dev/blog
+- Expo changelog — SDK 56: https://expo.dev/changelog/sdk-56
+- Expo docs — React Native's New Architecture: https://docs.expo.dev/guides/new-architecture/
+- Unity блог — Unity is canceling the Runtime Fee: https://unity.com/blog/unity-is-canceling-the-runtime-fee
+- Unity — Pricing updates (одоогийн Pro үнэ суудал тутамд жилд $2,310, 2026-01-12-оос хүчинтэй; 2026-09-15-нд баталгаажуулав): https://unity.com/products/pricing-updates
+- Godot Engine — Godot Mobile update, 2026 оны 4-р сар: https://godotengine.org/article/godot-mobile-update-apr-2026/
+- Google Play Console Help — Play Console-ыг хэрхэн ашиглах / бүртгэлийн хураамж: https://support.google.com/googleplay/android-developer/answer/6112435
+- Google Play Console Help — Хувийн дансны production эрх (12 тестер / 14 хоног): https://support.google.com/googleplay/android-developer/answer/14151465
+- Google Play Developer Community — Everything about the 12 testers requirement: https://support.google.com/googleplay/android-developer/community-guide/255621488/everything-about-the-12-testers-requirement
+- Google Play Console Help — Target API level-ийн шаардлага: https://support.google.com/googleplay/android-developer/answer/11926878
+- Google Play Console Help — Үйлчилгээний шимтгэл: https://support.google.com/googleplay/android-developer/answer/112622
+- Google Play Console Help — Хөгжүүлэгч ба худалдаачин бүртгэлийн дэмжигддэг байршлууд: https://support.google.com/googleplay/android-developer/answer/9306917
+- Google Play Console Help — Wire transfer төлбөр: https://support.google.com/googleplay/android-developer/answer/2700656
+- Google payments center Help — Банкны данс баталгаажуулах: https://support.google.com/paymentscenter/answer/7161378
+- Google AdSense Help — Улс/бүс нутгаар төлбөрийн аргууд: https://support.google.com/adsense/answer/1714397
+- Google Wallet Help — Дэмжигддэг төлбөрийн аргууд, Монгол: https://support.google.com/wallet/answer/12059326?co=GENIE.CountryCode%3DMN
+- Android Developers — Developer verification: https://developer.android.com/developer-verification
+- Android Developer Console Help — Understanding Android developer verification: https://support.google.com/android-developer-console/answer/16561738
+- Apple Developer — Program enrollment (зардал, этгээдийн төрөл, бичиг баримт): https://developer.apple.com/support/enrollment/
+- Apple Developer — App Store Small Business Program: https://developer.apple.com/app-store/small-business-program/
+- Apple Developer News — Updated age ratings in App Store Connect: https://developer.apple.com/news/?id=ks775ehf
+- Apple Developer News — Age rating questionnaire now includes social media questions: https://developer.apple.com/news/?id=tlur8uvi
+- Apple Developer — App Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
+- App Store Connect Help — Financial report regions and currencies: https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-regions-and-currencies/
+- App Store Connect Help — Enter banking information: https://developer.apple.com/help/app-store-connect/manage-banking-information/enter-banking-information
+- RevenueCat — Үнэ: https://www.revenuecat.com/pricing/
+- Google Fonts CSS API (Roboto-ийн дэд олонлогууд, 2026-09-15-нд дуудав): https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap
+- Noto Sans Mongolian specimen (уламжлалт бичиг): https://notofonts.github.io/noto-docs/specimen/NotoSansMongolian/
+- Wikipedia — Mongolian Cyrillic alphabet: https://en.wikipedia.org/wiki/Mongolian_Cyrillic_alphabet
+- Xinhua — Mongolia adopts dual scripts for legal, official documents (2025-01-02): https://english.news.cn/20250102/9430e1cab0574a679167b75959ceaaee/c.html
+- Montsame — Official documents to be recorded in both scripts from 2025: https://www.montsame.mn/en/read/219358
+- Google Summer of Code — Payoneer contributor payment information: https://developers.google.com/open-source/gsoc/help/payoneer
+- Google Play Developer Community thread — Payoneer receiving account as merchant payout: https://support.google.com/googleplay/android-developer/thread/340440526
+- JetBrains/KMP — Compose Multiplatform for iOS stable (1.8.0, 2025 оны 5-р сар): https://www.kmpship.app/blog/compose-multiplatform-ios-stable-2025

@@ -310,3 +310,81 @@ Agora Voice Calling-ийн жагсаалтын үнэ (албан ёсны ба
 | Солонгос / Япон | Mafia42 эрэлт байгааг нотолсон | Тийм | Дүүрэн, үнэтэй | Хожим |
 
 **Стратегийн гол санаа:** Google Play-ийн төлбөр Монголд үхмэл, харин Казахстан, Кыргызстан, Узбекистан, Туркт амьд байгаа тул **орос хэл нэмэх нь нэгэн зэрэг өсөлтийн алхам ба мөнгөжүүлэлтийн засвар юм.** (Орос өөрөө бол тусдаа асуулт — хүснэгтэн дэх сануулгыг үз.) Монгол чамд бүтээгдэхүүн–зах зээлийн тохироо ба жинхэнэ зан үйлийг өгнө; орос хэлт зах зээл чамд Android-ийн орлогыг өгнө.
+
+---
+
+## 8. Хэрэглэгчийн бус зам: сургуулиуд руу зарах
+
+Энэ бол нөөц хувилбар биш — гутранги хувилбарын хувьд энэ нь *илүү дээр* бизнес бөгөөд дэлгүүрийн төлбөрийн системийг бүхэлд нь тойрч гарна, учир нь сургуулиуд **нэхэмжлэхийн дагуу ₮-өөр банкны шилжүүлгээр** төлдөг.
+
+* **Зах зээлийн хэмжээ:** **≈ 435,000 бүрэн дунд боловсролын сурагч** (UNESCO UIS: суурь боловсрол 273,943, 2024; ахлах 161,530, 2023 — 2026-09-15-нд татав). **[ЗАССАН — өмнөх ноорог 455,604 гэж бичээд UNESCO-ийн SDG4 профайл PDF-ийг иш татсан боловч тэр холбоос 404 буцаадаг]** Бүрэн дунд боловсролын сургууль ойролцоогоор 800+ **[тооцоолол — ҮСХ/БШУЯ-аар шалга]**.
+* **Яам програм хангамж худалдаж авдаг гэдгийн урьдчилсан жишээ:** Eduten платформыг 3–4-р ангийн бүх сурагчдад нэвтрүүлсэн (**~139,000 сурагч, 2023 оны хичээлийн жил** — Eduten-ийн өөрийнх нь мэдэгдэл дээрээс 2026-09-15-нд баталгаажуулав). Үүнийг 2024–25 онд 1–5-р анги хүртэл өргөтгөсөн гэсэн нэмэлт мэдэгдэл нь **[баталгаажаагүй]** — тэр нь иш татсан Eduten-ийн нийтлэлд байхгүй; танилцуулгадаа ашиглахаасаа өмнө БШУЯ эсвэл Eduten-ээр баталгаажуул. GIGA санаачилга сургуулиудыг интернэтэд холбож байна.
+* **Танилцуулга чинь «тоглоом» тухай биш.** Энэ нь: **монгол хэл дээрх маргаан ба олон нийтийн өмнө үг хэлэх дадлага, ээлж дараалал баримтлах, нотолгоонд суурилсан сэтгэлгээ, нийгэм-сэтгэл хөдлөлийн суралцахуй** — багш ямар ч бэлтгэлгүйгээр, офлайнаар, нэг утас дээр + проектороор явуулж чадах 25 минутын бүтэцтэй үйл ажиллагаа.
+* **Зарагдахуйц болгох боломжууд:** багш/ангийн хяналтын самбар, «чатгүй» ангийн горим, 40 минутын хичээлд багтдаг цаг хэмжигч, нөөц хувилбар болгон хэвлэж болох дүрийн хөзөр, хэн хэнийг итгүүлснийг харуулсан эргэн дүгнэх дэлгэц, бүрэн офлайн ажиллагаа (хөдөөгийн сургуульд амин чухал).
+* **Үнийн загвар:** нэг сургуулийн жилийн лиценз, жишээ нь **300,000–900,000 ₮/сургууль/жил** (≈ $82–247) **[САНАЛ БОЛГОСОН, жишиг судлаагүй]**. 100 сургууль × 500,000₮ = 50 сая ₮ ≈ **жилд $13,700** — суурь хэрэглэгчийн хувилбартай дүйцэхүйц, гэхдээ DAU-ийн өчүүхэн хэсгээр.
+* **Болгоомжлолууд:** худалдан авалт удаан явдаг, монгол хуулийн этгээд шаардлагатай, БШУЯ-ны контентын зөвшөөрөл авах магадлалтай, мөн «мафи/алах» гэсэн хүрээг ангийн танхимын SKU-д зөөлрүүлэх хэрэгтэй (дүрүүдийг нь дахин нэрлэ: «нөлөөлөгч / эмч / мөрдөгч / иргэн»).
+
+---
+
+## 9. Дүрэм журам ба итгэл (одоо хийхэд хямд, дараа нь нөхөхөд үнэтэй)
+
+1. **Үзэгчид 12–18 настай.** Хэрэв Google Play дээр зорилтот үзэгчдээ 13-аас доош гэж зарлавал **Families бодлого** үйлчилнэ: зөвхөн баталгаажсан зарын SDK, зан үйлд суурилсан зар байхгүй, ad ID байхгүй. Хамгийн энгийн зам: апп-ыг **13+** гэж үнэлүүл, AdMob/Meta-г хэвээр үлдээгээд 18-аас доош бүх хэрэглэгчид хувь хүнд тааруулаагүй зар үзүүл.
+2. **Монголын Хувь хүний мэдээлэл хамгаалах тухай хууль** үйлчилнэ (ХХЗХ хяналт тавина). Хамгийн багыг цуглуул: жинхэнэ нэр байхгүй, 16-аас доош насныхнаас утасны дугаар авахгүй, нарийн байршил авахгүй.
+3. **Насанд хүрээгүй хүүхэдтэй чат/дуут харилцаа** бол чиний хамгийн том нэр хүндийн эрсдэл. Гарга: 16-аас доош насны дансанд чөлөөт бичвэрийн чат байхгүй (зөвхөн бэлэн хэллэг), нэг товшилтоор мэдээлэх товч, серверийн талд монгол хараалын шүүлтүүр, 3 гомдол ирмэгц автоматаар дуугүй болгох.
+4. **Эцэг эхэд харагдах баримтгүйгээр хэзээ ч төлбөр бүү авна.** Худалдан авалтын баталгааг бүртгэлтэй имэйл/утас руу илгээ, мөнгө буцаалтыг хялбар болго — сургуулийн Facebook бүлэгт нэг ууртай эцэг эхийн бичсэн пост нь нэг сарын IAP-аас илүү үнэтэй тусна.
+5. **Loot box байхгүй** — өсвөр насанд чиглэсэн монгол бүтээгдэхүүнд огт хэрэггүй. Бараагаа шууд зар.
+
+---
+
+## 10. Санал болгож буй төлөвлөгөө, нэг нүүрэнд
+
+**1-р үе шат (0–3 сар) — офлайн горим, зөвхөн Монгол.** Үнэгүй. Rewarded зар + зөвхөн дүнгийн дэлгэц дээр interstitial. Нэг IAP/веб дэлгүүрийн SKU: «Бүрэн өгүүлэгч» 19,900₮ (iOS дээр StoreKit-ээр $5.99, Android дээр апп хэзээ ч холбоос тавихгүй QPay веб дэлгүүрээр). Серверийн зардал бараг тэг. Зорилт: 600 DAU = ашиггүй болохгүй цэг.
+**2-р үе шат (3–6 сар).** Ангийн код, локал сүлжээгээр олон утастай өрөө, ангийн зэрэглэлийн самбар, танил монгол дуу хоолойтой хөтлөгчийн дуу хоолойн багц. Бодит eCPM-ээ хэмж, §4 дэх бүх тооцоог өөрийн тоогоор солих.
+**3-р үе шат (6–12 сар).** Үгийн ээлж хянадаг, өөрөө байрлуулсан дуу хоолойтой онлайн горим. Зөвхөн гадаад үзэмж. DAU ≥ 5,000 болмогц улирлын эрх.
+**4-р үе шат (9–15 сар).** Орос орчуулга → KZ/KG/РФ-ээс Android-ийн төлбөрийн орлого. Зэрэгцээд 5 сургууль дээр ангийн танхимын SKU-г турших.
+
+---
+
+## Эх сурвалж
+
+- DataReportal, *Digital 2026: Mongolia* — https://datareportal.com/reports/digital-2026-mongolia
+- DataReportal, *Digital 2025: Mongolia* — https://datareportal.com/reports/digital-2025-mongolia
+- StatCounter Global Stats, Монголын мобайл ҮС-ийн эзлэх хувь (CSV, 2025-08 – 2026-08) — https://gs.statcounter.com/os-market-share/mobile/mongolia
+- Google Play Help, *Paid app availability* (Монгол байхгүй) — https://support.google.com/googleplay/answer/143779
+- Play Console Help, *Supported locations for developer and merchant registration* (Монгол ✔, USD) — https://support.google.com/googleplay/android-developer/answer/9306917
+- Play Console Help, *Understanding Google Play's Payments policy* — https://support.google.com/googleplay/android-developer/answer/10281818
+- Play Console Help, *Enrolling in the user choice billing pilot* — https://support.google.com/googleplay/android-developer/answer/12570971
+- Apple, *Financial Report regions and currencies* (Монгол → **South Asia and Pacific / AP**, USD) — https://developer.apple.com/help/app-store-connect/reference/financial-report-regions-and-currencies/
+- Apple, *Set a price — App Store Connect* (**анхдагчаар 800 үнийн цэг**, хүсэлтээр дээр нь 100; «other 174 storefronts and 43 currencies») — https://developer.apple.com/help/app-store-connect/manage-app-pricing/set-a-price/
+- World Bank, *Global Findex Database 2025* (2024 оны судалгаа) — https://www.worldbank.org/en/publication/globalfindex
+- World Bank API, Монголын дансны эзэмшил `FX.OWN.TOTL.ZS` = 98.28 % (2024); дебит карт `fin2.t.d` = 87.5 %, 15–24 насны залуучууд `fin2.t.d.3` = 73.3 % — https://api.worldbank.org/v2/country/MNG/indicator/fin2.t.d?format=json&source=28
+- World Bank блог, *Mongolia's child money program* (2026-03-19, 98 % дансны эзэмшлийг баталгаажуулсан) — https://blogs.worldbank.org/en/allaboutfinance/mongolia-s-child-money-program--early-account-ownership-and-fina
+- CEIC, Mongolia Average Monthly Wage (ҮСХ-ны өгөгдөл) — https://www.ceicdata.com/en/mongolia/average-monthly-wage-isic-rev4/average-monthly-wage
+- UNESCO UIS Data API, Монголын элсэлтийн үзүүлэлт 20064 (суурь боловсрол) / 20070 (ахлах) — https://api.uis.unesco.org/api/public/data/indicators?indicator=20064&indicator=20070&geoUnit=MNG  *(өмнө нь иш татсан `uis.unesco.org/sites/default/files/country-profile/SDG4-Profile-Mongolia.pdf` нь HTTP 404 буцаадаг)*
+- InsideMongolia, *Mongolia launches 5G nationwide* (2025-05-20) — https://insidemongolia.mn/post/dSbRXTld3Q3
+- InsideMongolia, *Mongolia's Digital Payment Pioneer QPay Prepares for IPO* — https://insidemongolia.mn/post/faCkurE4JHs
+- UB Post, *Mongolian QPay creator, Innovation Investment launches IPO* — https://www.ubpost.mn/a/12875
+- PayAtlas, *Accepting Payments in Mongolia: PSPs, Compliance & Fees* (2026-01-28-нд шинэчлэгдсэн) — https://payatlas.com/countries/mongolia-mn
+- Голомт банк, SocialPay — https://socialpay.mn/en
+- Хаан банк, олон улсын UnionPay карт — https://www.khanbank.com/personal/product/detail/personal-international-unionpay-classic-card/
+- Монголбанк, *Overview of the Payment System in Mongolia* — https://www.mongolbank.mn/en/p/1301
+- RevenueLab, *AdMob eCPM Benchmarks 2026* — https://www.revenuelab.fyi/blog/admob-ecpm-benchmarks-2026
+- Udonis, *eCPMs for Rewarded Video, Interstitial & Banner Ads* (Appodeal-ийн өгөгдөл) — https://www.blog.udonis.co/mobile-marketing/mobile-apps/ecpms
+- Business of Apps, *Mobile Advertising Rates* — https://www.businessofapps.com/ads/research/mobile-app-advertising-cpm-rates/
+- Statista, *Digital Advertising — Mongolia* — https://www.statista.com/outlook/dmo/digital-advertising/mongolia
+- Agora, *Voice Calling Pricing* — https://docs.agora.io/en/voice-calling/overview/pricing
+- LiveKit pricing — https://livekit.com/pricing
+- Google Play жагсаалт, Wolvesville – Werewolf Online — https://play.google.com/store/apps/details?id=com.werewolfapps.online
+- Apple App Store жагсаалт, Wolvesville (IAP-ийн үнийн цэгүүд) — https://apps.apple.com/us/app/wolvesville/id1394503496
+- Google Play жагсаалт, Wolvesville Classic (офлайн) — https://play.google.com/store/apps/details?id=org.faudroids.werewolf
+- Google Play жагсаалт, Suspects: Mystery Mansion — https://play.google.com/store/apps/details?id=com.wildlifestudios.free.online.games.suspects
+- Google Play жагсаалт, Mafia online (RU) — https://play.google.com/store/apps/details?id=com.tokarev.mafia
+- Town of Salem Wiki, Battlepass — https://town-of-salem.fandom.com/wiki/Battlepass
+- Wolvesville Wiki, In-App Purchases / Battle Pass — https://wolvesville.fandom.com/wiki/In-App_Purchases
+- NapoleonCat, *Social Media Users in Mongolia* — https://stats.napoleoncat.com/social-media-users-in-mongolia/2026/
+- Nathouse Marketing мэдээллийн товхимол, *Сошиал медиа хэрэглээ Монголд 2025* — https://newsletter.nathouse.mn/p/20251113
+- Springer, *Psychosocial Well-being, Problematic Social Media Use, and Cyberbullying Among Mongolian Adolescents* (45 % TikTok данстай, CRC 2021) — https://link.springer.com/article/10.1007/s42380-023-00202-9
+- Modash, Монголын шилдэг TikTok инфлюэнсерүүд — https://www.modash.io/find-influencers/tiktok/mongolia
+- Eduten, *Eduten Brings Digital Education Transformation to All Schools in Mongolia* — https://eduten.com/blog/eduten-brings-digital-education-transformation-to-all-schools-in-mongolia.html
+- Wikipedia, *Mafia (party game)* (үүсэл: Дмитрий Давидофф, Москвагийн Улсын Их Сургууль, 1986) — https://en.wikipedia.org/wiki/Mafia_(party_game)
+- USD/MNT ханш 2026-09-15 — https://open.er-api.com/v6/latest/USD
