@@ -1,5 +1,10 @@
 # Ytasnii · Immersive Studio
 
+> 🃏 **Мафи утасны тоглоомын судалгаа энэ repo дотор байна → [`docs/`](docs/README.md)**
+> 20 бүлэг, монгол хэл дээр: дүрэм, дүрүүд, балансын математик, архитектур, Монголын зах зээл,
+> хууль, замын зураг. Эхлэх цэг: [`docs/00-summary.md`](docs/00-summary.md).
+> *(Энэ repo-г яаж зохион байгуулах талаар [Бүлэг 19](docs/19-repo-web-first.md)-д зөвлөмж бий.)*
+
 Omma-гийн стилээр хийсэн **3D asset, scroll animation, cursor interaction** бүхий
 орчин үеийн dark-theme вэб туршлага. Build хэрэггүй — цэвэр HTML/CSS/JS + Three.js (CDN).
 
