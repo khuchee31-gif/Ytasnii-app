@@ -315,3 +315,75 @@ JSON.stringify(frameFor(citizenId)).includes(mafiaId) === false
    бол зүгээр л чимэглэл.
 
 ---
+
+## 6. Хасалтын жагсаалт — v1-д зориуд оруулаагүй зүйлс ба тэдгээрийг буцааж оруулах нөхцөл
+
+| Хасагдсан зүйл | Үүнийг санал болгосон эх хэсэг | Яагаад гадуур үлдсэн бэ | Зайлсхийсэн өртөг | **Буцааж оруулах нөхцөл** |
+|---|---|---|---|---|
+| **Дуут чат** | 09; 11 §10 Phase 3; 12 §9 «Дараа» | Удирдлагатай үйлчилгээгээр $0.65–$7.20/MAU/сар, өөрөө байршуулбал $0.04–0.10; мөн *тоглогчийн* хувьд ~20–25 мянган ₮-ийн 10 ГБ багцаас сард ~1.1 ГБ иддэг | олон сарын ажил + хязгааргүй урсгал зардал | DAU ≥ 5,000 **ба** төлбөрт ARPU нь өөрөө байршуулах $0.10/MAU-г таглана **ба** модерацийн жижүүрийн хуваарь бий болсон (14) |
+| **Зэрэглэл / Glicko-2 / итгэлийн оноо** | 10 §5 алхам 5; 12 §9 «Дараа» (B7) | Нэрээ нуусан хоч, багийн хязгаар, төхөөрөмжийн кластерын хязгаар, тоглоомоос гарах шат, хамт тохиолдох давтамжийн илрүүлэгч шаардана | ~16 dev-day ≈ 125 төлөвлөсөн ц | Онлайн зэрэг тоглогч ≥ 2,000 **ба** долоо хоногт ≥ 3 итгэмээр «ялалт солилцсон» гомдол |
+| **60 дүрийн каталог** | 02 | 02-ын өөрийнх нь гол санаа: **~14 механик суурь нэгжийг** хэрэгжүүл, дүрүүд бол зүгээр л өгөгдлийн мөрүүд. v1 нь **4 дүр** гаргана (**Алуурчин, Эмч, Мөрдөгч, Иргэн**) — анги аль хэдийн тоглодог яг тэдгээр нь | ~30 дүрийн тодорхойлолт + тэнцвэржүүлэлтийн ажил (04) | Тоглолтын ≥ 30 % нь өөрчилсөн дүрийн жагсаалт ашиглана, **эсвэл** тоглогчийн медиан тоглолтын тоо > 10 |
+| **Commit–reveal нотолгоо (P1, олон төхөөрөмж)** | 10 §3 Protocol P1; «хөгжүүлэгчийн нэг өдөрт ноогдох итгэлийн хамгийн өндөр өгөөж» гэж нэрлэгдсэн | P1 нь *ангийн хүүхэд өөрийнхөө утсан дээр өрөө үүсгэж эхэлсэн* үед л ач холбогдолтой. M12 хүртэл үл итгэх эзэн гэж байхгүй. **Үрсэлсэн, бүртгэгддэг хуваарилалт** M1-д гарна; зөвхөн нотолгооны UI хойшилно | 4–6 dev-day ≈ 39 төлөвлөсөн ц | «Өрөө үүсгэсэн хүн хуурсан» гэсэн анхны итгэмээр гомдол, **эсвэл** M12 (олон утасны өрөө) гарах — аль нь түрүүлнэ тэр |
+| **Онлайн горим бүхэлдээ** | 07; 05; 12 §9 v1 (B1–B4) | Серверийн зардал, монгол хэл дээрх модерац, Apple-ийн Guideline 1.2-ын чатын шаардлага, бүхэл бүтэн хоёр дахь хууран мэхлэлтийн эсрэг гадаргуу | 120 түүхий ц + урсгал зардал + хяналтын эрсдэл | Офлайн **D7 хадгалалт ≥ 25 %**, DAU ≥ 500 үед. Дараа нь E хаалга, 2027 оны 9-р сар |
+| **iOS / Apple Developer Program** | 08 §6 | $99/жил, Mac эсвэл Codemagic шаардана, хоёр дахь хяналтын шугам хэрэгтэй — гэтэл 08 §1-ийн үзүүлснээр Монголд цөөнхийн зах зээл | $99/жил + бүтэн хоёр дахь илгээлтийн мөчлөг | Хүлээлгийн *жагсаалтын* ≥ 20 % нь iOS болох (үүнийг хэмж: веб хуудсандаа «iPhone» товч тавиад дарлагыг тоол) |
+| **Nearby Connections P2P дамжуулалт** | 10 §5 алхам 3 (5–6 дахь долоо хоног) | Дээрх C2 — аюулаар эрэмбэлсэн болохоос гаргалтаар эрэмбэлээгүй | 55 түүхий ц | D хаалга дуусч, ангийн кодын хадгалалт тогтвортой байвал |
+| **Дахин тоглуулах хугацааны шугам (A15), хэнийг хуурсан статистик (A16), дүрийн номын сан (S4), 90 секундын заавар** | 12 §9 «v1» | Хадгалалтын боломжууд — гэтэл хадгалах үзэгч хараахан алга | ~40 түүхий ц | C хаалганы дараа, сайжруулах хадгалалт гарч ирсэн үед |
+| **Гоо сайхны эд зүйл / дуут багц / улирлын эрх** | 11 §3, §10 Phase 3 | Тэг хэрэглэгчид зарж байна | — | 600 DAU (11 §10-ын өөрийнх нь ашиг-алдагдлын тэнцэх цэг) |
+| **Дүрийн засварлагч, STT ярианы цагийн аналитик, төхөөрөмж хоорондын дахин тоглуулалт хуваалцах** | 12 §9 «Дараа» | — | — | 2028 оноос өмнө биш |
+
+**10 §5-аас «хэзээ ч хийхгүй» гэж дахин баталсан зүйлс:** оюун ухааны покерын картын протокол, цөмийн түвшний
+хууран мэхлэлтийн эсрэг систем, IP хориг, бүртгэлд заавал SMS шаардах (Монголд ~$0.16/SMS), BLE-ээр ойролцоох
+төхөөрөмж чагнах, чөлөөт текстийн гомдлын модерац.
+
+> **Мөнгөжүүлэлтийн зарчимтай нийцэл.** Дээрх жагсаалтад гоо сайхны эд зүйл, дуут багц байгаа нь v1-ээс
+> хойшилсон гэсэн үг. **Мэдээлэл болон тоглоомын давуу талыг хэзээ ч зарахгүй** — нуугдмал мэдээлэлтэй
+> тоглоомын гол зарчим. Буцааж оруулах нөхцөл биелсэн ч зарагдах зүйл нь зөвхөн гоо сайхны шинжтэй байна.
+
+---
+
+## 7. Дараагийн 14 хоногт юу хийх вэ
+
+1. **W01 (9-р сарын 20 хүртэл):** цагийн бүртгэл нээ. Цаг бүрийг бич. Энэ бол §2.1-ийг бодит болгодог оролт.
+2. **W01:** 08 §8.1-ийн төлбөр хүлээн авах спайкийг гүйцэтгэ — Монголын банкны данс Google Payments профайлд
+   хүлээн зөвшөөрөгдөж байгаа эсэхийг батал. 08 §11 үүнийг **энэ бүх дүн шинжилгээн дэх хамгийн өндөр эрсдэл**
+   гэж нэрлэдэг. Нэг үдшийн зардалтай, гэвч мөнгөжүүлэлтийн бүх төлөвлөгөөг хүчингүй болгож чадна.
+3. **W01:** `mn.<нэр>.mafia` гэсэн багцын ID-г тогтоо. Үүнийг **хэзээ ч өөрчилж болохгүй**.
+4. **W02:** **үнэгүй Android хязгаарлагдмал түгээлтийн данс** бүртгүүл (төлбөргүй, ID шаардахгүй,
+   20 төхөөрөмж).
+5. **W02:** 03 §4.1-ийн тогтвортой нөхцөлийн жагсаалтыг **унаж байгаа Dart тест** болгон гараараа бич —
+   хөдөлгүүрийн нэг ч мөр код үүсгэхээс **өмнө**.
+6. **W02:** нэг үдэш Redmi болон Huawei зээлж аваад дэлгэц унтарсан үеийн аудио амьд үлдэх эсэхийг хэмж.
+   Хэрэв ажиллахгүй бол M4 томроно — үүнийг 1-р сард биш, **9-р сард** мэдэх хэрэгтэй.
+
+> **Юу гэсэн үг вэ?** Эдгээр зургаан зүйлийн аль нь ч код бичихгүй. Гурав нь **эрсдэлийг эрт үхүүлэх** зорилготой
+> (төлбөр, аудио, багцын ID), гурав нь **хэмжилтийн суурь тавих** зорилготой (цагийн бүртгэл, үнэгүй данс,
+> унаж байгаа тестүүд). Код нь W03-аас эхэлнэ.
+
+---
+
+## Эх сурвалж
+
+- METR — *Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity*: https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/
+- METR paper (arXiv 2507.09089): https://arxiv.org/abs/2507.09089
+- DORA / Google Cloud — *Announcing the 2025 DORA Report*: https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report
+- DORA — *Balancing AI tensions: Moving from AI adoption to effective SDLC use*: https://dora.dev/insights/balancing-ai-tensions/
+- Stack Overflow — *2025 Developer Survey: AI section*: https://survey.stackoverflow.co/2025/ai
+- Stack Overflow — press release, trust in AI at an all-time low: https://stackoverflow.co/company/press/archive/stack-overflow-2025-developer-survey/
+- Veracode — *2025 GenAI Code Security Report* (blog): https://www.veracode.com/blog/genai-code-security-report/
+- Veracode — analyst report landing page: https://www.veracode.com/resources/analyst-reports/2025-genai-code-security-report/
+- Wikipedia — *Software development effort estimation* (Molokken & Jørgensen 2003; Jørgensen, Teigen & Ribu 2004; Jørgensen & Grimstad 2008): https://en.wikipedia.org/wiki/Software_development_effort_estimation
+- Jørgensen et al. — *State of the Practice in Software Effort Estimation: A Survey and Literature Review* (arXiv 1401.5878): https://arxiv.org/pdf/1401.5878
+- Google Play Console Help — *App testing requirements for new personal developer accounts* (12 testers / 14 days): https://support.google.com/googleplay/android-developer/answer/14151465
+- Google Play Console Help — *Target API level requirements for Google Play apps*: https://support.google.com/googleplay/android-developer/answer/11926878
+- `just_audio` issue #1255 — audio stops 1–3 min after screen-off on Pixel 6/8, Android 14: https://github.com/ryanheise/just_audio/issues/1255
+- `audio_service` package (pub.dev): https://pub.dev/packages/audio_service
+- Don't kill my app! — Xiaomi/MIUI: https://dontkillmyapp.com/xiaomi
+- OpenWerewolf (JamesCraster) — 319 commits, 57 stars, TypeScript server+client, two complete gamemodes: https://github.com/JamesCraster/OpenWerewolf
+- Open Mafia Engine — extensible open-source mafia engine: https://github.com/open-mafia/open_mafia_engine
+- gogo.mn — *Students to have six-week winter break starting next year, with extended week in June* (Mongolian school calendar structure): https://mongolia.gogo.mn/r/e67ly
+- Flutter — *Migrate to standalone material_ui and cupertino_ui packages*: https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui
+- Flutter — *What's new in Flutter 3.47*: https://flutter.dev/blog/whats-new-in-flutter-3-47
+- Flutter — *Material and Cupertino decoupling are here*: https://flutter.dev/blog/decoupling-material-cupertino
+- Flutter & Dart 2026 roadmap: https://blog.flutter.dev/flutter-darts-2026-roadmap-89378f17ebbd
+- ChatTester / test-generation benchmark figures (arXiv 2508.00408, *Benchmarking LLMs for Unit Test Generation from Real-World Functions*): https://arxiv.org/pdf/2508.00408
+- Tsagaan Sar 2027 date (conflicting, unresolved) — timeanddate.com returned HTTP 403 on 2026-09-15: https://www.timeanddate.com/holidays/mongolia/tsagaan-sar ; secondary: https://www.bluesilktravel.com/mongolian-festivals/tsagaan-sar-2027
