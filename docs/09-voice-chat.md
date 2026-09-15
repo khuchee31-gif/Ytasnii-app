@@ -323,3 +323,73 @@ can_write(player, channel, phase):
 > **Төслийн шийдвэртэй холбоо:** v0.5-д **локал P2P (Nearby Connections/Multipeer) хийхгүй** — iOS-ийн 8 төхөөрөмжийн хязгаар ба Монголд iOS 44.56% эзэлдэг тул ажиллахгүй. Тиймээс «олон утас» гэдэг нь хөнгөн өрөөний сервер (интернэтээр өрөөний кодоор) гэсэн үг. Мөн v1.5-ын Vivox нь Flutter клиентэд практикт тохирохгүй тул бодит сонголт нь **LiveKit Build/Ship**.
 
 ---
+
+## Сөрөг баталгаажуулалтын бүртгэл (2026-09-15)
+
+Доорх бүх тоог 2026-09-15-нд анхдагч эх сурвалжтай нь тулгаж дахин шалгасан.
+
+**Яг таарсан (өөрчлөлтгүй):**
+- Agora аудио 1,000 минут тутамд $0.99; сард 10,000 минут үнэгүй; эзлэхүүний хөнгөлөлт 5% (100K–500K), 7% (500K–1M), 10% (1M–3M); багц $45.99/50k → $1,217.99/1.5M. *(Тэмдэглэл: баримтын хуудсан дээр мөн 7/10/14/16/18%-ийн тусдаа багцын хөнгөлөлтийн шат, дээр нь 5/7/10%-ийн цэнэглэлтийн хөнгөлөлт харагддаг — эдгээр нь өөр хоорондоо ялгаатай хоёр механизм, хоёулаа бодит.)*
+- Agora Cloud Proxy 1,000 оролцогч-минут тутамд $0.99 + ≤200 PCU дээр сард доод тал нь $500 (шатлан $2,000 хүртэл). Дээр нэмсэн тайлбар: доод төлбөр нь хэрэглээнд **тооцогддог**.
+- LiveKit Ship $50/сар, 150,000 WebRTC минут, илүүдэл $0.0005/мин; Scale $500/сар, 1.5M минут, илүүдэл $0.0004/мин; Build $0/сар, 5,000 минут.
+- LiveKit-ийн хэмжилт: 10 нийтлэгч + 3,000 захиалагч = **3,010** оролцогч `c2-standard-16` (16 цөм) дээр, **CPU 80%**, **орох 7.3 kBps / гарах 23 MBps**; «each room must fit within a single node». 3,010 ÷ 16 = 188/цөм. ✅
+- LiveKit-ийн серверийн API: `UpdateParticipant` (`roomAdmin` шаардана) нь `canPublish`/`canSubscribe`/`canPublishData`-г сольж, `ParticipantPermissionChanged` дохио өгнө; `MutePublishedTrack` ба `RemoveParticipant` хоёулаа `roomAdmin` шаардана; LiveKit Cloud дээр `RemoveParticipant` нь token-ыг хүчингүй болгодог. ✅
+- Daily-ийн зөвхөн аудионы шат: $0.00099 → $0.00092 → $0.00085 → $0.00074 → $0.00064 → $0.00054 → **$0.00036 (50M+ минут)**; видео $0.0040 → $0.0015; эхний 10,000 минут үнэгүй; платформын төлбөргүй. ✅
+- Unity Vivox: ≤5,000 PCU үнэгүй; дөрвөн зурваст 5,000 PCU тутамд $2,000 / $1,500 / $1,250 / $1,000; Safe Text ≤5,000 MAU үнэгүй, дараа нь хэрэглэгч тутамд $0.05. ✅
+- Twilio Group Rooms $0.004/оролцогч-мин, зөвхөн аудионы нийтлэгдсэн үнэ байхгүй (хуудас нь тодорхойгүй «volume and committed-use discounts» санал болгодог). ✅
+- OpenAI `omni-moderation-latest`: үнэгүй endpoint, **13 ангилал**, «+42% on our internal multilingual eval», «in a test of 40 languages», нөөц багатай хэл «like Khmer or Swati» дээр «+70%». Үнэгүй түвшний хязгаар **250 RPM / 5,000 RPD / 10,000 TPM** (Tier 1: 500 RPM / 10,000 RPD). ✅
+- Claude Haiku 4.5: **орох $1/MTok, гарах $5/MTok**, кэш уншилт **$0.10/MTok** (0.1×), кэш **бичилт $1.25/MTok**, batch −50%. Мессеж тутмын арифметик ($0.00006 + $0.00011 + $0.000075 ≈ $0.00025; 1M дуудлага ≈ $250/сар) дахин гаргасан, зөв. *(Кэш бичилтийн зардлыг загвараас хассан — шалгуурын угтварыг байнга дахин ашиглаж байж л үл ялиг; шалга.)*
+- Apple Guideline 1.2 — дөрвөн заалт бүгд үгчлэн, мөн ямар ч тоон SLA **агуулаагүй**. Apple 5.1.4 Kids ба 2.3.8-ын «For Kids»/«For Children» метадатагийн хязгаарлалт — үгчлэн. ✅
+- Google Play UGC бодлого — UGC үүсгэх/байршуулахаас өмнө ToU хүлээн зөвшөөрөх, зохисгүй агуулгын тодорхойлолт, «robust, effective, and ongoing» модераци, апп доторх мэдээлэх **ба** хориглох, хориглолтыг тусгайлан «1:1 user interaction … (for example, direct messaging, tagging, mentioning)»-д шаардах, цаг алдалгүй арга хэмжээ, агуулгын зэрэглэлийн үнэн зөв хариулт, мөнгөжүүлэлтийн хамгаалалт. ✅
+- MonTree: гарчиг, дөрвөн зохиогч, 80,757 токен / 6,099 өгүүлбэр, кирилл, POS + синтакс. ✅
+- Монголын датаны үнэ: иш татсан хэрэглэгчийн зөвлөмжийн хуудас үнэхээр 5 GB-д 15,000–18,000 ₮, 10 GB-д 20,000–25,000 ₮, хурд хязгаарласан хязгааргүйд ~35,000 ₮ гэж бичсэн (Mobicom & Unitel). Гэсэн ч энэ нь аялагчийн SIM-ийн заавар, операторын тарифын хуудас биш.
+- AUProximity бол олон нийтийн GPLv3 WebRTC ойролцоо-чатын төсөл, Innersloth-ын албан ёсны боломж биш. ✅
+
+**Байрандаа засагдсан:**
+- LiveKit Build-ийн зэрэгцээ холболт: **5 → 100** (тэр «5» гэдэг нь *зэрэгцээ agent session*, өөр бүтээгдэхүүний шугам). Ship 1,000, Scale 5,000.
+- LiveKit-ийн урсгал: пер-GB тооцоо эхлэхээс өмнө **250 GB (Ship) / 3 TB (Scale) / 50 GB (Build) багтсан** — өмнөх ноорог эхний байтаас нь төлбөр тооцдог мэтээр бичсэн байсан.
+- Azure Content Safety: **107 хэл жагсаасан, 8 нь тусгайлан сургасан** (өмнө нь «180+» ба «9» гэж байсан).
+- Урсгалын арифметик: **цагт 37 MB ≈ сард 1.1 GB** (өмнө нь «цагт 33 MB ≈ 0.99 GB» байсан нь тайлангийн өөрийнх нь хүснэгтээс гардаггүй байв).
+- Гол дүгнэлтийн зардлын доод хязгаар **$0.72 → $0.65**, тайлангийн өөрийнх нь хүснэгттэй нийцүүлэв.
+- Twilio-гийн EOL-ийн он цагийн дараалалд нарийн огноо ба ажилладаг эх сурвалж өгөв.
+
+**Зэрэглэл нь буурсан — баталгаажуулалтад унасан мэдэгдлүүд:**
+- «16–24 kbps бол WhatsApp/Telegram-ийн дуут тэмдэглэлийн зурвас» ба «32–64 kbps дээр ихэнх хурлын апп анхдагчаар ажилладаг»: **иш татсан Cloudinary эх сурвалжид байхгүй, өөр хаанаас ч баталгаажаагүй.** Эх сурвалж нь VoIP-д 24–32 kbps mono гэж бичсэн.
+- «Opus DTX нь бодит амьдрал дээр 5–8 дахин хэмнэдэг»: **зохиосон тоо, эх сурвалжгүй.** Тоог нь хассан; хэмжих ёстой чанарын мэдэгдэл болгон үлдээсэн.
+- Perspective API 2026-12-31-нд хаагдана / квот 2026 оны 2 сард хаагдсан / шилжих зам байхгүй: **зөвхөн нэг гуравдагч талын вендорын блог, Google-ийн анхдагч эх сурвалж байхгүй.** Баталгаажаагүй.
+- «Монгол хэлний хортой агуулгын нийтлэгдсэн дата байхгүй»: «олдсонгүй» болгон дахин найруулсан, мөн тайлангийн өөрийнх нь LDNOOBW `mn` иш таталттай нийцүүлсэн.
+
+**Энэ бүлэгт илт баталгаажаагүй зүйлс [баталгаажаагүй]:** Монголд тусгайлан хамаарах гар утасны тоглоомын ARPU ба rewarded-video eCPM; өөрөө байршуулах тооцоонд ашигласан Hetzner/OVH bare-metal ба AWS/GCP egress-ийн үнэ; 100ms-ийн «зөвхөн аудио бол 75% хямд» гэдгийг гэрээний үнэ болгон; Whisper-ийн монгол тоглоомын яриан дээрх бодит WER; Vivox Safe Text монгол хэлийг хамардаг эсэх; Apple-ийн гомдолд хариу өгөх «24 цаг»-ийн SLA (нийтлэгдсэн удирдамжийн текстэд байхгүй); Монгол Улсын хувь хүний мэдээлэл хамгаалах хуулийн насанд хүрээгүй хүний өгөгдөлд хамаарах үүрэг.
+
+---
+
+## Эх сурвалж
+
+- Agora Voice Calling pricing — https://www.agora.io/en/pricing/voice-calling/
+- Agora Voice Calling pricing (docs) — https://docs.agora.io/en/voice-calling/overview/pricing
+- LiveKit pricing — https://livekit.com/pricing
+- LiveKit — managing participants (UpdateParticipant, MutePublishedTrack, RemoveParticipant, hidden) — https://docs.livekit.io/home/server/managing-participants/
+- LiveKit self-hosting benchmarks (16 цөм дээр 3,010 аудио оролцогч) — https://docs.livekit.io/home/self-hosting/benchmark/
+- 100ms pricing — https://www.100ms.live/pricing
+- Daily Video SDK pricing (зөвхөн аудио $0.00099/оролцогч-мин) — https://www.daily.co/pricing/video-sdk/
+- Twilio Video pricing — https://www.twilio.com/en-us/video/pricing
+- Twilio Programmable Video End of Life Notice — https://help.twilio.com/articles/20950630029595-Programmable-Video-End-of-Life-Notice
+- Twilio — Video will remain a standalone product (EOL-ийг буцаасан) — https://www.twilio.com/en-us/changelog/-twilio-video-will-remain-a-standalone-product
+- Unity Vivox бүтээгдэхүүний хуудас (платформ, Safe Text, Safe Voice) — https://unity.com/products/vivox
+- Unity Gaming Services pricing (Vivox PCU шат, Safe Text $0.05/MAU) — https://unity.com/products/gaming-services/pricing
+- Dolby.io / OptiView Communications API-ийн бүтээгдэхүүн дуусгах бодлого — https://docs.dolby.io/communications-apis/docs/overview-policy-product-end-of-life
+- Apple App Store Review Guidelines (1.2 UGC, 5.1.4 Kids) — https://developer.apple.com/app-store/review/guidelines/
+- Google Play Developer Program Policy — https://support.google.com/googleplay/android-developer/answer/9876937
+- Google Play — UGC аппуудын модерацийн шаардлага — https://support.google.com/googleplay/android-developer/answer/12923286
+- Azure AI Content Safety language support (монгол `mn` жагсаагдсан; тусгайлан сургасан хэлний тоог §4-д зассан) — https://github.com/MicrosoftDocs/azure-ai-docs/blob/main/articles/ai-services/content-safety/language-support.md
+- Azure AI Content Safety overview — https://learn.microsoft.com/en-us/azure/ai-services/content-safety/overview
+- Perspective API — attributes and languages — https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages
+- Perspective API-ийн хаагдалт (2026-12-31 гэж мэдээлэгдсэн) — https://www.lassomoderation.com/blog/what-is-perspective-api/
+- OpenAI multimodal moderation model (`omni-moderation-latest`) — https://openai.com/index/upgrading-the-moderation-api-with-our-new-multimodal-moderation-model/
+- OpenAI Moderation guide — https://developers.openai.com/api/docs/guides/moderation
+- MonTree: POS болон синтаксээр тэмдэглэсэн монгол дата — https://pmc.ncbi.nlm.nih.gov/articles/PMC13186072/
+- VoIP-д зориулсан Opus кодекийн битрэйтийн заавар — https://cloudinary.com/guides/video-formats/opus-codec
+- Монголын SIM/датаны үнэ (хэрэглэгчийн зөвлөмж, операторын тарифын хуудас биш) — https://emongolia.eu/en/sim-card-mongolia-2026.html
+- Монголын SIM/датаны үнэ (хоёр дахь хэрэглэгчийн эх сурвалж) — https://gigago.com/mobile-internet-mongolia/
+- Among Us-ийн ойролцоо-чатын жишээнүүд (AUProximity, CrewLink — бүгд олон нийтийн WebRTC, албан ёсных нь нэг нь ч биш) — https://github.com/cybershard/auproximity
+- Claude-ийн загварын үнэ (Haiku 4.5 $1.00/$5.00 per MTok; Batch −50%) — https://www.anthropic.com/pricing
