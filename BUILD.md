@@ -93,7 +93,8 @@ keytool -genkeypair -v -keystore mine.keystore -alias hotuntlaa \
 | `tools/render.sh -- demo=1 out=a.png` | Сервергүйгээр зөвхөн дүр төрхийг харах |
 | `tools/render.sh -- overview=1 out=a.png` | Ширээг дээрээс харах |
 | `tools/play.sh 40` | Сервер + 7 бот + үйлчлүүлэгч, бүтэн тоглолт |
-| `dart test` (багц бүрд) | Хөдөлгүүр 211, протокол 20, сервер 28 тест |
+| `tools/render.sh -- server=ws://…:8080 solo=7` | Ганцаараа 7 ботын эсрэг бүтэн тоглолт |
+| `dart test` (багц бүрд) | Хөдөлгүүр 211, протокол 24, сервер 85 тест |
 
 ## 5. Юу шалгагдаагүй вэ
 
