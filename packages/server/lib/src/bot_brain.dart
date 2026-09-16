@@ -212,6 +212,13 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
         final int? t = _watcherPick(v, rng);
         return t == null ? null : BotNight(t);
       }
+      // ИРГЭН БА ДАРГА — «хотын шивнээ»-нд товшино. Ботууд ч товших
+      // ёстой: эс бөгөөс ботоор дүүрсэн ширээн дээр шивнээ нь зөвхөн
+      // хүний товшилтыг тоолж, тэр хүнийг илчилнэ.
+      if (v.myRole == eng.Role.citizen || v.myRole == eng.Role.mayor) {
+        final int? t = _suspectPick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
       return null;
 
     case NetPhase.vote:
@@ -289,6 +296,51 @@ int? _vigilantePick(BotView v, eng.Rng rng) {
 /// ӨӨРИЙН ДҮРЭЭС өөр юу ч уншихгүй — `myAllies`, `allyPicks` хоёрт
 /// хүрэхгүй (Ажиглагч хэзээ ч мафи биш тул тэд хоосон боловч дүрмээ
 /// кодоор барих нь дээр).
+/// ИРГЭН: хэнийг сэжиглэх вэ.
+///
+/// ЗӨВХӨН НИЙТИЙН мэдээллээс: өчигдөр над руу санал өгсөн хүн, өчигдөр
+/// шивнээнд гарсан хүн. Бот дотоод төлөв уншвал ширээ түүнийг «хэтэрхий
+/// сайн таамагладаг» гэж мэдэрнэ.
+int? _suspectPick(BotView v, eng.Rng rng) {
+  final List<int> cands =
+      v.aliveSeats.where((int s) => s != v.mySeat).toList()..sort();
+  if (cands.isEmpty) return null;
+
+  // 1. Өчигдөр НАД РУУ санал өгсөн хүн. Хамгийн хувийн шалтгаан.
+  final List<int> hot = <int>[
+    for (final MapEntry<int, int> e in v.mem.lastDayVotes.entries)
+      if (e.value == v.mySeat && cands.contains(e.key)) e.key,
+  ]..sort();
+  if (hot.isNotEmpty) return hot[rng.below(hot.length)];
+
+  // 2. Өчигдөр ХАМГИЙН ОЛОН санал авсан хүн.
+  //
+  // ЯАГААД ЭНЭ ЧУХАЛ ВЭ: шивнээ нь ТОХИРОЛЦОО шаарддаг. Бот бүр
+  // санамсаргүй сонговол хэзээ ч тохирохгүй бөгөөд механик нь
+  // ботын ширээн дээр огт ажиллахгүй. Өдрийн санал бол НИЙТИЙН
+  // мэдээлэл — жинхэнэ ширээ ч яг үүгээр тохирдог («өчигдөр бүгд
+  // Батыг сэжиглэж байсан шүү дээ»).
+  final Map<int, int> tally = <int, int>{};
+  for (final int t in v.mem.lastDayVotes.values) {
+    if (cands.contains(t)) tally[t] = (tally[t] ?? 0) + 1;
+  }
+  if (tally.isNotEmpty) {
+    final int best = tally.values.reduce((int a, int b) => a > b ? a : b);
+    final List<int> top = <int>[
+      for (final MapEntry<int, int> e in tally.entries)
+        if (e.value == best) e.key,
+    ]..sort();
+    return top[rng.below(top.length)];
+  }
+
+  // 3. Өчигдөр шивнээнд гарсан хүн.
+  final List<int> warm = v.mem.whispered.where(cands.contains).toList()..sort();
+  if (warm.isNotEmpty) return warm[rng.below(warm.length)];
+
+  // 4. Эхний шөнө — юу ч мэдэхгүй.
+  return cands[rng.below(cands.length)];
+}
+
 /// СААТУУЛАГЧ: сэжигтэй хүнийг барина.
 ///
 /// Түүний эрсдэл нь хотынхныг саатуулах — эмчийг барьвал хохирогч үхнэ.

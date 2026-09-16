@@ -85,7 +85,12 @@ Matcher violates(String id) => throwsA(
 
 void main() {
   // Суурь шөнө: P1·P2 → 6 (P6 үхнэ), P3 → 5 аварна, P4 → 1 шалгана,
-  // P5·P6 → 1 сэжиглэнэ, P7 → 8, P8 → 7.
+  // P5·P6·P7 → 1 СЭЖИГЛЭНЭ, P8 → 7 сэжиглэнэ.
+  //
+  // Өмнө нь P7 → 8 байсан бөгөөд 1-ийн гурав дахь товшилт нь
+  // МӨРДӨГЧИЙНХ (P4) байв. Шивнээ зөвхөн сэжиглэл тоолдог болсон тул
+  // одоо гурав дахь СЭЖИГЛЭЛ хэрэгтэй — эс бөгөөс суурь шөнө шивнээгүй
+  // болж, N8-ын шалгалтууд юу ч шалгахгүй болно.
   final NightState s0 = NightState(
     setup: const Setup(n: 8, roleBySeat: kMn8),
     night: 1,
@@ -101,7 +106,7 @@ void main() {
     it(4, Ability.investigate, 1),
     it(5, Ability.suspect, 1),
     it(6, Ability.suspect, 1),
-    it(7, Ability.suspect, 8),
+    it(7, Ability.suspect, 1),
     it(8, Ability.suspect, 7),
   ];
 
@@ -116,7 +121,7 @@ void main() {
     test('Суурь шөнийн агуулга хүлээлттэй таарна', () {
       expect(base.deaths.single.victim, 6);
       expect(base.deaths.single.killer, 1); // rank(1) = 0
-      expect(base.whisper, <Seat>[1]); // 1 → 3 товшилт (P4, P5, P6)
+      expect(base.whisper, <Seat>[1]); // 1 → 3 СЭЖИГЛЭЛ (P5, P6, P7)
       expect(base.privateMsgs[4]!.single.code, MsgCode.traceFound);
       expect(base.aliveAfter, <Seat>{1, 2, 3, 4, 5, 7, 8});
       expect(base.visits.length, 3); // сэжиглэлт зочлол БИШ

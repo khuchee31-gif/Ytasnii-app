@@ -114,7 +114,8 @@ const ROLE_CARD := {
 	},
 	"mayor": {
 		"name": "ХОТЫН ДАРГА",
-		"sub": "Өдөр нэг удаа илчилж болно. Тэр цагаас хойш чиний санал гурав.",
+		"sub": "Өдөр нэг удаа илчилж болно — тэр цагаас хойш чиний санал "
+			+ "гурав. Шөнө иргэн шиг сэжиглэнэ.",
 		"tone": Color(0.92, 0.72, 0.30),
 	},
 	"vigilante": {
@@ -131,7 +132,8 @@ const ROLE_CARD := {
 	},
 	"citizen": {
 		"name": "ИРГЭН",
-		"sub": "Шөнө чадвар байхгүй. Өдөр чиний үг л зэвсэг.",
+		"sub": "Шөнө нэг хүнийг СЭЖИГЛЭНЭ — хамгийн олон сэжиг авсан "
+			+ "хоёр суудал үүрээр зарлагдана. Өдөр чиний үг л зэвсэг.",
 		"tone": Color(0.86, 0.84, 0.80),
 	},
 }
@@ -144,6 +146,13 @@ const ACTS_IN := {
 	"detective": "nightDetective",
 	"watcher": "nightDetective",
 	"vigilante": "nightMafia",
+	# ИРГЭН БА ДАРГА нь «хотын шивнээ»-нд товшино. Тэд ямар ч хүчгүй —
+	# гэвч товшилт нь тоологдож, хамгийн олонтой хоёр суудал үүрээр
+	# НИЙТЭД зарлагдана. Хэрэв зөвхөн чадвартай дүрүүд товшдог байсан
+	# бол тэр жагсаалт «хэн рүү очсон» гэсэн утгатай болж, эмч хэнийг
+	# аварсныг үнэгүй зарлах байв.
+	"citizen": "nightDetective",
+	"mayor": "nightDetective",
 	# Саатуулагч нь ЭМЧТЭЙ нэг үе шатанд сэрнэ. Сервер (`_mayActNow`)
 	# энэ хоёрыг ЗАДЛААД хамгаална — энд зөвхөн товчийг гаргана.
 	"blocker": "nightDoctor",
@@ -159,6 +168,21 @@ const ACT_LABEL := {
 	"watcher": "АЖИГЛАХ",
 	"vigilante": "БУУДАХ",
 	"blocker": "БАРИХ",
+	"citizen": "СЭЖИГЛЭХ",
+	"mayor": "СЭЖИГЛЭХ",
+}
+
+## Шөнийн үйлдлийн асуулт — дүр бүрд өөр.
+const ACT_HINT := {
+	"killer": "Энэ шөнө хэнийг алах вэ?",
+	"boss": "Энэ шөнө хэнийг алах вэ?",
+	"doctor": "Хэнийг аврах вэ?",
+	"detective": "Хэнийг шалгах вэ?",
+	"watcher": "Хэн рүү хэн очихыг харах вэ?",
+	"vigilante": "Хэнийг буудах вэ? Буруу бол өөрөө үхнэ.",
+	"blocker": "Хэний үйлдлийг зогсоох вэ?",
+	"citizen": "Хэнийг сэжиглэж байна?",
+	"mayor": "Хэнийг сэжиглэж байна?",
 }
 
 ## Тоглолт эхлэх доод хязгаар. СЕРВЕР шийднэ (`kMinPlayers`, `room.dart`)
@@ -239,6 +263,9 @@ var solo_mayor := false
 var solo_vigilante := false
 var solo_blocker := false
 var _solo_asked := false
+
+## Сүүлчийн шөнийн шивнээ. НИЙТИЙН мэдээлэл.
+var _whisper: Array = []
 
 ## Сүүлд дуугарсан тоолуурын секунд. -1 бол хараахан дуугараагүй.
 var _last_tick := -1
@@ -601,6 +628,9 @@ func _on_phase(d: Dictionary) -> void:
 	_phase_sound()
 	if _phase == "nightFalls":
 		_watch_seen.clear()
+		_whisper = []
+		if table != null:
+			table.set_whisper([])
 		# Хөзрөө хаагаагүй хүн ч шөнө эхлэхэд ширээгээ харах ёстой.
 		if hud != null and hud.role_card_open():
 			hud.hide_role_card()
@@ -639,10 +669,13 @@ func _on_night_result(d: Dictionary) -> void:
 	# ШИВНЭЭ нь ҮХЛЭЭС ӨМНӨ. Нийтийн мэдээлэл тул хэн ч сонсож болно;
 	# үхлийн цохилтоос өмнө байрлуулбал хоёр дуу давхарлахгүй.
 	var wh: Array = d.get("whisper", []) if d.get("whisper") is Array else []
+	_whisper = wh
+	if table != null:
+		table.set_whisper(wh)
 	if sfx != null and not wh.is_empty():
 		sfx.play("whisper", -9.0)
 	if dead.is_empty():
-		_notify("Шөнө нам гүм өнгөрлөө.")
+		_notify("Шөнө нам гүм өнгөрлөө.%s" % _whisper_text(wh))
 		return
 	if sfx != null:
 		# Үхэл бүрд нэг цохилт, ЖААХАН зөрүүлж. Зэрэг дуугарвал нэг
@@ -654,11 +687,11 @@ func _on_night_result(d: Dictionary) -> void:
 	# «яагаад унасан юм бэ» гэсэн асуулт болж үлдэнэ.
 	var names: Array = []
 	for x in dead:
-		names.append("%d" % int(x))
-	if names.size() == 1:
-		_notify("%s-р суудал алагдлаа." % names[0])
-	else:
-		_notify("%s-р суудал алагдлаа." % ", ".join(names))
+		names.append(_seat_label(int(x)))
+	# НЭРЛЭНЭ, зөвхөн дугаарлахгүй. «5-р суудал алагдлаа» гэхэд ширээ
+	# толгойгоо өргөж хэн байсныг тоолох хэрэгтэй болно; «5. Бат»
+	# гэвэл шууд ойлгогдоно. Нэр нь НИЙТИЙН мэдээлэл.
+	_notify("%s алагдлаа.%s" % [" ба ".join(names), _whisper_text(wh)])
 
 
 ## Шөнийн ХУВИЙН мэдээлэл. Мөрдөгч, Ажиглагч хоёулаа энэ сувгаар авна.
@@ -714,22 +747,67 @@ func _on_game_over(d: Dictionary) -> void:
 	for k in reveal:
 		seats.append(int(str(k)))
 	seats.sort()
-	var lines: Array = []
+
+	# МАФИЙГ НЭРЛЭНЭ, ЗААХ БИШ.
+	#
+	# Найман мөрийн жагсаалтаас хоёр «АЛУУРЧИН» гэсэн үгийг олох нь
+	# унших ажил. Асуулт нь ганцхан: «хэн мафи байсан бэ». Хариуг нь
+	# гарчгийн ЯГ доор, бүтэн өгүүлбэрээр өгнө.
+	var mafia: Array = []
+	var rows: Array = []
 	for st in seats:
 		var role := str(reveal[str(st)])
 		var card: Dictionary = ROLE_CARD.get(role, {})
 		var nm := str(card.get("name", role.to_upper()))
 		var who := str(_name_of_seat(int(st)))
-		lines.append("%d. %s — %s" % [int(st), who, nm])
+		if role == "killer" or role == "boss":
+			mafia.append("%d. %s" % [int(st), who])
+		rows.append({
+			"seat": int(st),
+			"name": who,
+			"role": nm,
+			"tone": card.get("tone", Color(0.86, 0.84, 0.80)),
+			"alive": _seat_alive(int(st)),
+			"me": int(st) == _my_seat,
+		})
+
 	if hud != null:
-		hud.show_role_card(
+		hud.hide_role_card()
+		hud.show_reveal(
 			"МАФИ ЯЛАВ" if w == "mafi" else "ХОТЫНХОН ЯЛАВ",
-			"\n".join(lines),
-			"",
-			Color(0.82, 0.24, 0.22) if w == "mafi" else Color(0.42, 0.78, 0.52),
-			24)
+			("Мафи: %s" % ", ".join(mafia)) if not mafia.is_empty() else "",
+			Color(0.86, 0.26, 0.24) if w == "mafi" else Color(0.44, 0.80, 0.54),
+			rows)
 	_notify("Мафи ялав." if w == "mafi" else "Хотынхон ялав.")
 	_refresh()
+
+
+## «3. Бат» — суудлын дугаар БА нэр. Хоёулаа нийтийн мэдээлэл.
+##
+## ДУГААРЫГ ХЭЗЭЭ Ч ХАЯХГҮЙ: ангид хоёр ижил нэр байх нь ердийн зүйл
+## бөгөөд суудлын дугаар нь ширээн дээрх цорын ганц хоёрдмол утгагүй
+## хаяг.
+func _seat_label(seat: int) -> String:
+	return "%d. %s" % [seat, _name_of_seat(seat)]
+
+
+## Үүрийн шивнээний мөр. Хоосон бол хоосон тэмдэгт мөр.
+func _whisper_text(w: Array) -> String:
+	if w.is_empty():
+		return ""
+	var names: Array = []
+	for x in w:
+		names.append(_seat_label(int(x)))
+	return "  ·  Хотын шивнээ: %s" % ", ".join(names)
+
+
+## Суудал амьд үлдсэн үү. Нийтийн мэдээлэл (`PublicPlayer.alive`).
+func _seat_alive(seat: int) -> bool:
+	for p in _players:
+		var d: Dictionary = p
+		if int(d.get("seat", -1)) == seat:
+			return bool(d.get("alive", false))
+	return false
 
 
 ## Суудлын эзний нэр (СЕРВЕРИЙН дугаар). Нийтийн мэдээлэл.
@@ -747,16 +825,16 @@ func _on_eliminated(d: Dictionary) -> void:
 	if not revote.is_empty():
 		var names: Array = []
 		for x in revote:
-			names.append("%d" % int(x))
+			names.append(_seat_label(int(x)))
 		_candidates = revote
 		if table != null:
 			table.set_candidates(revote)
 			table.select_seat(-1)
-		_notify("ТЭНЦЛЭЭ. %s дугаарын хооронд ДАХИН САНАЛ." % " ба ".join(names))
+		_notify("ТЭНЦЛЭЭ. %s хоёрын хооронд ДАХИН САНАЛ." % " ба ".join(names))
 	elif seat == null:
 		_notify("Санал дахин тэнцлээ. Хэн ч хасагдсангүй.")
 	else:
-		_notify("%d-р суудал хасагдлаа." % int(seat))
+		_notify("%s хасагдлаа." % _seat_label(int(seat)))
 
 
 ## ЗӨВХӨН мафид ирнэ. Иргэн энэ мессежийг ХЭЗЭЭ Ч авахгүй.
@@ -1031,5 +1109,8 @@ func _hint() -> String:
 			return "Хэнийг хасах вэ? Нэг хүнийг сонго."
 		_:
 			if ACTS_IN.get(_my_role, "") == _phase:
-				return "Хэн рүү чиглэхээ сонго."
+				# ДҮР БҮРД ӨӨРИЙН АСУУЛТ. «Хэн рүү чиглэхээ сонго»
+				# гэдэг нь зөв боловч юу ч заадаггүй — шинэ тоглогч
+				# дүрийнхээ хөзрийг ЭРГЭЖ УНШИХ хэрэгтэй болно.
+				return ACT_HINT.get(_my_role, "Хэн рүү чиглэхээ сонго.")
 			return "Хүлээ."

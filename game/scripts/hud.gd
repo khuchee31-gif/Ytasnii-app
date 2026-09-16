@@ -82,6 +82,21 @@ var _card_box := VBoxContainer.new()
 var _card_role := Label.new()
 var _card_sub := Label.new()
 var _card_extra := Label.new()
+
+## --- ТӨГСГӨЛИЙН ИЛЧЛЭЛТ ------------------------------------------------------
+##
+## ТУСДАА ДЭЛГЭЦ, дүрийн хөзрийн дахин ашиглалт БИШ.
+##
+## Энэ бол тоглоомын хамгийн их хүлээгддэг хором: «хэн мафи байсан бэ».
+## Өмнө нь хөзрийн хайрцагт найман мөрийг НЭГ шошгонд угсарч хийдэг
+## байсан — бүх нэр нэг өнгөөр, ямар ч эрэмбэгүй, амьд үхсэн нь ялгагдахгүй.
+## Тэр нь мэдээллийг харуулдаг ч ХҮРГЭДЭГГҮЙ.
+var _rev_scrim := ColorRect.new()
+var _rev_box := VBoxContainer.new()
+var _rev_title := Label.new()
+var _rev_sub := Label.new()
+var _rev_grid := GridContainer.new()
+var _rev_btn := Button.new()
 var _card_btn := Button.new()
 
 ## ҮЕ ШАТНЫ ЗАРЛАЛ — дэлгэцийн төвд томоор гарч, уусан алга болно.
@@ -227,6 +242,56 @@ func _ready() -> void:
 	_card_btn.pressed.connect(hide_role_card)
 	_style(_card_btn, 16, 18)
 	_card_box.add_child(_card_btn)
+
+	# --- Төгсгөлийн илчлэлт ---------------------------------------------------
+	_rev_scrim.color = Color(0.03, 0.02, 0.02, 0.96)
+	_rev_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_rev_scrim.visible = false
+	root.add_child(_rev_scrim)
+
+	_rev_box.add_theme_constant_override("separation", 6)
+	# ХАЙРЦАГ ДОТОР ТӨВЛӨНӨ. Эс бөгөөс агуулга нь дээд ирмэгт наалдаж,
+	# доор нь 300 цэгийн хоосон зай үлдэнэ.
+	_rev_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_band(_rev_box, Control.PRESET_CENTER, -640, -330, 640, 330)
+	_rev_box.visible = false
+	root.add_child(_rev_box)
+
+	_rev_title.add_theme_font_size_override("font_size", 82)
+	_rev_title.add_theme_constant_override("outline_size", 14)
+	_rev_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_rev_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rev_box.add_child(_rev_title)
+
+	_rev_sub.add_theme_font_size_override("font_size", 26)
+	_rev_sub.add_theme_color_override("font_color", INK)
+	_rev_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rev_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rev_box.add_child(_rev_sub)
+
+	var rpad := Control.new()
+	rpad.custom_minimum_size = Vector2(0, 10)
+	_rev_box.add_child(rpad)
+
+	# ХОЁР БАГАНА. Ширээ 14 хүртэл хүнтэй; нэг баганаар жагсаавал
+	# хөндлөн дэлгэцэнд зургаа нь л багтана.
+	_rev_grid.columns = 2
+	_rev_grid.add_theme_constant_override("h_separation", 40)
+	_rev_grid.add_theme_constant_override("v_separation", 4)
+	_rev_box.add_child(_rev_grid)
+
+	var rpad2 := Control.new()
+	rpad2.custom_minimum_size = Vector2(0, 12)
+	_rev_box.add_child(rpad2)
+
+	_rev_btn.text = "ОЙЛГОЛОО"
+	_rev_btn.add_theme_font_size_override("font_size", 30)
+	_rev_btn.custom_minimum_size = Vector2(0, 70)
+	_rev_btn.focus_mode = Control.FOCUS_NONE
+	_rev_btn.pressed.connect(hide_reveal)
+	_click(_rev_btn)
+	_style(_rev_btn, 14, 18)
+	_rev_box.add_child(_rev_btn)
 
 	# --- Доод: микрофон ба үйлдэл --------------------------------------------
 	_mic.add_theme_font_size_override("font_size", 24)
@@ -410,6 +475,99 @@ func show_role_card(title: String, sub: String, extra: String,
 	_card_box.visible = true
 
 
+## Төгсгөлийн илчлэлт.
+##
+## `rows` нь мөр бүрд: {seat, name, role, tone, alive, me}.
+## БҮХ утга нь серверээс ирсэн НИЙТИЙН мэдээлэл — тоглоом дууссаны
+## дараа дүр нууц байхаа больдог (`gameOver`-ын `reveal` талбар).
+func show_reveal(title: String, sub: String, tone: Color, rows: Array) -> void:
+	_rev_title.text = title
+	_rev_title.add_theme_color_override("font_color", tone)
+	_rev_sub.text = sub
+	_rev_sub.visible = not sub.is_empty()
+	for c in _rev_grid.get_children():
+		c.queue_free()
+	for r in rows:
+		var d: Dictionary = r
+		var line := HBoxContainer.new()
+		# 560 × 2 + 40 зай = 1160, доорх товчтой ижил өргөн. Илүү нарийн
+		# байвал жагсаалт нь товчны дунд «эвгүй» хөвнө.
+		line.custom_minimum_size = Vector2(560, 0)
+		line.add_theme_constant_override("separation", 10)
+
+		# ӨӨРИЙН МӨРИЙГ ТЭМДЭГЛЭНЭ. Найман нэрийн дунд өөрийгөө хайх нь
+		# энэ дэлгэцийн эхний хийдэг зүйл — тэр хайлтыг хэмнэнэ.
+		var mine: bool = bool(d.get("me", false))
+		var bar := ColorRect.new()
+		bar.custom_minimum_size = Vector2(4, 0)
+		bar.color = AMBER if mine else Color(0, 0, 0, 0)
+		line.add_child(bar)
+
+		var nm := Label.new()
+		nm.text = "%d. %s" % [int(d.get("seat", 0)), str(d.get("name", "?"))]
+		nm.add_theme_font_size_override("font_size", 25)
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var alive: bool = bool(d.get("alive", true))
+		# ҮХСЭН ХҮНИЙГ БҮДЭГ. Хэн амьд үлдсэн нь өөрөө түүх — «эмч
+		# сүүлчийн шөнө хүртэл амьд байсан» гэдэг нь дараагийн
+		# тоглолтын яриа.
+		nm.add_theme_color_override("font_color",
+			INK if alive else Color(0.48, 0.46, 0.44))
+		line.add_child(nm)
+
+		var rl := Label.new()
+		rl.text = str(d.get("role", ""))
+		rl.add_theme_font_size_override("font_size", 25)
+		var t: Color = d.get("tone", INK)
+		rl.add_theme_color_override("font_color",
+			t if alive else Color(t.r, t.g, t.b, 0.55))
+		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		line.add_child(rl)
+		_rev_grid.add_child(line)
+
+	_rev_scrim.visible = true
+	_rev_box.visible = true
+	# ТОГЛООМЫН ХЯНАЛТЫГ ДАРНА.
+	#
+	# Дэлгэцийн дараалал нь зөвхөн `root`-д нэмсэн ДАРААЛЛААР тодорхойлогддог
+	# тул доод товч, микрофоны бичиг, нэрийн шошго нь илчлэлтийн хөшигний
+	# ДЭЭР зурагдана. Зураг авч олов: хоосон хүрээтэй товч булан дээр
+	# өлгөөтэй, толгойн шошгоны сүүдэр гарчиг дундуур гарч байв.
+	_hide_play_ui()
+
+
+func hide_reveal() -> void:
+	_rev_scrim.visible = false
+	_rev_box.visible = false
+	# БУЦААЖ ГАРГАНА. `apply()` нь зөвхөн БИЧВЭРИЙГ тавьдаг тул
+	# харагдах эсэхийг энд сэргээхгүй бол тоглогч хөшгийг хаамагц
+	# ХООСОН дэлгэц үлдэнэ.
+	_mic.visible = true
+	_phase.visible = true
+	_timer.visible = true
+	_hint.visible = true
+	_rule.visible = true
+	_tally_root.visible = true
+
+
+## Тоглох хяналтыг нуух. `apply()` дараагийн удаа буцааж гаргана.
+func _hide_play_ui() -> void:
+	_act.visible = false
+	_extra.visible = false
+	_emote_bar.visible = false
+	_name.visible = false
+	_mic.visible = false
+	_phase.visible = false
+	_timer.visible = false
+	_hint.visible = false
+	_rule.visible = false
+	_tally_root.visible = false
+
+
+func reveal_open() -> bool:
+	return _rev_box.visible
+
+
 func hide_role_card() -> void:
 	_card_scrim.visible = false
 	_card_box.visible = false
@@ -439,6 +597,11 @@ func announce(text: String, sub := "") -> void:
 ## Бусдын дүр энд хэзээ ч ирэхгүй — сервер тийм мессеж явуулдаггүй
 ## (`packages/protocol`: `PublicPlayer`-т `role` талбар БАЙХГҮЙ).
 func apply(state: Dictionary) -> void:
+	# ИЛЧЛЭЛТ НЭЭЛТТЭЙ бол тоглох хяналтыг БУЦААЖ ГАРГАХГҮЙ. `apply`
+	# нь кадр бүрд дуудагддаг тул энэ шалгалтгүй бол товч нэг кадрын
+	# дараа дахин гарч ирнэ.
+	if reveal_open():
+		return
 	_phase.text = str(state.get("phase", ""))
 	var left: int = int(state.get("seconds", -1))
 	_timer.text = "%d" % left if left >= 0 else ""
@@ -469,6 +632,8 @@ func apply(state: Dictionary) -> void:
 ##
 ## `items` нь `{"text": "3", "pos": Vector2, "hot": bool}` жагсаалт.
 func show_tally(items: Array) -> void:
+	if reveal_open():
+		return
 	while _tally.size() < items.size():
 		var l := Label.new()
 		l.add_theme_font_size_override("font_size", 26)
@@ -500,6 +665,11 @@ func show_tally(items: Array) -> void:
 ## `screen` нь `Camera3D.unproject_position`-оос ирнэ. Ард нь байвал
 ## `visible = false` болгож дуудна.
 func show_name(text: String, screen: Vector2, visible_v: bool) -> void:
+	# Илчлэлт нээлттэй бол нэрийн шошго ГАРАХГҮЙ: тайз нь хөшгийн
+	# цаана байгаа ч шошго нь ДЭЭР нь зурагдана.
+	if reveal_open():
+		_name.visible = false
+		return
 	_name.visible = visible_v and not text.is_empty()
 	if not _name.visible:
 		return

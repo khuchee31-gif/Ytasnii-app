@@ -126,9 +126,13 @@ class _Work {
     );
   }
 
-  /// Шивнээний сан. 100, 130, 135 гурвуулаа тэжээнэ.
+  /// Шивнээний сан. ЗӨВХӨН 135-р хувин тэжээнэ.
+  ///
+  /// Өмнө нь 100, 130, 135 гурвуулаа тэжээдэг байв — тэр нь шивнээг
+  /// «хэн рүү очсон» гэсэн жагсаалт болгож, эмчийн аврааг зарладаг
+  /// байсан (135-р хувин дахь тайлбарыг үз).
   void bump(Seat target) {
-    assert(bucket >= 100, 'шивнээний сан 100-аас өмнө дүүрэхгүй');
+    assert(bucket == 135, 'шивнээний санг ЗӨВХӨН 135 тэжээнэ (одоо $bucket)');
     whisperTally.update(target, (int v) => v + 1, ifAbsent: () => 1);
   }
 
@@ -346,12 +350,6 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
     w.pending.add(_Pending(hit.actor, hit.target, AttackLevel.basic, DeathTag.mafi));
     w.addVisit(Visit(hit.actor, hit.target, Ability.mafiaKill, harmful: true));
   }
-  // ШИВНЭЭ нь БҮХ товшилтыг тоолно — саатуулагдсаныг ч. Эс бөгөөс
-  // шивнээний жагсаалт хэн саатуулагдсаныг зарлана.
-  for (final Intent k
-      in a.where((Intent i) => i.ability == Ability.mafiaKill)) {
-    w.bump(k.target!);
-  }
 
   // МАНААЧ — мафитай ЗЭРЭГ буудна.
   //
@@ -360,7 +358,6 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   for (final Intent g
       in a.where((Intent i) => i.ability == Ability.vigilanteKill)) {
     final Seat t = g.target!;
-    w.bump(t);
     if (blocked.contains(g.actor)) continue;
     // СУМ НЬ ЗӨВХӨН БУУДСАН ҮЕД хасагдана. Саатуулагдсан Манаач
     // буугаа гаргаж ч амжаагүй.
@@ -428,14 +425,12 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   // сайн санаагаар зарлаж, 3 дахь шөнө нь мафи түүнийг алах болно.
   final List<Visit> frozen = w.visitSnapshot();
   for (final Intent q in a.where((Intent i) => i.ability == Ability.investigate)) {
-    w.bump(q.target!);
     if (blocked.contains(q.actor)) continue;
     final Msg m = infoAnswer(s0, q); // цэвэр, §9.1 — товших мөчийнхтэй ИЖИЛ
     w.msgs.putIfAbsent(q.actor, () => <Msg>[]).add(m);
     w.addVisit(Visit(q.actor, q.target!, Ability.investigate, harmful: false));
   }
   for (final Intent q in a.where((Intent i) => i.ability == Ability.watch)) {
-    w.bump(q.target!);
     if (blocked.contains(q.actor)) continue;
     w.msgs.putIfAbsent(q.actor, () => <Msg>[]).addAll(watchAnswer(frozen, q));
     // ЗОЧЛОЛ БИЧИХГҮЙ (§N17): Ажиглагч нь харж байгаа болохоос
@@ -446,16 +441,31 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
 
   // ---- 135 whisper --------------------------------------------------------
   w.enter(135);
+  // ШИВНЭЭ НЬ ЗӨВХӨН СЭЖИГЛЭЛИЙГ ТООЛНО.
+  //
+  // Өмнө нь БҮХ товшилтыг тоолдог байв (алалт, эдгээлт, шалгалт,
+  // ажиглалт, саатуулалт). Тэр нь GDD-05 §5-ын анхны санаа байсан:
+  // «товшилт бүр ялгагдахгүй» гэдэг нь шивнээг хоёрдмол утгатай
+  // болгоно гэж үзсэн. ХЭМЖИЛТ үүнийг худал болгов
+  // (`tools/`-ийн туршилт, 400 тоглолт × 6 тохиргоо):
+  //
+  //   Хоёр алуурчин нэг байг сонгоход тэр суудал ХОЁР товшилт авна.
+  //   Эмч сохроор яг тэр хүнийг аварвал ГУРАВ болж босго яг давна.
+  //   Үхсэн бол `aliveAfter`-ээр шүүгдэнэ — тиймээс шивнээнд ГАРСАН
+  //   гэдэг нь «онилогдоод АМЬД үлдсэн» гэсэн үг.
+  //
+  //   Үр дүн: босго 3 байхад шивнээ гарсан тохиолдлын 100% нь эмчийн
+  //   аврааг зарлаж байв. Босгыг 4, 5 болгоход давтамж нь буурсан ч
+  //   ХАМААРАЛ хэвээр (51%, 11% — гарсан бүрд нь л тэр). Босго энэ
+  //   алдааг ЗАСАХГҮЙ, зөвхөн ХОВОРДУУЛНА.
+  //
+  // Тиймээс: чадвартай дүрийн бай нь НУУЦ (тэр бол Ажиглагчийн ажил,
+  // хэн ч төлөөгүй байж авах ёсгүй), шивнээ нь нэрнийхээ дагуу
+  // ЗӨВХӨН сэжиглэлийг тоолно.
   for (final Intent t in a.where((Intent i) => i.ability == Ability.suspect)) {
     w.bump(t.target!);
     // ЗОЧЛОЛ БИЧИГДЭХГҮЙ. Инвариант N17/N7: сэжиглэх товшилт нь зочлол БИШ —
     // эс бөгөөс v2-ын Ажиглагч шөнө бүр бүгдийг харж, дүр өөрөө үхнэ.
-  }
-  for (final Intent h in a.where((Intent i) => i.ability == Ability.heal)) {
-    w.bump(h.target!);
-  }
-  for (final Intent b in a.where((Intent i) => i.ability == Ability.roleblock)) {
-    w.bump(b.target!);
   }
   if (s0.setup.whisperOn) {
     w.whisper = topWhisper(w.whisperTally, w.alive, s0);

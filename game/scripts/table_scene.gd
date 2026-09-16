@@ -165,6 +165,7 @@ var _ring: MeshInstance3D = null
 var _selected := -1
 var _hud: CanvasLayer = null
 var _sfx: Node = null
+var _sess: Node = null
 var _cam: Camera3D = null
 
 ## Суудлаас хамаардаг бүх зүйл (сандал, хүн, хөзөр, камер) ЭНД байна.
@@ -186,6 +187,9 @@ var _emote_at: Dictionary = {}    # суудал → хэн рүү заасан
 var _revealed: Dictionary = {}    # илчилсэн даргын суудлууд
 var _tally: Dictionary = {}       # суудал → ирсэн саналын жин
 var _candidates: Dictionary = {}  # дахин саналын нэрс (хоосон = чөлөөт)
+
+## Үүрээр зарлагдсан шивнээний суудлууд (0-ээс). НИЙТИЙН.
+var _whisper: Dictionary = {}
 
 # --- Үе шатны АЯС ------------------------------------------------------------
 var _lamp_pivot: Node3D = null
@@ -282,6 +286,11 @@ func _ready() -> void:
 				"3-р суудал · %s" % str(c["sub"]),
 				"Хамтрагч: 7-р суудал" if rc == "killer" else "",
 				Color(c["tone"]))
+	# Хөгжүүлэлтийн шалгалт: төгсгөлийн илчлэлтийг харах.
+	#   tools/render.sh -- reveal=mafi hold=1 out=r.png
+	var rv := _arg_str("reveal", "")
+	if not rv.is_empty() and _hud != null:
+		_demo_reveal(rv)
 	# Хөгжүүлэлтийн шалгалт: саналын тоололыг харах.
 	#   tools/render.sh -- votes=1:4,2:4,3:6 weights=1:3
 	var vs := _arg_str("votes", "")
@@ -967,6 +976,40 @@ func _build_post() -> void:
 	layer.add_child(rect)
 
 
+## ЗӨВХӨН ХӨГЖҮҮЛЭЛТЭД: төгсгөлийн илчлэлтийг сервергүйгээр зурна.
+##
+## Бүтэн тоглолт нь ~3 минут үргэлжилдэг тул байрлал нэг цэг засах
+## бүрд тэр хугацааг хүлээх нь боломжгүй. Энэ нь ЯГ ижил функцийг
+## (`hud.show_reveal`) дуудна — зөвхөн өгөгдөл нь зохиомол.
+func _demo_reveal(winner: String) -> void:
+	# ЛОББИГ ХААНА. Сервергүй ажиллахад лобби нээлттэй үлддэг бөгөөд
+	# түүний давхарга (150) нь HUD-ээс ДЭЭР — илчлэлт бүрэн далдлагдана.
+	if _sess != null and _sess.lobby != null:
+		_sess.lobby.hide_all()
+	_hud.visible = true
+	const NAMES := ["Хүчээ", "Бат", "Сараа", "Ганаа", "Дорж", "Нараа",
+		"Төгсөө", "Энхээ"]
+	const ROLES := ["citizen", "killer", "doctor", "citizen", "detective",
+		"killer", "watcher", "blocker"]
+	var rows: Array = []
+	for i in NAMES.size():
+		var card: Dictionary = Session.ROLE_CARD.get(ROLES[i], {})
+		rows.append({
+			"seat": i + 1,
+			"name": NAMES[i],
+			"role": str(card.get("name", "?")),
+			"tone": card.get("tone", Color(0.86, 0.84, 0.80)),
+			"alive": i % 3 != 1,
+			"me": i == 0,
+		})
+	var mafi := winner == "mafi"
+	_hud.show_reveal(
+		"МАФИ ЯЛАВ" if mafi else "ХОТЫНХОН ЯЛАВ",
+		"Мафи: 2. Бат, 6. Нараа",
+		Color(0.86, 0.26, 0.24) if mafi else Color(0.44, 0.80, 0.54),
+		rows)
+
+
 # --- Дэлгэцийн мэдээлэл ------------------------------------------------------
 
 func _build_hud() -> void:
@@ -998,6 +1041,7 @@ func _build_hud() -> void:
 	var sess := Session.new()
 	sess.sfx = _sfx
 	add_child(sess)
+	_sess = sess
 	var url := _arg_str("server", "")
 	sess.room_code = _arg_str("room", "")
 	sess.verbose = _arg("verbose", 0.0) > 0.5
@@ -1186,6 +1230,11 @@ func _seat_name(seat: int) -> String:
 	# гурван санал хаанаас гарч ирснийг хэн ч ойлгохгүй.
 	if _revealed.has(seat):
 		tag += " · ДАРГА ×3"
+	# ШИВНЭЭ нь ӨДРИЙН ТУРШ харагдана. Үүрийн нэг мөр бичвэр нь хэдхэн
+	# секундэд алга болдог тул тоглогчид маргаан дундаа «хэн байсан
+	# билээ» гэж эргэн санахад хэцүү.
+	if _whisper.has(seat):
+		tag += " · ШИВНЭЭ"
 	return "%d. %s%s" % [seat + 1, n, tag]
 
 
@@ -1320,6 +1369,18 @@ func set_candidates(seats: Array) -> void:
 	_candidates.clear()
 	for x in seats:
 		_candidates[int(x) - 1] = true
+
+
+## ХОТЫН ШИВНЭЭ — үүрээр зарлагдсан хоёр суудал.
+##
+## НИЙТИЙН мэдээлэл: сервер түүнийг `nightResult`-аар бүх утас руу
+## илгээдэг. Өмнө нь тэр жагсаалт зөвхөн мессежийн дотор ирээд ХЭНД Ч
+## ХАРАГДАХГҮЙ өнгөрдөг байв — тоглоомын хамгийн чухал нийтийн дохио
+## нь ширээн дээр ул мөргүй байсан.
+func set_whisper(seats: Array) -> void:
+	_whisper.clear()
+	for x in seats:
+		_whisper[int(x) - 1] = true
 
 
 ## Санал хураалтын ЖИНТЭЙ тоолол.

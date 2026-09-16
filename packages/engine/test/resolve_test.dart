@@ -255,15 +255,23 @@ void main() {
       expect(r.visits.length, 3);
       expect(r.visits.any((Visit v) => v.ability == Ability.suspect), isFalse);
 
-      // 6. 135 whisper — сан: 5→3, 9→3, 2→2, 4→1, 11→1. Босго 3.
-      //    Хэвлэх нь СУУДЛЫН ДУГААРААР.
-      expect(r.whisper, <Seat>[5, 9]);
+      // 6. 135 whisper — ЗӨВХӨН СЭЖИГЛЭЛ: 5→3 (P1, P6, P10), 2→2
+      //    (P8, P12). Босго 3 → `[5]`.
+      //
+      //    GDD-05 §11 нь энд `[5, 9]` гэж бичдэг байв: 9 нь P2-ийн
+      //    алалт, P4-ийн эдгээлт, P11-ийн хаягдсан алалт гурваас
+      //    гуравтай болдог байв. Тэр нь ЯГ энэ засварын шалтгаан —
+      //    §11-ийн өөрийн тайлбар «Эмч сохроор яг тэр суудлыг
+      //    аварсан, шивнээ нь Мөрдөгчийн дугаарыг нийтэлсэн» гэж
+      //    бичсэн. Хэмжилтээр тэр нь ховор давхцал БИШ, харин шивнээ
+      //    гарсан тохиолдлын 100% нь болж таарав.
+      expect(r.whisper, <Seat>[5]);
 
       // 7. 160 cues — үхэл байхгүй тул 2.5 секундын блок БАЙХГҮЙ.
       expect(r.cues.length, 3);
       expect((r.cues[0] as CueLine).clipId, 'DAWN_NO_KILL');
       expect((r.cues[1] as CueLine).clipId, 'WHISPER');
-      expect((r.cues[2] as CueScreenSeats).seats, <Seat>[5, 9]);
+      expect((r.cues[2] as CueScreenSeats).seats, <Seat>[5]);
       expect(r.cues.any((Cue c) => c is CueSilence), isFalse);
 
       // 8. 170 winCheck — M = 3, T = 7.
@@ -541,17 +549,17 @@ void main() {
       expect(b.whisper, a.whisper);
     });
 
-    test('Ямар дүр товшсон нь хамаарахгүй — Мөрдөгч ба Иргэн байгаа сольсон',
-        () {
-      // A: Мөрдөгч → 1, Иргэн P8 → 2.  B: Мөрдөгч → 2, Иргэн P8 → 1.
-      // Байнуудын multiset хоёуланд нь {1, 1, 1, 2}.
+    test('МӨРДӨГЧИЙН товшилт санг тэжээхгүй — зөвхөн СЭЖИГЛЭЛ', () {
+      // A: Мөрдөгч → 1 дээр, гурван сэжиглэл 1 дээр.
+      // B: Мөрдөгч → 2 дээр, гурван сэжиглэл 1 дээр.
+      // Мөрдөгчийн бай ЯМАР Ч нөлөөгүй тул хоёр хариу ИЖИЛ.
       final NightReport a = resolveNight(
         s,
         fill(s, <Intent>[
           it(4, Ability.investigate, 1),
           it(5, Ability.suspect, 1),
           it(6, Ability.suspect, 1),
-          it(8, Ability.suspect, 2),
+          it(8, Ability.suspect, 1),
         ]),
       );
       final NightReport b = resolveNight(
@@ -567,9 +575,12 @@ void main() {
       expect(b.whisper, a.whisper);
     });
 
-    test('Эдгээлт ба хаягдсан алалт ч санг тэжээнэ', () {
-      // Хаягдсан алалт (P2 → 6) ба эдгээлт (P3 → 6) хоёр товшилт өгнө,
-      // дээр нь нэг иргэн → босго 3 давна.
+    test('ЭДГЭЭЛТ ба ХАЯГДСАН АЛАЛТ санг ТЭЖЭЭХГҮЙ', () {
+      // ЭНЭ БОЛ ГОЛ ЗАСВАР. Хуучин дүрмээр: хаягдсан алалт (P2 → 6) +
+      // эдгээлт (P3 → 6) + нэг сэжиглэл = 3 → босго давна. Тэр нь
+      // «эмч хэнийг аварсныг» зарлах зам байв.
+      //
+      // Одоо зөвхөн сэжиглэл тоологдоно: 6 → 1 товшилт, босго хол.
       final NightReport r = resolveNight(
         s,
         fill(s, <Intent>[
@@ -581,9 +592,7 @@ void main() {
       );
       // rank(7)=1 < rank(6)=5 тул `mafiaMajority` тэнцэлд 7 хожино.
       expect(r.deaths.single.victim, 7);
-      // 6 → 3 товшилт, 7 → 2 (алалт + ямар ч иргэн байхгүй). 7 үхсэн тул
-      // хасагдана. Үлдсэн нь {6: 3}.
-      expect(r.whisper, <Seat>[6]);
+      expect(r.whisper, isEmpty);
     });
 
     test('Өнөө шөнө үхсэн суудал шивнээний сангаас ХАСАГДАНА', () {
@@ -594,10 +603,11 @@ void main() {
           it(2, Ability.mafiaKill, 6),
           it(5, Ability.suspect, 6),
           it(7, Ability.suspect, 6),
+          it(8, Ability.suspect, 6),
         ]),
       );
       expect(r.deaths.single.victim, 6);
-      expect(r.whisper, isEmpty); // 6 нь 4 товшилттой ч ҮХСЭН
+      expect(r.whisper, isEmpty); // 6 нь ГУРВАН сэжиглэлтэй ч ҮХСЭН
     });
 
     test('`whisperOn == false` бол шивнээ ба `WHISPER` мөр байхгүй', () {
