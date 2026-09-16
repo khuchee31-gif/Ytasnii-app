@@ -88,6 +88,12 @@ const ROLE_CARD := {
 		"sub": "Өдөр нэг удаа илчилж болно. Тэр цагаас хойш чиний санал гурав.",
 		"tone": Color(0.92, 0.72, 0.30),
 	},
+	"vigilante": {
+		"name": "МАНААЧ",
+		"sub": "Шөнө буудна (эхний шөнө биш), хоёр сум. "
+			+ "ГЭХДЭЭ: хотын хүнийг буудвал маргааш гэмшлээсээ үхнэ.",
+		"tone": Color(0.90, 0.52, 0.22),
+	},
 	"citizen": {
 		"name": "ИРГЭН",
 		"sub": "Шөнө чадвар байхгүй. Өдөр чиний үг л зэвсэг.",
@@ -102,6 +108,7 @@ const ACTS_IN := {
 	"doctor": "nightDoctor",
 	"detective": "nightDetective",
 	"watcher": "nightDetective",
+	"vigilante": "nightMafia",
 	# Дарга ШӨНӨ юу ч хийхгүй — иргэнтэй яг адил. Түүний хүч бол ӨДӨР.
 }
 
@@ -112,6 +119,7 @@ const ACT_LABEL := {
 	"doctor": "ЭМЧЛЭХ",
 	"detective": "ШАЛГАХ",
 	"watcher": "АЖИГЛАХ",
+	"vigilante": "БУУДАХ",
 }
 
 ## Тоглолт эхлэх доод хязгаар. СЕРВЕР шийднэ (`kMinPlayers`, `room.dart`)
@@ -132,6 +140,8 @@ const ERR_TEXT := {
 	"nameReserved": "Энэ нэрийг авч болохгүй.",
 	"notYourTurn": "Одоо чиний ээлж биш.",
 	"notYourAbility": "Чамд энэ эрх байхгүй.",
+	"chargeSpent": "Сум дууссан.",
+	"nightTooEarly": "Эхний шөнө буудаж болохгүй.",
 	"invalidTarget": "Энэ хүнийг сонгож болохгүй.",
 	"tooFewPlayers": "Хүн цөөн байна.",
 	"nameTaken": "Энэ нэр аль хэдийн байна.",
@@ -184,6 +194,8 @@ var solo_bots := 0
 ## Ганцаараа туршихад Ажиглагчийг асаах уу (хөгжүүлэлтийн арг).
 var solo_watcher := false
 var solo_mayor := false
+var solo_vigilante := false
+var _solo_asked := false
 var _solo_done := false
 
 
@@ -439,11 +451,20 @@ func _on_room_state(d: Dictionary) -> void:
 			voice.set_seats(heads)
 	# Ганцаараа туршилт: өрөө үүссэн даруйд бот нэмээд эхлүүлнэ.
 	if solo_bots > 0 and not _solo_done and _phase == "lobby":
-		if _players.size() <= 1:
+		# БОТЫГ НЭГ Л УДАА НЭМНЭ.
+		#
+		# `roomState` нь ботууд бүртгэгдэхээс өмнө хэд хэдэн удаа ирж
+		# болно (тохиргоо солих бүрд нэг). Тэр бүрд «нэг хүнтэй байна»
+		# гэж үзээд дахин долоо нэмбэл ширээ 15 хүнтэй болно — жинхэнэ
+		# гүйлтэд яг ингэж болсон.
+		if _players.size() <= 1 and not _solo_asked:
+			_solo_asked = true
 			if solo_watcher:
 				net.set_option("watcher", true)
 			if solo_mayor:
 				net.set_option("mayor", true)
+			if solo_vigilante:
+				net.set_option("vigilante", true)
 			net.add_bots(solo_bots)
 		elif _players.size() >= MIN_PLAYERS:
 			_solo_done = true
@@ -545,8 +566,19 @@ func _on_night_result(d: Dictionary) -> void:
 	# уншдаг байсан тул хэн алагдсан ч ҮРГЭЛЖ «нам гүм өнгөрлөө» гэж
 	# бичигддэг байв.
 	var dead: Array = d.get("deaths", []) if d.get("deaths") is Array else []
-	_notify("Шөнө нам гүм өнгөрлөө." if dead.is_empty()
-		else "%s-р суудал алагдлаа." % str(dead[0]))
+	if dead.is_empty():
+		_notify("Шөнө нам гүм өнгөрлөө.")
+		return
+	# НЭГЭЭС ОЛОН байж болно: мафи нэгийг, Манаач нөгөөг, гэмшил
+	# гурав дахийг авч болно. Зөвхөн эхнийхийг нэрлэвэл бусад нь
+	# «яагаад унасан юм бэ» гэсэн асуулт болж үлдэнэ.
+	var names: Array = []
+	for x in dead:
+		names.append("%d" % int(x))
+	if names.size() == 1:
+		_notify("%s-р суудал алагдлаа." % names[0])
+	else:
+		_notify("%s-р суудал алагдлаа." % ", ".join(names))
 
 
 ## Шөнийн ХУВИЙН мэдээлэл. Мөрдөгч, Ажиглагч хоёулаа энэ сувгаар авна.
@@ -819,9 +851,6 @@ func _am_alive() -> bool:
 ## сервер дээр.
 func _can_emote_now() -> bool:
 	if not _am_alive():
-		if verbose and _phase == "day":
-			print("HUD can_emote=false — амьд биш гэж үзэв, players=",
-				_players.size(), " id=", net.player_id)
 		return false
 	return _phase == "dawn" or _phase == "day" or _phase == "vote" \
 		or _phase == "elimination"

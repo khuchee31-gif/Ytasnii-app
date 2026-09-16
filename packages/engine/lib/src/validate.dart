@@ -87,6 +87,16 @@ RejectCode? validate(Intent i, NightState s) {
     return RejectCode.targetSameFaction;
   }
 
+  // --- 9b. Манаачийн хязгаарууд --------------------------------------------
+  if (i.ability == Ability.vigilanteKill) {
+    // ЭХНИЙ ШӨНӨ БУУДАХГҮЙ. Өдрийн яриа болоогүй байхад буудах нь
+    // цэвэр мөрийтэй тоглоом — хотынхон санамсаргүй нэгийг алдана.
+    if (s.night <= 1) return RejectCode.nightTooEarly;
+    if ((s.bullets[i.actor] ?? 0) <= 0) return RejectCode.chargeSpent;
+    // Өөрийгөө буудах нь гэмшлийн механикийг утгагүй болгоно.
+    if (t == i.actor) return RejectCode.targetSelf;
+  }
+
   // --- 10. Өчигдөр аварсан хүнээ дахин аварлаа -----------------------------
   // Дараалсан хамгаалалтын хориг нь ЦАРЦСАН — гэрийн дүрмийн toggle биш
   // (GDD-02 §2).

@@ -66,7 +66,8 @@ class _Work {
   _Work.from(NightState s0)
       : alive = <Seat>{...s0.alive},
         nextLastHeal = <Seat, Seat>{...s0.lastHealTarget},
-        nextSelfHealUsed = <Seat, int>{...s0.selfHealUsed};
+        nextSelfHealUsed = <Seat, int>{...s0.selfHealUsed},
+        nextBullets = <Seat, int>{...s0.bullets};
 
   /// Одоогийн хувин. 10-аас эхэлж зөвхөн ӨСНӨ.
   int bucket = 10;
@@ -74,6 +75,10 @@ class _Work {
   final Set<Seat> alive;
   final Map<Seat, Seat> nextLastHeal;
   final Map<Seat, int> nextSelfHealUsed;
+  final Map<Seat, int> nextBullets;
+
+  /// Дараагийн шөнө гэмшлээсээ үхэх суудлууд.
+  final Set<Seat> nextRemorse = <Seat>{};
 
   final Map<Seat, DefenseLevel> grantedDefense = <Seat, DefenseLevel>{};
   final Map<Seat, List<Seat>> protectors = <Seat, List<Seat>>{};
@@ -208,6 +213,8 @@ Map<String, Object?> _reportJson({
   required Set<Seat> aliveAfter,
   required Map<Seat, Seat> nextLastHeal,
   required Map<Seat, int> nextSelfHealUsed,
+  required Map<Seat, int> nextBullets,
+  required Set<Seat> nextRemorse,
 }) =>
     <String, Object?>{
       'night': night,
@@ -247,6 +254,14 @@ Map<String, Object?> _reportJson({
       'aliveAfter': (aliveAfter.toList()..sort()),
       'nextLastHeal': Map<Seat, Seat>.of(nextLastHeal),
       'nextSelfHealUsed': Map<Seat, int>.of(nextSelfHealUsed),
+      // ДАМЖИХ ТӨЛӨВ БҮР ЭНД БАЙХ ЁСТОЙ.
+      //
+      // Эс бөгөөс зөвхөн үлдсэн сумаараа ялгаатай хоёр шөнө ИЖИЛ
+      // `resultHash` өгч, GDD-05 §8-ын дахин тоглуулалт сохор болно:
+      // бүртгэлээс дахин тооцоход зөрүү гарахгүй мөртлөө тоглоом
+      // өөр замаар явна.
+      'nextBullets': Map<Seat, int>.of(nextBullets),
+      'nextRemorse': (nextRemorse.toList()..sort()),
     };
 
 // ---------------------------------------------------------------------------
@@ -303,17 +318,66 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
     w.bump(k.target!);
   }
 
+  // МАНААЧ — мафитай ЗЭРЭГ буудна.
+  //
+  // Шалгалт (`validate`) сум, шөнийн дугаарыг аль хэдийн барьсан.
+  // Энд зөвхөн сумыг хасч, довтолгоог ЗАРЛАНА — хэрэгжүүлэлт 120-д.
+  for (final Intent g
+      in a.where((Intent i) => i.ability == Ability.vigilanteKill)) {
+    final Seat t = g.target!;
+    w.nextBullets[g.actor] = (w.nextBullets[g.actor] ?? 0) - 1;
+    w.pending.add(
+        _Pending(g.actor, t, AttackLevel.basic, DeathTag.vigilante));
+    w.addVisit(Visit(g.actor, t, Ability.vigilanteKill, harmful: true));
+    w.bump(t);
+  }
+
+  // ГЭМШИЛ — өчигдөр хотынхны хүнийг буудсан Манаач.
+  //
+  // `AttackLevel.powerful` нь `DefenseLevel`-д хос байхгүй тул
+  // `lethal(powerful, basic)` = `2 > 1` = ҮРГЭЛЖ үнэн. «Эмчилж
+  // болохгүй» гэдэг нь тусгай тохиолдол БИШ, АРИФМЕТИК.
+  //
+  // ЗОЧЛОЛ БИЧИХГҮЙ: гэмшил нь хэн нэгэн рүү ОЧИХГҮЙ. Бичвэл Ажиглагч
+  // «Манаач өөр рүүгээ очив» гэсэн утгагүй мөр харна.
+  for (final Seat g in s0.remorse.toList()..sort()) {
+    if (!w.alive.contains(g)) continue;
+    w.pending.add(_Pending(g, g, AttackLevel.powerful, DeathTag.remorse));
+  }
+
   // ---- 120 deathApply -----------------------------------------------------
   w.enter(120);
-  for (final _Pending p in w.pending) {
-    // v1: 0 эсвэл 1 элемент.
-    if (lethal(p.level, defSnapshot[p.to] ?? DefenseLevel.none)) {
-      w.deaths.add(Death(p.to, p.from, p.tag));
-      w.alive.remove(p.to);
+  // ТОГТМОЛ ДАРААЛАЛ: мафи → манаач → гэмшил.
+  //
+  // Дараалал нь ажиглагдахуйц: хоёр эх сурвалж нэг хүнийг онивол
+  // ЭХНИЙХ нь л «алсан» гэж бүртгэгдэнэ. Хэрэв дараалал нь давталтын
+  // санамсаргүй эрэмбээс хамаарвал нэг оролт хоёр өөр `resultHash`
+  // өгч, GDD-05 §8-ын дахин тоглуулалт үхнэ.
+  final List<_Pending> ordered = <_Pending>[
+    for (final DeathTag tag in DeathTag.values)
+      for (final _Pending p in w.pending)
+        if (p.tag == tag) p,
+  ];
+  final Set<Seat> struck = <Seat>{};
+  for (final _Pending p in ordered) {
+    // НЭГ ХОХИРОГЧ = НЭГ ҮХЭЛ (N3, N20). Аль хэдийн унасан хүнийг
+    // дахин буудсан ч хоёр удаа үхэхгүй.
+    if (struck.contains(p.to)) continue;
+    if (!lethal(p.level, defSnapshot[p.to] ?? DefenseLevel.none)) continue;
+    struck.add(p.to);
+    w.deaths.add(Death(p.to, p.from, p.tag));
+    w.alive.remove(p.to);
+    // ХОТЫНХНЫ ХҮНИЙГ БУУДСАН МАНААЧ маргааш гэмшлээсээ үхнэ.
+    if (p.tag == DeathTag.vigilante &&
+        factionOf(s0.setup.roleOf(p.to)!) == Faction.hotynhon) {
+      w.nextRemorse.add(p.from);
     }
     // ЯМАР Ч хувийн мессеж байхгүй — §9.2. Эмчид «аварлаа» гэж хэлэхгүй,
     // хохирогчид «чам руу довтолсон» гэж хэлэхгүй.
   }
+  // СУУДЛЫН ДУГААРААР эрэмбэлнэ: «хэн түрүүлж үхсэн» гэдгээр эх
+  // сурвалжийг таах боломжгүй болно.
+  w.deaths.sort((Death x, Death y) => x.victim.compareTo(y.victim));
 
   // ---- 130 info -----------------------------------------------------------
   w.enter(130);
@@ -381,6 +445,9 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
       Map<Seat, Seat>.unmodifiable(w.nextLastHeal);
   final Map<Seat, int> nextSelfHealUsed =
       Map<Seat, int>.unmodifiable(w.nextSelfHealUsed);
+  final Map<Seat, int> nextBullets =
+      Map<Seat, int>.unmodifiable(w.nextBullets);
+  final Set<Seat> nextRemorse = Set<Seat>.unmodifiable(w.nextRemorse);
 
   final String resultHash = canonHash(_reportJson(
     night: s0.night,
@@ -394,6 +461,8 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
     aliveAfter: aliveAfter,
     nextLastHeal: nextLastHeal,
     nextSelfHealUsed: nextSelfHealUsed,
+    nextBullets: nextBullets,
+    nextRemorse: nextRemorse,
   ));
 
   final NightReport r = NightReport(
@@ -409,6 +478,8 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
     aliveAfter: aliveAfter,
     nextLastHeal: nextLastHeal,
     nextSelfHealUsed: nextSelfHealUsed,
+    nextBullets: nextBullets,
+    nextRemorse: nextRemorse,
   );
 
   // Дебаг билд дээр ҮРГЭЛЖ (GDD-05 §10.1).
@@ -575,6 +646,10 @@ WinState evaluateWin(
     if (r != null && factionOf(r) == Faction.mafi) m++;
   }
   final int t = alive.length - m;
+  // БҮГД ҮХЭВ. Манаач сүүлчийн хотынхны хүнийг буудаж, мафи түүнийг
+  // алаад, гэмшил нь гурав дахийг авах зэрэг тохиолдол. Ховор боловч
+  // БОДИТОЙ — тэр үед «хотынхон ялав» гэж хэлэх нь худал.
+  if (alive.isEmpty) return WinState.draw;
   if (m == 0) return WinState.hotynhon;
 
   // ИЛЧИЛСЭН ДАРГА нь хоёр нэмэлт саналтай. Мафийн «ялалт» нь

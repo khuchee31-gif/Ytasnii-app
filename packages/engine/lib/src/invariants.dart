@@ -55,11 +55,39 @@ void checkInvariants(NightState s0, List<Intent> sealed, NightReport r) {
 // N3 — `deaths.length ∈ {0, 1}`
 // ---------------------------------------------------------------------------
 
-/// v1-д шөнө нэгээс дээш хүн үхэхгүй: Ахлагч нэмэгдсэн ч мафи **нэг** бай
-/// сонгодог.
+/// ЭХ СУРВАЛЖ БҮРЭЭС ХАМГИЙН ИХДЭЭ НЭГ ҮХЭЛ.
+///
+/// Мафи нэг бай сонгодог (`pickVictim`), Манаач нэг сум хэрэглэдэг,
+/// гэмшил нь өөрийг нь л авдаг. Тиймээс шошго бүр ≤ 1, нийт ≤ 3.
+///
+/// Өмнө нь «нийт ≤ 1» гэж байсан. Тэр нь v1-д зөв байсан ч Манаач
+/// нэмэгдэхэд ҮНЭН ШӨНИЙГ унагах байв: мафи нэгийг, Манаач нөгөөг
+/// алахад хоёр үхэл гарна.
+///
+/// `deaths` нь СУУДЛЫН ДУГААРААР эрэмбэлэгдэнэ. Эрэмбэлэхгүй бол
+/// дараалал нь хувингийн дотоод давталтаас хамаарч, «хэн түрүүлж
+/// үхсэн» гэдгээр эх сурвалжийг таах боломж үүснэ.
 void _checkN3(NightReport r) {
-  _require(r.deaths.length <= 1, 'N3',
-      'шөнөд ${r.deaths.length} үхэл гарлаа, v1-д хамгийн ихдээ 1');
+  final Map<DeathTag, int> byTag = <DeathTag, int>{};
+  for (final Death d in r.deaths) {
+    byTag.update(d.tag, (int v) => v + 1, ifAbsent: () => 1);
+  }
+  for (final MapEntry<DeathTag, int> e in byTag.entries) {
+    _require(e.value <= 1, 'N3',
+        '`${e.key.name}` эх сурвалжаас ${e.value} үхэл — хамгийн ихдээ 1');
+  }
+  _require(r.deaths.length <= 3, 'N3',
+      'шөнөд ${r.deaths.length} үхэл гарлаа, хамгийн ихдээ 3');
+
+  final Set<Seat> seen = <Seat>{};
+  for (final Death d in r.deaths) {
+    _require(seen.add(d.victim), 'N3',
+        '${d.victim} нэг шөнөд хоёр удаа үхлээ');
+  }
+  for (int i = 1; i < r.deaths.length; i++) {
+    _require(r.deaths[i - 1].victim < r.deaths[i].victim, 'N3',
+        '`deaths` суудлын дугаараар эрэмбэлэгдээгүй');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -73,22 +101,37 @@ void _checkN5(NightReport r) {
     for (final Visit v in r.visits)
       if (v.ability == Ability.heal) v.to,
   };
-  final List<Visit> attacks = <Visit>[
-    for (final Visit v in r.visits)
-      if (v.ability == Ability.mafiaKill) v,
-  ];
 
-  for (final Visit atk in attacks) {
-    if (healed.contains(atk.to)) {
-      _require(r.deaths.isEmpty, 'N5',
-          'Эмч ${atk.to}-г аварсан ч үхэл бүртгэгдлээ');
-    }
-  }
   for (final Death d in r.deaths) {
+    if (d.tag == DeathTag.remorse) {
+      // ГЭМШЛИЙН ҮХЭЛ нь `powerful` — `lethal(powerful, basic)` нь
+      // `2 > 1` тул ҮРГЭЛЖ үнэн. «Эмчилж болохгүй» гэдэг нь тусгай
+      // тохиолдол БИШ, АРИФМЕТИК. Мөн энэ үхэлд зочлол байхгүй:
+      // гэмшил нь хэн нэгэн рүү ОЧИХГҮЙ.
+      _require(d.victim == d.killer, 'N5',
+          'гэмшлийн үхлийн хохирогч, эх сурвалж хоёр зөрлөө');
+      continue;
+    }
     _require(!healed.contains(d.victim), 'N5',
         'хохирогч ${d.victim} эдгээгдсэн байтал үхлээ');
-    _require(attacks.any((Visit v) => v.to == d.victim && v.harmful), 'N5',
-        'хохирогч ${d.victim} руу хортой довтолгоо бүртгэгдээгүй');
+    _require(
+        r.visits.any((Visit v) =>
+            v.to == d.victim && v.harmful && v.from == d.killer),
+        'N5',
+        'хохирогч ${d.victim} руу ${d.killer}-аас хортой довтолгоо байхгүй');
+  }
+
+  // Эдгээгдсэн хүн рүү `basic` довтолгоо очсон бол ТЭР ХҮН үхээгүй
+  // байх ёстой. Бусад хүн үхсэн эсэх нь хамаагүй — өмнөх хувилбар
+  // «бүх `deaths` хоосон» гэж шалгадаг байсан нь Манаач нэмэгдэхэд
+  // ҮНЭН шөнийг унагах байв.
+  for (final Visit atk in r.visits) {
+    if (!atk.harmful || !healed.contains(atk.to)) continue;
+    _require(
+        !r.deaths.any((Death d) =>
+            d.victim == atk.to && d.tag != DeathTag.remorse),
+        'N5',
+        'Эмч ${atk.to}-г аварсан ч тэр үхлээ');
   }
 }
 
@@ -124,6 +167,10 @@ Map<Seat, int> _rebuildTally(List<Intent> sealed) {
       // Хэрэв түүний товшилт санд ордоггүй байсан бол Ажиглагчтай
       // тоглолт нь шивнээ цөөнтэй болж, тэр өөрөө ялгарах байв.
       case Ability.watch:
+      // Манаачийн товшилт ч санд орно — мафийнхтай яг адил. Хэрэв
+      // ордоггүй байсан бол Манаач буудсан шөнө шивнээ нэгээр дутуу
+      // гарч, тэр өөрөө ялгарах байв.
+      case Ability.vigilanteKill:
         t.update(i.target!, (int v) => v + 1, ifAbsent: () => 1);
       case Ability.noAction:
         break;
@@ -221,6 +268,7 @@ const Set<int> _kLiveBuckets = <int>{90, 100, 130, 135};
 const Set<Ability> _kVisitingAbilities = <Ability>{
   Ability.heal,
   Ability.mafiaKill,
+  Ability.vigilanteKill,
   Ability.investigate,
 };
 
@@ -242,9 +290,12 @@ void _checkN13(NightState s0, List<Intent> sealed, NightReport r) {
   // `AttackLevel.powerful`-ийн цорын ганц ажиглагдах ул мөр нь эдгээгдсэн
   // (`basic`) байг алсан үхэл — түүнийг N5 барина. Энд шошгыг шалгана:
   // v1-д `DeathTag.mafi`-аас өөр эх сурвалж байхгүй.
+  // `AttackLevel.powerful` нь ГЭМШЛИЙН үхэлд л гарна. Өөр шошготой
+  // үхэл `powerful` байвал хэн нэгэн эмчийг тойрох шинэ зам нээсэн
+  // байна.
   for (final Death d in r.deaths) {
-    _require(d.tag == DeathTag.mafi, 'N13',
-        'v1-д `${d.tag.name}` гэсэн үхлийн шошго байхгүй');
+    _require(DeathTag.values.contains(d.tag), 'N13',
+        '`${d.tag.name}` гэсэн үхлийн шошго байхгүй');
   }
 }
 

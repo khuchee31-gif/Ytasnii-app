@@ -62,6 +62,7 @@ class BotView {
     this.liveVotes = const <int, int>{},
     this.iAmRevealed = false,
     this.voteCandidates = const <int>[],
+    this.night = 1,
   });
 
   final int mySeat;
@@ -91,6 +92,9 @@ class BotView {
 
   /// ДАХИН САНАЛ. Хоосон бол чөлөөт. НИЙТИЙН (`voteState.candidates`).
   final List<int> voteCandidates;
+
+  /// Хэддүгээр шөнө вэ. НИЙТИЙН — үе шатны дараалал бүгдэд ил.
+  final int night;
 
   final BotMemory mem;
 }
@@ -172,9 +176,16 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
 
   switch (v.phase) {
     case NetPhase.nightMafia:
-      if (eng.factionOf(v.myRole) != eng.Faction.mafi) return null;
-      final int? t = _mafiaPick(v, rng);
-      return t == null ? null : BotNight(t);
+      if (eng.factionOf(v.myRole) == eng.Faction.mafi) {
+        final int? t = _mafiaPick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
+      // МАНААЧ мафитай нэг үе шатанд буудна.
+      if (v.myRole == eng.Role.vigilante) {
+        final int? t = _vigilantePick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
+      return null;
 
     case NetPhase.nightDoctor:
       if (v.myRole != eng.Role.doctor) return null;
@@ -224,6 +235,40 @@ bool _underFire(BotView v) {
   if (mine == 0) return false;
   final int top = tally.values.reduce((int a, int b) => a > b ? a : b);
   return mine >= top;
+}
+
+/// Манаач буудах уу, хэн рүү вэ.
+///
+/// ЗӨВХӨН НИЙТИЙН мэдээллээр шийднэ: өчигдрийн санал (`lastDayVotes`)
+/// нь `voteState`-ээр бүх утас руу явсан. Бот нь хүнээс илүү юу ч
+/// мэдэхгүй.
+///
+/// ХЭЗЭЭ БУУДАХГҮЙ ВЭ: гурав дахь шөнөөс өмнө. Эхний шөнө хөдөлгүүр
+/// хориглоно (`nightTooEarly`); хоёр дахь шөнө мэдээлэл дутуу байдаг
+/// тул буудах нь цэвэр мөрийтэй тоглоом. Хотынхны хүнийг буудвал
+/// ХОЁР хүн алдана — хохирогч ба гэмшсэн Манаач.
+int? _vigilantePick(BotView v, eng.Rng rng) {
+  if (v.night < 3) return null;
+  final Map<int, int> tally = <int, int>{};
+  for (final int t in v.mem.lastDayVotes.values) {
+    if (v.aliveSeats.contains(t) && t != v.mySeat) {
+      tally[t] = (tally[t] ?? 0) + 1;
+    }
+  }
+  if (tally.isEmpty) return null;
+  final int top = tally.values.reduce((int a, int b) => a > b ? a : b);
+  // ХАГАСААС ДЭЭШ санал авсан хүн л зорилт болно. Эргэлзээтэй үед
+  // буудахгүй байх нь ХАМГИЙН сайн сонголт.
+  if (top * 2 <= v.aliveSeats.length) return null;
+  final List<int> best = tally.entries
+      .where((MapEntry<int, int> e) => e.value == top)
+      .map((MapEntry<int, int> e) => e.key)
+      .toList()
+    ..sort();
+  // Гурван удаагийн нэгд л буудна — өдөр бүр буудвал хоёр сум хоёр
+  // шөнөд дуусч, дүр нь утгагүй болно.
+  if (rng.below(3) != 0) return null;
+  return best[rng.below(best.length)];
 }
 
 /// Ажиглагч хэнийг ажиглах вэ.

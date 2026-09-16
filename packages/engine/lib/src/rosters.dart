@@ -69,6 +69,13 @@ class Roster {
   /// v2 — Хотын дарга гарах уу. Мөн нэг ИРГЭНИЙ суудлыг орлоно.
   final bool mayor;
 
+  /// v3 — Манаач гарах уу. Мөн нэг ИРГЭНИЙ суудлыг орлоно.
+  ///
+  /// БАЛАНСАД НӨЛӨӨЛНӨ: хотод хоёр сум нэмэгдэнэ, гэхдээ буруу
+  /// буудвал хотынхон ХОЁР хүн алдана (хохирогч ба гэмшсэн Манаач).
+  /// Тиймээс `b` хөдлөхгүй — эрсдэл, ашиг хоёр нь тэнцэнэ гэж үзнэ.
+  final bool vigilante;
+
   /// Үлдсэн суудлууд: `n - mafia - doctor - detective - нэмэлтүүд`.
   final int citizens;
 
@@ -85,6 +92,7 @@ class Roster {
     required this.b,
     this.watcher = false,
     this.mayor = false,
+    this.vigilante = false,
   });
 
   /// Нэг иргэнийг нэмэлт дүр болгоно. Иргэн үлдэхгүй бол ӨӨРЧЛӨХГҮЙ.
@@ -93,7 +101,7 @@ class Roster {
   /// «юу ч хийгээгүй хүн» гэсэн ойлголт алга болж, шөнийн жигд хуурмаг
   /// эвдэрнэ: чимээгүй суудал байхгүй бол дуугүй хүн нь тэр дороо
   /// сэжигтэй болно.
-  Roster _swapCitizen({bool? watcher, bool? mayor}) {
+  Roster _swapCitizen({bool? watcher, bool? mayor, bool? vigilante}) {
     if (citizens < 2) return this;
     return Roster(
       n: n,
@@ -105,6 +113,7 @@ class Roster {
       b: b,
       watcher: watcher ?? this.watcher,
       mayor: mayor ?? this.mayor,
+      vigilante: vigilante ?? this.vigilante,
     );
   }
 
@@ -112,12 +121,15 @@ class Roster {
 
   Roster withMayor() => mayor ? this : _swapCitizen(mayor: true);
 
+  Roster withVigilante() =>
+      vigilante ? this : _swapCitizen(vigilante: true);
+
   /// Мафийн дотор хэдэн энгийн Алуурчин байх вэ (Ахлагч суудлыг хассан).
   int get killers => mafia - (boss ? 1 : 0);
 
   @override
   String toString() => 'Roster(n: $n, M: $mafia, boss: $boss, '
-      'watcher: $watcher, mayor: $mayor, b: $b)';
+      'watcher: $watcher, mayor: $mayor, vigilante: $vigilante, b: $b)';
 }
 
 /// GDD-04 §2-ын шилжүүлэх хүснэгт, үг үсгээр. **15 мөр, N = 6…20.**
@@ -148,15 +160,20 @@ const Map<int, Roster> _kRosterTable = <int, Roster>{
 /// [watcher] нь ЗӨВХӨН эзний зориудын сонголт. Анхдагч бүрэлдэхүүн
 /// хөдлөхгүй тул GDD-04 §2-ын хүснэгт, `deal_test`-ийн алтан векторууд
 /// хүчинтэй хэвээр.
-Roster rosterFor(int n, {bool watcher = false, bool mayor = false}) {
+Roster rosterFor(int n,
+    {bool watcher = false, bool mayor = false, bool vigilante = false}) {
   Roster? r = _kRosterTable[n];
   if (r == null) {
     throw ArgumentError.value(n, 'n', 'Суудлын тоо $kMinSeats..$kMaxSeats байх ёстой');
   }
   if (watcher) r = r.withWatcher();
   if (mayor) r = r.withMayor();
+  if (vigilante) r = r.withVigilante();
   return r;
 }
+
+/// Манаач тус бүрийн ЭХНИЙ сум.
+const int kVigilanteBullets = 2;
 
 /// Хуваарилахын өмнөх канон хөзрийн багц — ХАТУУ, ТОГТМОЛ дараалалтай.
 ///
@@ -177,6 +194,7 @@ List<Role> deckFor(Roster r) {
   // детерминизмын төлөө чухал — `fisherYates` дараа нь холино.
   if (r.watcher) deck.add(Role.watcher);
   if (r.mayor) deck.add(Role.mayor);
+  if (r.vigilante) deck.add(Role.vigilante);
   for (var i = 0; i < r.citizens; i++) {
     deck.add(Role.citizen);
   }

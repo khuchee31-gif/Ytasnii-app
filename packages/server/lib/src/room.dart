@@ -122,6 +122,16 @@ class GameRoom {
   /// Хотын даргатай тоглох уу.
   bool _optMayor = false;
 
+  /// Манаачтай тоглох уу.
+  bool _optVigilante = false;
+
+  bool get optVigilante => _optVigilante;
+
+  /// Манаач тус бүрийн үлдсэн сум, дараагийн шөнө гэмшлээсээ үхэх нар.
+  /// Хоёулаа ШӨНӨӨС ШӨНӨД дамжина.
+  Map<int, int> _bullets = const <int, int>{};
+  Set<int> _remorse = const <int>{};
+
   bool get optMayor => _optMayor;
 
   /// Өөрийгөө ИЛЧИЛСЭН даргын суудлууд. НИЙТИЙН мэдээлэл.
@@ -180,6 +190,9 @@ class GameRoom {
   /// ЯГ ОДООГИЙН шөнийн эрэмбэ. Тестэд л хэрэгтэй: тараалтын эрэмбийг
   /// хадгалах нь хангалтгүй, түүнийг ХЭРЭГЛЭХ ёстой.
   List<int> get debugNightOrder => _night?.orderPerm ?? const <int>[];
+
+  /// Манаачийн үлдсэн сум. Тестэд л хэрэгтэй.
+  Map<int, int> get debugBullets => _bullets;
 
   /// Өмнөх шөнөөс дамжсан эмчийн төлөв. Тестэд л хэрэгтэй.
   Map<int, int> get debugLastHeal => _lastHeal;
@@ -420,6 +433,8 @@ class GameRoom {
         _optWatcher = on;
       case 'mayor':
         _optMayor = on;
+      case 'vigilante':
+        _optVigilante = on;
       default:
         return const <Outbound>[];
     }
@@ -469,8 +484,13 @@ class GameRoom {
       submittedAtMs: nowMs,
     );
     // Хөдөлгүүрээр шалгуулна — сервер өөрөө дүрэм зохиохгүй.
-    if (eng.validate(intent, s) != null) {
-      return <Outbound>[_err(id, ErrCode.invalidTarget)];
+    //
+    // ШАЛТГААНЫГ ДАМЖУУЛНА. Өмнө нь бүх татгалзал `invalidTarget` болж
+    // нэгддэг байсан тул Манаач «сум дууссан» ба «энэ хүнийг сонгож
+    // болохгүй» хоёрыг ялгаж чадахгүй байв.
+    final eng.RejectCode? why = eng.validate(intent, s);
+    if (why != null) {
+      return <Outbound>[_err(id, _rejectText(why))];
     }
     _intents
       ..removeWhere((eng.Intent i) =>
@@ -718,6 +738,7 @@ class GameRoom {
       liveVotes: votes,
       iAmRevealed: _revealed.contains(me.seat),
       voteCandidates: _revoteSeats,
+      night: _nightNo,
       mem: b.mem,
     );
   }
@@ -725,7 +746,11 @@ class GameRoom {
   // --- Дотоод урсгал -------------------------------------------------------
 
   bool _mayActNow(eng.Role r) => switch (_phase) {
-        NetPhase.nightMafia => eng.factionOf(r) == eng.Faction.mafi,
+        // МАНААЧ мафитай НЭГ үе шатанд буудна: хоёулаа 100-р хувинд,
+        // хоёулаа «энэ шөнө хэн үхэх вэ» гэсэн асуултыг хариулна.
+        // Дуут суваг нь мафийнх хэвээр тул Манаач тэднийг СОНСОХГҮЙ.
+        NetPhase.nightMafia => eng.factionOf(r) == eng.Faction.mafi ||
+            r == eng.Role.vigilante,
         NetPhase.nightDoctor => r == eng.Role.doctor,
         // Ажиглагч нь МӨРДӨГЧТЭЙ НЭГ үе шатанд сэрнэ.
         //
@@ -740,8 +765,8 @@ class GameRoom {
 
   List<Outbound> _deal(int nowMs) {
     final int n = _players.length;
-    final eng.Roster roster =
-        eng.rosterFor(n, watcher: _optWatcher, mayor: _optMayor);
+    final eng.Roster roster = eng.rosterFor(n,
+        watcher: _optWatcher, mayor: _optMayor, vigilante: _optVigilante);
     final List<eng.Role> deck = eng.deckFor(roster);
 
     final eng.DealResult d = eng.deal(
@@ -761,6 +786,13 @@ class GameRoom {
       _bySeat[seat] = ids[i];
       _players[ids[i]] = _players[ids[i]]!.copyWith(seat: seat, alive: true);
     }
+
+    // МАНААЧИЙН СУМ. Шөнө бүр `NightState`-д дамжина.
+    _bullets = <int, int>{
+      for (final _Secret sec in _secrets.values)
+        if (sec.role == eng.Role.vigilante) sec.seat: eng.kVigilanteBullets,
+    };
+    _remorse = const <int>{};
 
     for (final BotSeat b in _bots.values) {
       b.seat = _secrets[b.id]?.seat ?? -1;
@@ -850,6 +882,17 @@ class GameRoom {
     return out;
   }
 
+  /// Хөдөлгүүрийн татгалзлыг протоколын кодод буулгана.
+  ///
+  /// Ихэнх нь `invalidTarget` руу нийлнэ — тоглогчид «энэ хүнийг
+  /// сонгож болохгүй» гэхээс өөр мэдээлэл ХЭРЭГГҮЙ, бас өгөх ёсгүй:
+  /// «энэ хүн үхсэн» гэж хэлэх нь үхлийг баталгаажуулж өгнө.
+  static String _rejectText(eng.RejectCode c) => switch (c) {
+        eng.RejectCode.chargeSpent => ErrCode.chargeSpent,
+        eng.RejectCode.nightTooEarly => ErrCode.nightTooEarly,
+        _ => ErrCode.invalidTarget,
+      };
+
   /// Тухайн суудал энэ шөнө ХЭНИЙГ сонгосон бэ.
   ///
   /// Чадвараар шүүхгүй: инвариант N22-оор амьд суудал бүр шөнөдөө ЯГ
@@ -881,6 +924,8 @@ class GameRoom {
       lastHealTarget: _lastHeal,
       selfHealUsed: _selfHealUsed,
       revealedMayors: _revealed,
+      bullets: _bullets,
+      remorse: _remorse,
     );
     _enter(NetPhase.nightFalls, nowMs, _ms(PhaseMs.nightFalls), out);
   }
@@ -916,6 +961,8 @@ class GameRoom {
     // сервер хаядаг байв.
     _lastHeal = r.nextLastHeal;
     _selfHealUsed = r.nextSelfHealUsed;
+    _bullets = r.nextBullets;
+    _remorse = r.nextRemorse;
 
     for (final eng.Death d in r.deaths) {
       final PlayerId? victim = _bySeat[d.victim];
@@ -1142,6 +1189,7 @@ class GameRoom {
         'setupRoles': <String>[
           if (_optWatcher) eng.Role.watcher.name,
           if (_optMayor) eng.Role.mayor.name,
+          if (_optVigilante) eng.Role.vigilante.name,
         ],
         // Илчилсэн суудлууд — НИЙТИЙНХ. Дүрийн нэр агуулахгүй, зөвхөн
         // суудлын дугаар.

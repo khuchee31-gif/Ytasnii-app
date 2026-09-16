@@ -462,6 +462,12 @@ abstract final class ErrCode {
   /// `hello`-гийн түлхүүр буруу — өөр хүний дугаарыг нэхэж байна.
   static const String badToken = 'badToken';
 
+  /// Манаачийн сум дууссан.
+  static const String chargeSpent = 'chargeSpent';
+
+  /// Эхний шөнө буудаж болохгүй.
+  static const String nightTooEarly = 'nightTooEarly';
+
   static const String rateLimited = 'rateLimited';
   static const String malformed = 'malformed';
 }

@@ -39,6 +39,13 @@ enum Role {
   /// үүрээр мэднэ. Өөрөө зочлолын бүртгэлд ОРОХГҮЙ (resolve.dart §130).
   watcher,
 
+  /// v3 — Манаач. Шөнө хоёр удаа буудаж чадна (эхний шөнө БИШ).
+  ///
+  /// ХОТЫНХНЫ ХҮНИЙГ буудвал дараагийн шөнө ГЭМШЛЭЭСЭЭ үхнэ, бөгөөд
+  /// тэр үхлийг ЭМЧЛЭХ БОЛОМЖГҮЙ. Эрсдэл ба үр дагаврыг ширээнд заах
+  /// цорын ганц дүр.
+  vigilante,
+
   /// v2 — Хотын дарга. ШӨНИЙН ҮЙЛДЭЛ БАЙХГҮЙ (иргэнтэй яг адил тул
   /// шөнийн цагаар ялгарахгүй). Өдөр НЭГ УДАА өөрийгөө илчилж болно;
   /// тэр цагаас хойш түүний санал ГУРАВ болно.
@@ -60,6 +67,9 @@ enum Ability {
 
   /// v2 — Ажиглагч. Хувин 130, зочлол БИЧИХГҮЙ.
   watch,
+
+  /// v3 — Манаачийн буудлага. Хувин 100 — мафитай ЗЭРЭГ буудна.
+  vigilanteKill,
 }
 
 /// v1-д зөвхөн `none` ба `basic` ажиллана. `powerful` нь v2-ын зай —
@@ -68,9 +78,29 @@ enum AttackLevel { none, basic, powerful }
 
 enum DefenseLevel { none, basic }
 
-enum DeathTag { mafi }
+/// Үхлийн ЭХ СУРВАЛЖ. Дэлгэц дээр ХЭЗЭЭ Ч харагдахгүй — зөвхөн
+/// хөдөлгүүрийн дотоод, инвариантын шалгалтад.
+enum DeathTag {
+  /// Мафийн алалт.
+  mafi,
 
-enum WinState { none, mafi, hotynhon }
+  /// Манаачийн буудлага.
+  vigilante,
+
+  /// Манаач хотынхны хүнийг буудсны дараах өөрийн үхэл. ЭМЧЛЭГДЭХГҮЙ.
+  remorse,
+}
+
+enum WinState {
+  none,
+  mafi,
+  hotynhon,
+
+  /// БҮГД ҮХЭВ. Манаач сүүлчийн хотынхны хүнийг буудаж, мафи түүнийг
+  /// алаад, гэмшил нь гурав дахийг авах зэрэг тохиолдол. Ховор боловч
+  /// БОДИТОЙ — тэр үед «мафи ялав» гэж хэлэх нь худал.
+  draw,
+}
 
 /// Мафи хэнийг алахаа хэрхэн шийдэх вэ (GDD-05 §4).
 enum FactionRule { mafiaMajority, designatedKiller }
@@ -87,6 +117,13 @@ enum RejectCode {
   healRepeat,
   nightSealed,
   seatNotInGame,
+
+  /// Манаачийн сум дууссан.
+  chargeSpent,
+
+  /// Манаач ЭХНИЙ шөнө буудаж болохгүй — өдрийн яриа болоогүй байхад
+  /// буудах нь цэвэр мөрийтэй тоглоом.
+  nightTooEarly,
 }
 
 /// Хувийн мессежийн кодууд (GDD-05 §9.2, инвариант N15).
@@ -124,6 +161,7 @@ Ability abilityOf(Role r) => switch (r) {
       // ЯГ ИРГЭНИЙНХ. Шөнийн үйлдэл нэмбэл дарга шөнийн цагаар ялгарч,
       // түүний хүч нь ӨДРИЙНХ байхаа болино.
       Role.mayor => Ability.suspect,
+      Role.vigilante => Ability.vigilanteKill,
     };
 
 /// Эрэмбийн шатны хувин (GDD-05 §3.2).
@@ -132,6 +170,9 @@ int bucketOf(Ability a) => switch (a) {
       Ability.heal => 90,
       Ability.mafiaKill => 100,
       Ability.investigate => 130,
+      // Манаач МАФИТАЙ ЗЭРЭГ буудна. Хэн нэгнийг хоёулаа онивол
+      // хоёр удаа үхэхгүй (N20) — 120-р хувин үүнийг барина.
+      Ability.vigilanteKill => 100,
       // Ажиглагч нь Мөрдөгчтэй ИЖИЛ хувинд. Тиймээс тэр Мөрдөгчийг
       // ХЭЗЭЭ Ч харахгүй: 130-д орох мөчид зочлолын жагсаалт ХӨЛДӨНӨ
       // (resolve.dart). Эс бөгөөс Ажиглагч 2 дахь өдөр Мөрдөгчийн
@@ -235,6 +276,12 @@ class NightState {
   /// Тэнцэл тайлах ЦОРЫН ГАНЦ эх сурвалж — санамсаргүй тэнцэл хориотой.
   final List<Seat> orderPerm;
 
+  /// Манаач тус бүрийн үлдсэн сум.
+  final Map<Seat, int> bullets;
+
+  /// ӨНӨӨ ШӨНӨ гэмшлээсээ үхэх суудлууд. Эмчлэгдэхгүй.
+  final Set<Seat> remorse;
+
   /// Өөрийгөө ИЛЧИЛСЭН Хотын даргын суудлууд.
   ///
   /// НИЙТИЙН мэдээлэл — илчлэлт нь өдөр, бүх хүний өмнө болдог. Ялалтын
@@ -251,6 +298,8 @@ class NightState {
     this.lastHealTarget = const {},
     this.selfHealUsed = const {},
     this.revealedMayors = const {},
+    this.bullets = const {},
+    this.remorse = const {},
   });
 
   int rank(Seat s) => orderPerm.indexOf(s);
@@ -348,6 +397,12 @@ class NightReport {
   /// Дараагийн шөнийн `selfHealUsed`.
   final Map<Seat, int> nextSelfHealUsed;
 
+  /// Дараагийн шөнийн `bullets`.
+  final Map<Seat, int> nextBullets;
+
+  /// Дараагийн шөнө гэмшлээсээ үхэх суудлууд.
+  final Set<Seat> nextRemorse;
+
   const NightReport({
     required this.night,
     required this.deaths,
@@ -361,6 +416,8 @@ class NightReport {
     required this.aliveAfter,
     required this.nextLastHeal,
     required this.nextSelfHealUsed,
+    this.nextBullets = const {},
+    this.nextRemorse = const {},
   });
 }
 
