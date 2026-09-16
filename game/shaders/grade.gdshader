@@ -23,12 +23,12 @@ uniform float saturation : hint_range(0.0, 1.5) = 0.72;
 /// Дулаан өнгө рүү хазайлт — чийдэнгийн өнгө.
 uniform vec3 tint : source_color = vec3(1.04, 0.98, 0.92);
 /// Контраст.
-uniform float contrast : hint_range(0.5, 2.0) = 1.18;
+uniform float contrast : hint_range(0.5, 2.0) = 1.22;
 
 // --- Мөхлөг, хүрээ ----------------------------------------------------------
 
 uniform float grain : hint_range(0.0, 0.2) = 0.055;
-uniform float vignette : hint_range(0.0, 2.0) = 1.15;
+uniform float vignette : hint_range(0.0, 2.0) = 1.34;
 
 /// Өнгөний хазайлт — ирмэг рүү RGB сална. Хямд, хүчтэй.
 uniform float aberration : hint_range(0.0, 4.0) = 1.1;

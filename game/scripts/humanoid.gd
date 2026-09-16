@@ -1,29 +1,86 @@
 # Хүн дүрийг ачаалж, ХЭМЖИЖ, СУУЛГАНА.
 #
-# Энд таамаглал байхгүй — бүх тоо ЯСНААС хэмжигдэнэ. Учир нь татаж авсан
-# glTF бүр өөр өөр нэгжтэй: Mixamo-гийнх 100× том, дараа нь 0.01-ээр
-# хумигддаг. Эхний оролдлогод Michelle, Xbot хоёр 1.8 СМ өндөр болж
-# харагдахгүй байсан.
+# Энд таамаглал байхгүй — бүх тоо ЯСНААС хэмжигдэнэ. Татаж авсан glTF бүр
+# өөр өөр нэгж, өөр өөр ясны нэртэй байдаг:
 #
-# ХОЁР АЛДАА ЭНД ЗАСАГДАНА:
-#   1. Арьсласан торны хайрцаг (AABB) буруу тооцогдож, камер хаашаа ч
-#      харсан загвар «харагдахгүй» гэж хасагддаг. → custom_aabb.
-#   2. glTF-ийн анхны кадр нь ихэвчлэн T-БАЙРЛАЛ — гар хоёр тийш
-#      сунгасан. Ширээнд суусан хүн тийм байдаггүй. → яс шууд эргүүлнэ.
+#   Quaternius (CC0)  Hips → Abdomen → Torso → Chest → Neck → Head,
+#                     UpperArm.L, LowerArm.L, Wrist.L, Index1.L …
+#                     метрээр, масштаб 1.0
+#   Mixamo            mixamorig_Hips → mixamorig_Spine → …_Spine1 → …
+#                     сантиметрээр, араг яс 0.01-ээр хумигдсан
 #
-# ДҮРИЙН ТУХАЙ: энэ файл ямар дүр болохыг МЭДЭХГҮЙ бөгөөд мэдэх ч
-# ёсгүй. Алуурчин, эмч, иргэн гурав ЯГ ижил суудаг. Эс бөгөөс тоглоом
-# тэр дор нь үхнэ.
+# Тиймээс ясны нэрийг ЗАГВАР бүрээр нь тодорхойлж, байрлуулах кодыг
+# нэг л удаа бичнэ. Шинэ риг нэмэх нь `_RIGS`-д нэг мөр нэмэхтэй тэнцүү.
+#
+# ДҮРИЙН ТУХАЙ: энэ файл тоглогч ямар дүртэйг МЭДЭХГҮЙ бөгөөд мэдэх ч
+# ёсгүй. Алуурчин, эмч, иргэн гурав ЯГ ижил суудаг, ижил хөдөлнө.
+# Байрлал, өнгө, өндөр нь зөвхөн СУУДЛЫН дугаараас хамаарна — тэр нь
+# бүх тоглогчид ил. Эс бөгөөс тоглоом тэр дор нь үхнэ.
 
 extends RefCounted
 
-## Тоглоомын хүн бүрийн өндөр (м). Бага зэрэг хэлбэлзэнэ.
+## Тоглоомын хүн бүрийн өндөр (м). Суудлаар бага зэрэг хэлбэлзэнэ.
 const BASE_HEIGHT := 1.74
 
-## Суусан хүний ТОЛГОЙНЫ өндөр (м). Ширээ 0.72 — толгой, мөр хоёр
+## Суусан хүний ТОЛГОЙНЫ ясны өндөр (м). Ширээ 0.72 — толгой, мөр хоёр
 ## түүнээс дээш гарна.
 const HEAD_SEATED := 1.19
 
+# --- Ригийн тодорхойлолт -----------------------------------------------------
+#
+# Нэр бүрд `{side}`, `{finger}`, `{seg}` орлуулагч орж болно.
+# `spine`, `arm`, `leg` нь ГИНЖ: элемент бүрийг дараагийн элемент рүү
+# чиглүүлнэ. Иймд n элементээс n-1 эргэлт гарна.
+
+const _RIGS: Array = [
+	{
+		"name": "quaternius",
+		"probe": "Abdomen",
+		"hips": "Hips",
+		"head": "Head",
+		"neck": "Neck",
+		"spine": ["Hips", "Abdomen", "Torso", "Chest", "Neck"],
+		"arm": ["UpperArm.{side}", "LowerArm.{side}", "Wrist.{side}", "Middle1.{side}"],
+		"leg": ["UpperLeg.{side}", "LowerLeg.{side}"],
+		"finger": "{finger}{seg}.{side}",
+		"finger_segs": 3,
+		"sides": ["L", "R"],
+	},
+	{
+		"name": "mixamo",
+		"probe": "mixamorig_Hips",
+		"hips": "mixamorig_Hips",
+		"head": "mixamorig_Head",
+		"neck": "mixamorig_Neck",
+		"spine": ["mixamorig_Hips", "mixamorig_Spine", "mixamorig_Spine1",
+			"mixamorig_Spine2", "mixamorig_Neck"],
+		"arm": ["mixamorig_{side}Arm", "mixamorig_{side}ForeArm",
+			"mixamorig_{side}Hand", "mixamorig_{side}HandMiddle1"],
+		"leg": ["mixamorig_{side}UpLeg", "mixamorig_{side}Leg", "mixamorig_{side}Foot"],
+		"finger": "mixamorig_{side}Hand{finger}{seg}",
+		"finger_segs": 3,
+		"sides": ["Left", "Right"],
+	},
+]
+
+const _FINGERS: Array = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
+
+
+static func _fill(tpl: String, side: String, finger := "", seg := 0) -> String:
+	return tpl.replace("{side}", side).replace("{finger}", finger).replace("{seg}", str(seg))
+
+
+## Араг ясанд тохирох ригийн тодорхойлолтыг олно.
+static func rig_of(sk: Skeleton3D) -> Dictionary:
+	if sk == null:
+		return {}
+	for r in _RIGS:
+		if sk.find_bone(r["probe"]) >= 0:
+			return r
+	return {}
+
+
+# --- Ачаалах -----------------------------------------------------------------
 
 static func load_glb(path: String) -> Node3D:
 	var bytes := FileAccess.get_file_as_bytes(path)
@@ -54,10 +111,11 @@ static func skeleton_of(root: Node) -> Skeleton3D:
 
 ## Арьсласан торны хайрцгийг ГАРААР тэлнэ.
 ##
-## Godot нь арьсласан торны AABB-г холбох байрлалын торноос тооцдог.
+## Godot нь арьсласан торны хүрээг холбох байрлалын тороос тооцдог.
 ## Mixamo-гийн glTF-д тэр тор метрээр, яс нь сантиметрээр бичигдсэн тул
-## хайрцаг 100 дахин жижиг гарч, дүр цонхонд байсан ч «хараанаас гадуур»
-## гэж хасагдана. Хүний биеийг багтаах хайрцгийг шууд өгнө.
+## хүрээ 100 дахин жижиг гарч, дүр цонхонд байсан ч «хараанаас гадуур»
+## гэж хасагдана (хэмжилт: 1.8 м-ийн оронд 1.8 см). Хүний биеийг багтаах
+## хүрээг шууд өгнө.
 static func fix_skin_bounds(root: Node) -> void:
 	for n in walk(root):
 		if n is MeshInstance3D:
@@ -65,13 +123,11 @@ static func fix_skin_bounds(root: Node) -> void:
 			if mi.skeleton == NodePath() and mi.skin == null:
 				continue
 			var s := mi.global_transform.basis.get_scale()
-			var inv := Vector3(
-				1.0 / maxf(s.x, 0.0001),
-				1.0 / maxf(s.y, 0.0001),
-				1.0 / maxf(s.z, 0.0001)
+			var half := Vector3(
+				2.5 / maxf(s.x, 0.0001),
+				2.5 / maxf(s.y, 0.0001),
+				2.5 / maxf(s.z, 0.0001)
 			)
-			# ±2.5 м куб — ямар ч хүн багтана.
-			var half := Vector3(2.5, 2.5, 2.5) * inv
 			mi.custom_aabb = AABB(-half, half * 2.0)
 
 
@@ -102,25 +158,43 @@ static func measure_height(root: Node3D, sk: Skeleton3D) -> float:
 ##   зүүн   = баруун мөр → зүүн мөр
 ##   урагш  = зүүн × дээш
 ## Ингэснээр загвар хэрхэн экспортлогдсоноос үл хамаарна.
-static func body_axes(sk: Skeleton3D) -> Dictionary:
-	var hips := sk.find_bone("mixamorig_Hips")
-	var head := sk.find_bone("mixamorig_Head")
-	var la := sk.find_bone("mixamorig_LeftArm")
-	var ra := sk.find_bone("mixamorig_RightArm")
+static func body_axes(sk: Skeleton3D, rig: Dictionary = {}) -> Dictionary:
+	if rig.is_empty():
+		rig = rig_of(sk)
+	if rig.is_empty():
+		return {}
+	var hips := sk.find_bone(rig["hips"])
+	var head := sk.find_bone(rig["head"])
+	var la := sk.find_bone(_fill(rig["arm"][0], rig["sides"][0]))
+	var ra := sk.find_bone(_fill(rig["arm"][0], rig["sides"][1]))
 	if hips < 0 or head < 0 or la < 0 or ra < 0:
 		return {}
-	var up: Vector3 = (sk.get_bone_global_pose(head).origin - sk.get_bone_global_pose(hips).origin).normalized()
-	var left: Vector3 = (sk.get_bone_global_pose(la).origin - sk.get_bone_global_pose(ra).origin).normalized()
+	var up: Vector3 = (sk.get_bone_global_pose(head).origin
+		- sk.get_bone_global_pose(hips).origin).normalized()
+	var left: Vector3 = (sk.get_bone_global_pose(la).origin
+		- sk.get_bone_global_pose(ra).origin).normalized()
 	# Дээшийн бүрэлдэхүүнийг зүүнээс хасаж, хоёрыг перпендикуляр болгоно.
 	left = (left - up * left.dot(up)).normalized()
-	var fwd: Vector3 = left.cross(up).normalized()
-	return {"up": up, "left": left, "fwd": fwd}
+	return {"up": up, "left": left, "fwd": left.cross(up).normalized()}
 
 
-## Яс `bone`-ыг түүний хүүхэд `child` рүү чиглэсэн вектор нь `dir` болтол
-## эргүүлнэ. `dir` нь АРАГ ЯСНЫ огторгуйд.
+# --- Ясыг эргүүлэх -----------------------------------------------------------
+
+static func _apply(sk: Skeleton3D, bi: int, g: Transform3D) -> void:
+	# Дэлхийн байрлалыг ЭЦГИЙН огторгуй руу буцаана. Godot-ийн хувилбар
+	# бүрт байдаг задарсан тохируулагчийг ашиглана — `set_bone_global_pose`
+	# нь 4.4-өөс л гарсан тул түүнд найдахгүй.
+	var par := sk.get_bone_parent(bi)
+	var pg := sk.get_bone_global_pose(par) if par >= 0 else Transform3D.IDENTITY
+	var lt := pg.affine_inverse() * g
+	sk.set_bone_pose_position(bi, lt.origin)
+	sk.set_bone_pose_rotation(bi, lt.basis.get_rotation_quaternion())
+	sk.set_bone_pose_scale(bi, lt.basis.get_scale())
+
+
+## `bone`-оос `child` рүү чиглэсэн вектор нь `dir` болтол эргүүлнэ.
 ##
-## Энэ нь тэнхлэгийн нэрийг таахгүй: одоогийн чиглэлээс хүссэн чиглэл рүү
+## Тэнхлэгийн нэрийг ТААХГҮЙ: одоогийн чиглэлээс хүссэн чиглэл рүү
 ## хамгийн богино эргэлтийг бодно. Ямар ч ригт ажиллана.
 static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3) -> void:
 	var bi := sk.find_bone(bone)
@@ -128,8 +202,7 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3) -> vo
 	if bi < 0 or ci < 0:
 		return
 	var bg := sk.get_bone_global_pose(bi)
-	var cg := sk.get_bone_global_pose(ci)
-	var cur := cg.origin - bg.origin
+	var cur := sk.get_bone_global_pose(ci).origin - bg.origin
 	if cur.length_squared() < 1e-10 or dir.length_squared() < 1e-10:
 		return
 	cur = cur.normalized()
@@ -145,31 +218,41 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3) -> vo
 		axis = axis.normalized()
 	else:
 		axis = cur.cross(want).normalized()
-	var q := Quaternion(axis, acos(d))
-	bg.basis = Basis(q) * bg.basis
-	# Дэлхийн байрлалыг ЭЦГИЙН огторгуй руу буцаана. Godot-ийн хувилбар
-	# бүрт байдаг задарсан тохируулагчийг ашиглана — `set_bone_global_pose`
-	# нь 4.4-өөс л гарсан тул түүнд найдахгүй.
-	var par := sk.get_bone_parent(bi)
-	var pg := sk.get_bone_global_pose(par) if par >= 0 else Transform3D.IDENTITY
-	var lt := pg.affine_inverse() * bg
-	sk.set_bone_pose_position(bi, lt.origin)
-	sk.set_bone_pose_rotation(bi, lt.basis.get_rotation_quaternion())
-	sk.set_bone_pose_scale(bi, lt.basis.get_scale())
+	bg.basis = Basis(Quaternion(axis, acos(d))) * bg.basis
+	_apply(sk, bi, bg)
 
+
+## Ясыг өөрийнх нь байрлал дээр `axis` тэнхлэгийн эргэн тойронд эргүүлнэ.
+##
+## `aim` нь ясыг хүүхэд рүүгээ ЧИГЛҮҮЛНЭ, гэхдээ тэнхлэгээ тойрсон
+## ЭРГЭЛТийг заадаггүй. Толгойд хүүхэд яс байхгүй (Quaternius-д
+## `HeadTop_End` байхгүй) тул нүүр хаашаа харахыг зөвхөн ингэж л
+## тогтооно.
+static func spin(sk: Skeleton3D, bone: String, axis: Vector3, angle: float) -> void:
+	var bi := sk.find_bone(bone)
+	if bi < 0 or absf(angle) < 0.0005:
+		return
+	var bg := sk.get_bone_global_pose(bi)
+	bg.basis = Basis(Quaternion(axis.normalized(), angle)) * bg.basis
+	_apply(sk, bi, bg)
+
+
+# --- Суух байрлал ------------------------------------------------------------
 
 ## Ширээнд СУУСАН байрлал.
 ##
-## `lean` — урагш бөхийлт (0 = цэх, 1 = ширээн дээр тохойлсон).
-## `turn`  — толгойн эргэлт (радиан). Хүн бүр жаахан өөр тийш харна —
-##           эс бөгөөс найман хүн цөм рүү ширтсэн хүүхэлдэй мэт болно.
-static func pose_seated(sk: Skeleton3D, lean: float, turn: float, arm_spread: float) -> void:
-	# Эхлээд ХОЛБОХ БАЙРЛАЛ руу буцаана. glTF бүрийн «анхны» байрлал өөр:
-	# Michelle-ийнх бүжгийн кадр байсан тул нуруу нь аль хэдийн бөхийсөн
-	# байж, толгой нь бусдаас 17 см доогуур гарч байв. Нэг мэдэгдэх цэгээс
-	# эхлэвэл бүх загвар ижилхэн суудаг.
+## `lean`   — урагш бөхийлт (0 = цэх, 1 = ширээн дээр тохойлсон).
+## `turn`   — толгойн эргэлт (радиан). Хүн бүр жаахан өөр тийш харна —
+##            эс бөгөөс найман хүн цөм рүү ширтсэн хүүхэлдэй мэт болно.
+## `spread` — гар биеэсээ хэр холдох.
+static func pose_seated(sk: Skeleton3D, lean: float, turn: float, spread: float) -> void:
+	var rig := rig_of(sk)
+	if rig.is_empty():
+		return
+	# Эхлээд ХОЛБОХ БАЙРЛАЛ руу буцаана. glTF бүрийн «анхны» байрлал өөр
+	# байж болно; нэг мэдэгдэх цэгээс эхлэвэл бүх загвар ижилхэн суудаг.
 	sk.reset_bone_poses()
-	var ax := body_axes(sk)
+	var ax := body_axes(sk, rig)
 	if ax.is_empty():
 		return
 	var up: Vector3 = ax["up"]
@@ -179,67 +262,44 @@ static func pose_seated(sk: Skeleton3D, lean: float, turn: float, arm_spread: fl
 	# --- Нуруу: бага зэрэг урагш --------------------------------------------
 	# ЭЦГЭЭС ХҮҮХЭД рүү дараалуулна. Эцгийг эргүүлэхэд хүүхдүүд нь дагаж
 	# шилждэг тул дараалал чухал.
-	aim(sk, "mixamorig_Hips", "mixamorig_Spine", (up + fwd * (0.10 * lean)).normalized())
-	aim(sk, "mixamorig_Spine", "mixamorig_Spine1", (up + fwd * (0.16 * lean)).normalized())
-	aim(sk, "mixamorig_Spine1", "mixamorig_Spine2", (up + fwd * (0.14 * lean)).normalized())
-	aim(sk, "mixamorig_Spine2", "mixamorig_Neck", (up + fwd * (0.05 * lean)).normalized())
+	var spine: Array = rig["spine"]
+	var bend: Array = [0.09, 0.15, 0.13, 0.05]
+	for i in range(spine.size() - 1):
+		var k: float = bend[i] if i < bend.size() else 0.05
+		aim(sk, spine[i], spine[i + 1], (up + fwd * (k * lean)).normalized())
 
 	# --- Толгой: хүн бүр өөр тийш -------------------------------------------
-	# ХҮЗҮҮ БАРАГ БОСОО. Эхний тохиргоо нь 37° урагш хазайлгаж, дүрийн
-	# нүүр харагдахаа болиод зөвхөн гавлын орой л харагдаж байв. Хүн
-	# ширээний нөгөө талын хүн рүү хардаг — доош биш.
-	var look := (fwd * cos(turn) + left * sin(turn) - up * 0.10).normalized()
-	aim(sk, "mixamorig_Neck", "mixamorig_Head", (up * 0.965 + look * 0.22).normalized())
-	aim(sk, "mixamorig_Head", "mixamorig_HeadTop_End", (up * 0.988 + look * 0.12).normalized())
+	# Хүзүү БАРАГ БОСОО. Эхний тохиргоо нь 37° урагш хазайлгаж, нүүр
+	# харагдахаа болиод зөвхөн гавлын орой л харагдаж байв.
+	aim(sk, rig["neck"], rig["head"], (up * 0.97 + fwd * (0.18 * lean)).normalized())
+	# Нүүрийг эргүүлнэ: эхлээд хажуу тийш, дараа нь бага зэрэг доош.
+	spin(sk, rig["head"], up, turn)
+	spin(sk, rig["head"], left, -0.10 - 0.08 * lean)
 
 	# --- Гар: T-байрлалаас доош, ширээ рүү ----------------------------------
-	# Дээд гар доошоо, жаахан урагш, биеэс холдуулсан.
-	var sp := 0.22 + arm_spread
-	aim(sk, "mixamorig_LeftArm", "mixamorig_LeftForeArm",
-		(-up * 0.88 + fwd * 0.30 + left * sp).normalized())
-	aim(sk, "mixamorig_RightArm", "mixamorig_RightForeArm",
-		(-up * 0.88 + fwd * 0.30 - left * sp).normalized())
-	# Шуу ширээ рүү урагш.
-	aim(sk, "mixamorig_LeftForeArm", "mixamorig_LeftHand",
-		(fwd * 0.90 - up * 0.18 - left * 0.28).normalized())
-	aim(sk, "mixamorig_RightForeArm", "mixamorig_RightHand",
-		(fwd * 0.90 - up * 0.18 + left * 0.28).normalized())
-	# Алга ширээн дээр хэвтэнэ.
-	aim(sk, "mixamorig_LeftHand", "mixamorig_LeftHandMiddle1",
-		(fwd * 0.96 - up * 0.10).normalized())
-	aim(sk, "mixamorig_RightHand", "mixamorig_RightHandMiddle1",
-		(fwd * 0.96 - up * 0.10).normalized())
-	_curl_fingers(sk, "Left", fwd, up, left)
-	_curl_fingers(sk, "Right", fwd, up, -left)
+	var arm: Array = rig["arm"]
+	for s in range(2):
+		var side: String = rig["sides"][s]
+		var out: Vector3 = left if s == 0 else -left
+		var want: Array = [
+			(-up * 0.90 + fwd * 0.26 + out * (0.20 + spread)).normalized(),  # дээд гар
+			(fwd * 0.92 - up * 0.16 - out * 0.26).normalized(),              # шуу
+			(fwd * 0.96 - up * 0.10).normalized(),                           # алга
+		]
+		for i in range(mini(arm.size() - 1, want.size())):
+			aim(sk, _fill(arm[i], side), _fill(arm[i + 1], side), want[i])
+		_curl_fingers(sk, rig, side, fwd, up, out)
 
 	# --- Хөл: гуя урагш, шилбэ доош (суусан) --------------------------------
-	aim(sk, "mixamorig_LeftUpLeg", "mixamorig_LeftLeg",
-		(fwd * 0.94 - up * 0.34).normalized())
-	aim(sk, "mixamorig_RightUpLeg", "mixamorig_RightLeg",
-		(fwd * 0.94 - up * 0.34).normalized())
-	aim(sk, "mixamorig_LeftLeg", "mixamorig_LeftFoot", (-up).normalized())
-	aim(sk, "mixamorig_RightLeg", "mixamorig_RightFoot", (-up).normalized())
-	aim(sk, "mixamorig_LeftFoot", "mixamorig_LeftToeBase", fwd.normalized())
-	aim(sk, "mixamorig_RightFoot", "mixamorig_RightToeBase", fwd.normalized())
-
-
-## Дүрийг ТОЛГОЙНЫХ нь өндрөөр байрлуулна.
-##
-## Эхэндээ аарцгаар нь тэгшилж байсан. Гэтэл Michelle-ийн ригийн аарцаг
-## бусад загвараас 15 см дээгүүр суудаг тул түүний толгой ширээний ирмэгт
-## дүрэгдэж байв (хэмжилт: аарцгаас толгой хүртэл Soldier 0.50 м,
-## Michelle 0.35 м — энэ нь миний байрлуулалтын алдаа биш, РИГИЙН ялгаа).
-##
-## Камерт ХАРАГДАХ зүйл бол толгой, мөр хоёр. Тиймээс тэднийг л
-## тэгшилнэ. Аарцаг нь ширээний доор — хаана ч байсан хамаагүй.
-static func seat_by_head(root: Node3D, sk: Skeleton3D, head_y: float) -> void:
-	var head := sk.find_bone("mixamorig_Head")
-	if head < 0:
-		head = sk.find_bone("mixamorig_Neck")
-	if head < 0:
-		return
-	var world: Vector3 = sk.global_transform * sk.get_bone_global_pose(head).origin
-	root.position.y += head_y - world.y
+	var leg: Array = rig["leg"]
+	for s in range(2):
+		var side: String = rig["sides"][s]
+		var want: Array = [
+			(fwd * 0.94 - up * 0.32).normalized(),   # гуя
+			(-up).normalized(),                      # шилбэ
+		]
+		for i in range(mini(leg.size() - 1, want.size())):
+			aim(sk, _fill(leg[i], side), _fill(leg[i + 1], side), want[i])
 
 
 ## Хуруунуудыг ЖААХАН нугалана.
@@ -248,18 +308,38 @@ static func seat_by_head(root: Node3D, sk: Skeleton3D, head_y: float) -> void:
 ## гар хэзээ ч тэгж задардаггүй — хуруу нь өөрийн жингээр бага зэрэг
 ## нугалж, дотогшоо цуглардаг. Энэ жижиг зүйл нь дүрийг «хүүхэлдэй»-ээс
 ## «хүн» болгодог.
-static func _curl_fingers(sk: Skeleton3D, side: String, fwd: Vector3, up: Vector3, outward: Vector3) -> void:
-	var fingers: Array[String] = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
-	for f in range(fingers.size()):
-		var fname: String = fingers[f]
-		# Хуруу бүр өөр өнцгөөр задарна — эрхий хамгийн их.
-		var fan: float = (float(f) - 2.0) * 0.14
-		var curl: Array = [0.32, 0.58, 0.74]
+static func _curl_fingers(sk: Skeleton3D, rig: Dictionary, side: String,
+		fwd: Vector3, up: Vector3, outward: Vector3) -> void:
+	var tpl: String = rig["finger"]
+	var segs: int = rig["finger_segs"]
+	for f in range(_FINGERS.size()):
+		var fname: String = _FINGERS[f]
+		var fan: float = (float(f) - 2.0) * 0.13
+		var curl: Array = [0.30, 0.55, 0.70]
 		if fname == "Thumb":
-			fan = -0.60
-			curl = [0.26, 0.44, 0.56]
-		for seg in range(3):
+			fan = -0.58
+			curl = [0.24, 0.40, 0.52]
+		for seg in range(segs):
 			var c: float = curl[seg]
 			var dir := (fwd * (1.0 - c * 0.55) - up * c + outward * fan).normalized()
-			aim(sk, "mixamorig_%sHand%s%d" % [side, fname, seg + 1],
-				"mixamorig_%sHand%s%d" % [side, fname, seg + 2], dir)
+			aim(sk, _fill(tpl, side, fname, seg + 1), _fill(tpl, side, fname, seg + 2), dir)
+
+
+## Дүрийг ТОЛГОЙНЫХ нь өндрөөр байрлуулна.
+##
+## Эхэндээ аарцгаар нь тэгшилж байсан. Гэтэл Michelle-ийн ригийн аарцаг
+## бусад загвараас 15 см дээгүүр суудаг тул түүний толгой ширээний ирмэгт
+## дүрэгдэж байв (хэмжилт: аарцгаас толгой хүртэл Soldier 0.50 м,
+## Michelle 0.35 м — энэ нь байрлуулалтын алдаа биш, РИГИЙН ялгаа).
+##
+## Камерт ХАРАГДАХ зүйл бол толгой, мөр хоёр. Тиймээс тэднийг л тэгшилнэ.
+## Аарцаг нь ширээний доор — хаана ч байсан хамаагүй.
+static func seat_by_head(root: Node3D, sk: Skeleton3D, head_y: float) -> void:
+	var rig := rig_of(sk)
+	if rig.is_empty():
+		return
+	var head := sk.find_bone(rig["head"])
+	if head < 0:
+		return
+	var world: Vector3 = sk.global_transform * sk.get_bone_global_pose(head).origin
+	root.position.y += head_y - world.y

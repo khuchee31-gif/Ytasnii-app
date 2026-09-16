@@ -29,9 +29,9 @@ const ROOM_D := 7.4
 const CEIL := 2.85
 
 const TABLE_H := 0.72
-const TABLE_R := 0.94
-const SEAT_R := 1.24
-const CHAIR_R := 1.46
+const TABLE_R := 1.24
+const SEAT_R := 1.52
+const CHAIR_R := 1.76
 const LAMP_Y := 1.96
 
 # --- Камер -------------------------------------------------------------------
@@ -42,9 +42,10 @@ const EYE_Y := 1.31
 ## Чийдэнгийн хүч. Godot-ийн omni нь `energy * pow(1 - d/range, atten)`.
 ## 1.2 м зайд 9.0 нь 6.6 болж, ширээ цоо цайрч байсан — модны судал
 ## бүрэн алга болсон. Гэрэл хэт их байх нь дутахаас ДОР.
-const KEY_ENERGY := 4.0
-const FILL_ENERGY := 1.25
-const BOUNCE_ENERGY := 0.42
+const KEY_ENERGY := 3.6
+const FILL_ENERGY := 0.90
+const BOUNCE_ENERGY := 0.34
+const RIM_ENERGY := 0.95
 const SHAFT_STRENGTH := 0.30
 ## Нүд толгойноос хэр урагш (хамрын оронд).
 const EYE_FWD := 0.11
@@ -62,28 +63,43 @@ const FOV := 47.0
 @export var overview: bool = false
 
 var _models: Array[String] = [
-	"res://models/Soldier.glb",
-	"res://models/Xbot.glb",
-	"res://models/Michelle.glb",
+	"res://models/Punk.glb",
+	"res://models/Casual_Hoodie.glb",
+	"res://models/Worker.glb",
+	"res://models/Casual_2.glb",
+	"res://models/Suit.glb",
+	"res://models/Swat.glb",
 ]
 
-## Хувцасны өнгө. ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ — зөвхөн суудлаар тодорхойлогдоно,
-## тул алуурчин, иргэн хоёр ижил өнгөтэй байж болно.
+## Хувцасны өнгө. ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ.
 ##
-## Бүгд ХАРАНХУЙ. Загварууд нь цайвар «хүүхэлдэй» өнгөтэй ирдэг бөгөөд
-## дулаан гэрлийн дор ягаан мах мэт харагдана. Гүн бараан болгосноор
-## тэд харанхуй өрөөнд суусан ХҮМҮҮС мэт болж, гэрэл зөвхөн мөр, хацрын
-## ирмэгийг л зурна.
-var _tints: Array[Color] = [
-	Color(0.30, 0.29, 0.31), Color(0.22, 0.26, 0.31), Color(0.34, 0.28, 0.25),
-	Color(0.25, 0.29, 0.27), Color(0.32, 0.26, 0.28), Color(0.23, 0.27, 0.33),
-	Color(0.35, 0.31, 0.25), Color(0.27, 0.25, 0.26),
+## Зөвхөн СУУДЛЫН дугаараас тооцогдоно. Суудал нь бүх тоглогчид ил тул
+## үүнээс хэн алуурчин болохыг таах ямар ч мэдээлэл гарахгүй. Хэрэв өнгө
+## дүрээс хамаарвал тоглоом тэр дор нь үхнэ.
+##
+## Бүгд бараан: гудамжны шөнийн хүмүүс. Гэрэл зөвхөн мөр, хацрын ирмэгийг
+## зурна.
+var _cloth: Array[Color] = [
+	Color(0.082, 0.085, 0.100), Color(0.064, 0.082, 0.104),
+	Color(0.112, 0.078, 0.068), Color(0.070, 0.096, 0.082),
+	Color(0.104, 0.088, 0.062), Color(0.068, 0.070, 0.098),
+	Color(0.098, 0.068, 0.092), Color(0.060, 0.088, 0.096),
 ]
 
-## Загвар бүрийн анхны тод байдал өөр: Xbot бол цайвар саарал хүүхэлдэй,
-## Soldier аль хэдийн бараан дүрэмт хувцастай. Ижил үржүүлэгч өгвөл нэг нь
-## гялалзаж, нөгөө нь харагдахаа болино.
-var _model_gain: Array[float] = [1.15, 0.72, 0.66]
+## Чимэглэлийн өнгө — үс, зураас, товч. Ханасан анхны өнгө бүр үүгээр
+## солигдоно. Энэ нь «гудамжны панк» аяс өгнө.
+var _accent: Array[Color] = [
+	Color(0.62, 0.14, 0.32), Color(0.10, 0.52, 0.56), Color(0.66, 0.34, 0.08),
+	Color(0.32, 0.56, 0.16), Color(0.46, 0.20, 0.58), Color(0.66, 0.52, 0.10),
+	Color(0.60, 0.18, 0.14), Color(0.14, 0.42, 0.62),
+]
+
+## Арьсны өнгө. Мөн зөвхөн суудлаас.
+var _skin: Array[Color] = [
+	Color(0.58, 0.44, 0.33), Color(0.37, 0.26, 0.19), Color(0.66, 0.52, 0.41),
+	Color(0.47, 0.34, 0.25), Color(0.30, 0.20, 0.15), Color(0.62, 0.48, 0.36),
+	Color(0.42, 0.31, 0.23), Color(0.53, 0.40, 0.30),
+]
 
 var _eye: Transform3D = Transform3D(Basis(), Vector3(0, EYE_Y, 0))
 var _eye_found := false
@@ -125,15 +141,26 @@ func _build_room() -> void:
 	var wall_mat := MatLib.concrete("wall", Color(0.118, 0.110, 0.104), 23, 0.97)
 	var ceil_mat := MatLib.concrete("ceil", Color(0.070, 0.066, 0.062), 41, 0.99)
 
-	add_child(Props.box(Vector3(ROOM_W, 0.24, ROOM_D), floor_mat, Vector3(0, -0.12, 0)))
-	add_child(Props.box(Vector3(ROOM_W, 0.24, ROOM_D), ceil_mat, Vector3(0, CEIL + 0.12, 0)))
-
 	var hw := ROOM_W * 0.5
 	var hd := ROOM_D * 0.5
-	add_child(Props.box(Vector3(ROOM_W, CEIL, 0.24), wall_mat, Vector3(0, CEIL * 0.5, hd + 0.12)))
-	add_child(Props.box(Vector3(ROOM_W, CEIL, 0.24), wall_mat, Vector3(0, CEIL * 0.5, -hd - 0.12)))
-	add_child(Props.box(Vector3(0.24, CEIL, ROOM_D), wall_mat, Vector3(hw + 0.12, CEIL * 0.5, 0)))
-	add_child(Props.box(Vector3(0.24, CEIL, ROOM_D), wall_mat, Vector3(-hw - 0.12, CEIL * 0.5, 0)))
+
+	# ӨРӨӨНИЙ БҮРХҮҮЛ СҮҮДЭР ХАЯХГҮЙ.
+	#
+	# Сүүдрийн зураг бэлтгэхэд бүх тор ДАХИН нэг удаа зурагддаг. Найман
+	# ясжуулсан дүр бүхий тайзанд энэ нь хамгийн үнэтэй хэсэг — Redmi 9A
+	# (PowerVR GE8320) дээр шийдвэрлэх ач холбогдолтой. Хана, тааз, шал нь
+	# гэрлийн эх үүсвэрийг ХҮРЭЭЛЖ байгаа тул хэзээ ч ямар нэг зүйл дээр
+	# сүүдэр тусгахгүй. Хасвал зураг нэг ч пикселээр өөрчлөгдөхгүй.
+	for piece in [
+		Props.box(Vector3(ROOM_W, 0.24, ROOM_D), floor_mat, Vector3(0, -0.12, 0)),
+		Props.box(Vector3(ROOM_W, 0.24, ROOM_D), ceil_mat, Vector3(0, CEIL + 0.12, 0)),
+		Props.box(Vector3(ROOM_W, CEIL, 0.24), wall_mat, Vector3(0, CEIL * 0.5, hd + 0.12)),
+		Props.box(Vector3(ROOM_W, CEIL, 0.24), wall_mat, Vector3(0, CEIL * 0.5, -hd - 0.12)),
+		Props.box(Vector3(0.24, CEIL, ROOM_D), wall_mat, Vector3(hw + 0.12, CEIL * 0.5, 0)),
+		Props.box(Vector3(0.24, CEIL, ROOM_D), wall_mat, Vector3(-hw - 0.12, CEIL * 0.5, 0)),
+	]:
+		piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(piece)
 
 	# Таазны хоолой — «энэ бол засвар хийгээгүй хуучин байшин» гэдгийг нэг
 	# дор хэлнэ. Гэрлийн дор өнгөрөх тул тод гялалзана.
@@ -211,8 +238,8 @@ func _build_backdrop(hw: float, hd: float) -> void:
 
 
 func _build_table() -> void:
-	var wood := MatLib.wood("table", Color(0.122, 0.082, 0.055), Color(0.034, 0.022, 0.015), 3)
-	var dark := MatLib.wood("table_edge", Color(0.105, 0.070, 0.047), Color(0.028, 0.018, 0.013), 19)
+	var wood := MatLib.wood("table", Color(0.108, 0.088, 0.072), Color(0.030, 0.024, 0.019), 3)
+	var dark := MatLib.wood("table_edge", Color(0.078, 0.062, 0.050), Color(0.022, 0.017, 0.014), 19)
 	var iron := MatLib.metal("table_iron", Color(0.14, 0.135, 0.130), 97)
 
 	add_child(Props.cyl(TABLE_R, TABLE_R, 0.062, 56, wood, Vector3(0, TABLE_H - 0.031, 0)))
@@ -256,7 +283,9 @@ func _build_people() -> void:
 		var a := _angle_of(i)
 		var pivot := Node3D.new()
 		pivot.position = Vector3(sin(a) * SEAT_R, 0.0, cos(a) * SEAT_R)
-		pivot.rotation.y = a + PI                    # ширээ рүү харна
+		# Ширээ рүү харна, гэхдээ ЯГ ТӨВ рүү биш: хүн бүр 8° хүртэл
+		# хазайна. Ялгаа нь суудлаас л тооцогдоно (дүрээс биш).
+		pivot.rotation.y = a + PI + (float((i * 19) % 9) - 4.0) * 0.035
 		add_child(pivot)
 
 		var ch := Props.chair(i)
@@ -290,9 +319,9 @@ func _build_people() -> void:
 		var lean := 0.24 + float((i * 13) % 7) / 18.0
 		var turn := (float((i * 29) % 13) - 6.0) / 13.0 * 0.85
 		var spread := float((i * 17) % 5) / 42.0
-		var pre := _bone_world(who, sk, "mixamorig_Head").y - _bone_world(who, sk, "mixamorig_Hips").y
+		var pre := _head_world(who, sk).y - _bone_world(who, sk, Humanoid.rig_of(sk).get("hips", "")).y
 		Humanoid.pose_seated(sk, lean, turn, spread)
-		var post := _bone_world(who, sk, "mixamorig_Head").y - _bone_world(who, sk, "mixamorig_Hips").y
+		var post := _head_world(who, sk).y - _bone_world(who, sk, Humanoid.rig_of(sk).get("hips", "")).y
 		Humanoid.seat_by_head(who, sk, Humanoid.HEAD_SEATED + float((i * 23) % 7) * 0.012 - 0.036)
 
 		# 3. Хайрцгийг зөв болгоно, эс бөгөөс камер хаашаа ч харсан
@@ -300,8 +329,7 @@ func _build_people() -> void:
 		Humanoid.fix_skin_bounds(who)
 
 		# 4. Өнгөний бага зэргийн ялгаа — найман ижил хүн суухаас сэргийлнэ.
-		var mi := (i * 5) % _models.size()
-		_tint(who, _tints[i % _tints.size()] * _model_gain[mi])
+		_dress(who, i)
 
 		var ax := Humanoid.body_axes(sk)
 		print("  PERSON seat=%d %-13s meas=%.3f scale=%.3f lean=%.2f spine(pre=%.3f post=%.3f) up=%s" % [
@@ -309,14 +337,25 @@ func _build_people() -> void:
 			pre, post, str(ax.get("up", Vector3.ZERO)).pad_decimals(2)])
 		if i == viewer_seat:
 			_capture_eye(who, sk)
-		_mark("seat%d_head" % i, _bone_world(who, sk, "mixamorig_Head"))
+		_mark("seat%d_head" % i, _head_world(who, sk))
 
 
 ## Дүрийн материалыг хуулж, бага зэрэг өнгө нэмнэ.
 ##
 ## Хуулахгүй бол Godot материалыг ХУВААЛЦдаг тул нэгийг өөрчилвөл бүгд
 ## өөрчлөгдөж, найман хүн дахин ижил болно.
-func _tint(root: Node, c: Color) -> void:
+func _dress(root: Node, seat: int) -> void:
+	var cloth: Color = _cloth[seat % _cloth.size()]
+	var accent: Color = _accent[seat % _accent.size()]
+	var skin: Color = _skin[seat % _skin.size()]
+
+	# ХОЁР АЛХАМ. Эхлээд бүх гадаргууг цуглуулж, дараа нь будна.
+	#
+	# Яагаад: «ханасан өнгөтэй бол чимэглэл» гэсэн энгийн дүрэм нь
+	# бүтсэнгүй — ажилчны хантааз, малгай хоёр хоёулаа ханасан тул
+	# дүр бүхэлдээ ягаан болж хувирсан. Чимэглэл гэдэг нь ГАНЦ хамгийн
+	# ханасан материал байх ёстой; бусад нь хувцас.
+	var jobs: Array = []
 	for n in Humanoid.walk(root):
 		if not (n is MeshInstance3D):
 			continue
@@ -326,30 +365,88 @@ func _tint(root: Node, c: Color) -> void:
 			var src := mi.get_active_material(s)
 			if src == null:
 				continue
-			var dup := src.duplicate() as BaseMaterial3D
-			if dup == null:
-				continue
-			dup.albedo_color = dup.albedo_color * c
-			# Загварууд гялгар өнгөлгөөтэй ирдэг тул мөр, цээжин дээр
-			# хуванцар тоглоом мэт цагаан гялбаа суудаг. Хувцас, арьс
-			# ХУУРАЙ байх ёстой.
-			dup.roughness = maxf(dup.roughness, 0.80)
-			dup.metallic = minf(dup.metallic, 0.04)
-			dup.metallic_specular = 0.20
+			# Оройн тоо нь тухайн материал биеийн ХЭР ИХ хэсгийг эзэлж
+			# байгаагийн хямд хэмжүүр.
+			var verts: int = mi.mesh.surface_get_array_len(s)
+			jobs.append({"mi": mi, "surf": s, "src": src,
+				"name": src.resource_name, "verts": verts})
 
-			# ХОЁР ТАЛТАЙ нимгэн хавтан. Загварууд ихэвчлэн `cull_disabled`
-			# байдаг: үс, хувцасны хормой нь нэг давхар гурвалжин. Дээрээс
-			# унасан хатуу гэрлийн дор эдгээрийн ар тал нь гэнэт гэрэлтэж,
-			# толгойноос цацарсан хэлтэрхий мэт харагдана.
-			#
-			# (Хэмжилт: Michelle-ийн тор НЭГ гадаргуутай, тунгалаг БИШ —
-			# өөрөөр хэлбэл энэ нь эрэмбэлэлтийн алдаа биш, харин үсний
-			# ГЕОМЕТР өөрөө өргөстэй. Бүрэн засах цорын ганц арга бол
-			# илүү сайн загвар. Энд зөвхөн гялбааг нь дарна.)
-			if dup.cull_mode == BaseMaterial3D.CULL_DISABLED:
-				dup.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	var total := 0.0
+	for j in jobs:
+		total += float(j["verts"])
 
-			mi.set_surface_override_material(s, dup)
+	# ЧИМЭГЛЭЛИЙН материалыг олно: оосор, зураас, товч.
+	#
+	# Хоёр буруу дүрмийн дараа гурав дахь нь ажиллав:
+	#   1. «хамгийн ханасан» → уруул сонгогдож, хүн бүр ягаан уруултай.
+	#   2. «хамгийн ханасан, оройн 26 %-иас бага» → малгайт цамцны их
+	#      бие (20 %) сонгогдож, тоглогч бүхэлдээ ногоон болов.
+	#   3. «ханасан, 12 %-иас бага, тэдгээрээс ХАМГИЙН ЖИЖИГ нь» — жинхэнэ
+	#      чимэглэл үргэлж жижиг байдаг. Тохирох зүйл олдохгүй бол
+	#      чимэглэлгүй: бүхэлдээ бараан хувцас ч бас зөв хариулт.
+	var best := -1
+	var best_share := 1.0
+	for j in range(jobs.size()):
+		var nm: String = jobs[j]["name"]
+		if nm.begins_with("Skin") or nm.begins_with("Eye") or nm.begins_with("Earring"):
+			continue
+		if nm.begins_with("Hair"):
+			continue
+		if (jobs[j]["mi"] as MeshInstance3D).name.to_lower().contains("head"):
+			continue
+		var share: float = float(jobs[j]["verts"]) / maxf(total, 1.0)
+		if share > 0.12:
+			continue
+		var c: Color = (jobs[j]["src"] as BaseMaterial3D).albedo_color
+		if c.s > 0.30 and share < best_share:
+			best_share = share
+			best = j
+
+	for j in range(jobs.size()):
+		var src: BaseMaterial3D = jobs[j]["src"]
+		# Материалыг ХУУЛНА. Хуулахгүй бол Godot нэг материалыг бүх
+		# хуулбарт хуваалцдаг тул нэгийг өөрчилвөл найман хүн бүгд
+		# өөрчлөгдөж, дахин ижилхэн болно.
+		var dup := src.duplicate() as BaseMaterial3D
+		if dup == null:
+			continue
+		var name_v: String = jobs[j]["name"]
+		var luma := dup.albedo_color.get_luminance()
+
+		if name_v.begins_with("Skin"):
+			dup.albedo_color = skin
+		elif name_v.begins_with("Eye"):
+			dup.albedo_color = dup.albedo_color * 0.75
+		elif name_v.begins_with("Earring"):
+			pass                                       # металл хэвээр
+		elif name_v.begins_with("Hair"):
+			# Будсан үс. Бараан ч гэсэн өнгө нь мэдэгдэнэ — гудамжны аяс.
+			dup.albedo_color = accent * (0.26 + 0.34 * luma)
+		elif j == best:
+			# ГАНЦ чимэглэл: будсан үс, зураас, товч.
+			dup.albedo_color = accent * (0.52 + 0.45 * luma)
+		else:
+			# Хувцас. Анхны гэрэл/сүүдрийн БҮТЦИЙГ хадгална — бүгдийг нэг
+			# өнгөөр будвал дүр нь хавтгай толбо болно.
+			dup.albedo_color = cloth * (0.55 + 1.15 * luma)
+
+		# Загварууд гялгар өнгөлгөөтэй ирдэг тул мөр, цээжин дээр
+		# хуванцар тоглоом мэт цагаан гялбаа суудаг. Хувцас, арьс
+		# ХУУРАЙ байх ёстой.
+		dup.roughness = maxf(dup.roughness, 0.84)
+		dup.metallic = minf(dup.metallic, 0.04)
+		dup.metallic_specular = 0.16
+
+		if seat == int(_arg("debug_seat", -1.0)):
+			print("  DRESS %-14s [%d] '%s' %s -> %s verts=%d%s" % [
+				(jobs[j]["mi"] as MeshInstance3D).name, jobs[j]["surf"], name_v,
+				str(src.albedo_color).pad_decimals(2), str(dup.albedo_color).pad_decimals(2),
+				int(jobs[j]["verts"]), "  ACCENT" if j == best else ""])
+		(jobs[j]["mi"] as MeshInstance3D).set_surface_override_material(jobs[j]["surf"], dup)
+
+
+func _head_world(root: Node3D, sk: Skeleton3D) -> Vector3:
+	return _bone_world(root, sk, Humanoid.rig_of(sk).get("head", ""))
 
 
 func _bone_world(root: Node3D, sk: Skeleton3D, bone: String) -> Vector3:
@@ -363,7 +460,7 @@ func _bone_world(root: Node3D, sk: Skeleton3D, bone: String) -> Vector3:
 ## ширээн дээр өөрийн шуу, гар нь харагдана.
 func _capture_eye(root: Node3D, sk: Skeleton3D) -> void:
 	var ax := Humanoid.body_axes(sk)
-	var head := _bone_world(root, sk, "mixamorig_Head")
+	var head := _head_world(root, sk)
 	if head == Vector3.ZERO or ax.is_empty():
 		return
 	var fwd: Vector3 = (sk.global_transform.basis * (ax["fwd"] as Vector3)).normalized()
@@ -392,11 +489,11 @@ func _build_lamp() -> void:
 	var key := SpotLight3D.new()
 	key.position = Vector3(0, LAMP_Y - 0.06, 0)
 	key.rotation_degrees = Vector3(-90, 0, 0)
-	key.light_color = Color(1.0, 0.71, 0.44)
+	key.light_color = Color(1.0, 0.74, 0.48)
 	key.light_energy = _arg("key", KEY_ENERGY)
 	key.spot_range = 6.2
-	key.spot_angle = 49.0
-	key.spot_angle_attenuation = 1.30
+	key.spot_angle = 54.0
+	key.spot_angle_attenuation = 1.60
 	key.spot_attenuation = 1.05
 	key.shadow_enabled = true
 	key.shadow_bias = 0.028
@@ -415,8 +512,8 @@ func _build_lamp() -> void:
 	fill.rotation_degrees = Vector3(-90, 0, 0)
 	fill.light_color = Color(1.0, 0.76, 0.54)
 	fill.light_energy = _arg("fill", FILL_ENERGY)
-	fill.spot_range = 4.6
-	fill.spot_angle = 76.0
+	fill.spot_range = 3.7
+	fill.spot_angle = 64.0
 	fill.spot_angle_attenuation = 0.55
 	fill.spot_attenuation = 1.25
 	fill.shadow_enabled = false
@@ -426,18 +523,40 @@ func _build_lamp() -> void:
 	# Гэрлийн багана + тоос. Энэ хоёр нь харанхуйд ГҮН үүсгэнэ — тоглоом
 	# хавтгай зураг биш, АГААРТАЙ орон зай мэт болно.
 	if _arg("shaft", 1.0) > 0.5:
-		add_child(Props.shaft(LAMP_Y + 0.02, TABLE_H - 0.02, 0.28, 1.34,
+		add_child(Props.shaft(LAMP_Y + 0.02, TABLE_H - 0.02, 0.28, 1.62,
 			Color(1.0, 0.70, 0.40), SHAFT_STRENGTH))
 	if _arg("dust", 1.0) > 0.5:
 		# Тоос нь ЭРГЭЛЗЭЭ төрүүлэх зэрэг л байх ёстой. Эхний тохиргоо нь
 		# цас будран буух мэт болж, бүх дүр төрхийг сүйтгэсэн.
-		add_child(Props.dust(LAMP_Y - 0.30, TABLE_H, 0.58, 18))
+		add_child(Props.dust(LAMP_Y - 0.30, TABLE_H, 0.70, 20))
 
 	# ШИРЭЭНЭЭС ОЙСОН гэрэл. Дээрээс унасан туяа нь нүүрийг бараг
 	# гэрэлтүүлдэггүй (гэрэл дээрээс, нүүр хажуу тийш хардаг тул N·L
 	# бараг тэг) — тиймээс бүх дүр нүүргүй хар дүрс болж байв. Гэтэл
 	# бодит амьдралд гэгээн ширээ өөрөө гэрэл ойлгож, эрүү, хамрыг
 	# ДООРООС нь зурдаг. Энэ нэг сул гэрэл бүх нүүрийг амилуулна.
+	# ГУРАВДАХЬ ЦЭГ: АРЫН ГЭРЭЛ.
+	#
+	# Гэрэл зурагт «гурван цэгийн гэрэлтүүлэг» гэж байдаг: гол, дүүргэгч,
+	# АРЫН. Эхний хоёр нь байсан ч гурав дахь нь дутуу байсан тул дүрүүд
+	# хананд шингэж, хаана хүн дуусаж хана эхэлж байгаа нь мэдэгдэхгүй
+	# байв. Арын гэрэл нь мөр, толгойн ЗАХЫГ нарийхан хүйтэн зураасаар
+	# тодруулж, дүрийг харанхуйгаас ТАСАЛЖ гаргана.
+	#
+	# Камер ширээг тойрон эргэдэг тул гурван эх үүсвэрийг тэгш тараана —
+	# аль зүг рүү харсан ч хэн нэгний ард гэрэл байна.
+	for i in range(3):
+		var a := TAU * float(i) / 3.0 + 0.4
+		var rim := OmniLight3D.new()
+		rim.position = Vector3(sin(a) * 3.05, 2.58, cos(a) * 3.05)
+		rim.light_color = Color(0.36, 0.62, 0.86)
+		rim.light_energy = _arg("rim", RIM_ENERGY)
+		rim.omni_range = 5.0
+		rim.omni_attenuation = 2.7
+		rim.shadow_enabled = false
+		rim.light_specular = 0.55
+		add_child(rim)
+
 	var bounce := OmniLight3D.new()
 	bounce.position = Vector3(0, TABLE_H + 0.16, 0)
 	bounce.light_color = Color(1.0, 0.66, 0.40)
