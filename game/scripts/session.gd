@@ -17,6 +17,7 @@ extends Node
 
 const NetClient := preload("res://scripts/net_client.gd")
 const Voice := preload("res://scripts/voice.gd")
+const Lobby := preload("res://scripts/lobby.gd")
 
 ## Үе шатны монгол нэр. Сервер ямар ч хэл мэдэхгүй — зөвхөн шошго илгээнэ.
 const PHASE_NAME := {
@@ -49,6 +50,10 @@ const ACT_LABEL := {
 	"detective": "ШАЛГАХ",
 }
 
+## Тоглолт эхлэх доод хязгаар. СЕРВЕР шийднэ (`kMinPlayers`, `room.dart`)
+## — энэ нь зөвхөн товчийг идэвхгүй болгож, хэрэглэгчид ойлгуулах.
+const MIN_PLAYERS := 6
+
 const ERR_TEXT := {
 	"badVersion": "Аппаа шинэчлэх шаардлагатай.",
 	"roomNotFound": "Ийм кодтой өрөө олдсонгүй.",
@@ -65,6 +70,7 @@ const ERR_TEXT := {
 
 var net: Node = null
 var voice: Node = null
+var lobby: CanvasLayer = null
 var table: Node3D = null
 var hud: CanvasLayer = null
 
@@ -80,6 +86,8 @@ var _can_speak := false
 var _submitted := false
 var _notice := ""
 var _notice_until := 0
+## Хөгжүүлэлтийн товчлол: жагсаалтаас эхний өрөөг шууд сонгоно.
+var _auto_join := false
 
 
 ## Холбогдсоны дараа юу хийх вэ. Хоосон бол ШИНЭ өрөө үүсгэнэ, эс бөгөөс
@@ -120,6 +128,19 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	if hud != null:
 		hud.acted.connect(_on_act)
 
+	lobby = Lobby.new()
+	add_child(lobby)
+	lobby.create_pressed.connect(_on_create)
+	lobby.join_pressed.connect(_on_join)
+	lobby.ready_toggled.connect(func(v: bool) -> void: net.set_ready(v))
+	lobby.start_pressed.connect(func() -> void: net.start_game())
+	lobby.refresh_pressed.connect(func() -> void: net.list_rooms())
+	lobby.set_name_text(_remembered_name(name_v))
+	# Лобби нээлттэй үед тоглоомын дэлгэц харагдах ёсгүй — хоёр давхар
+	# бичвэр давхцаж, аль аль нь уншигдахгүй болно.
+	if hud != null:
+		hud.visible = false
+
 	voice = Voice.new()
 	add_child(voice)
 	voice.setup(net)
@@ -136,17 +157,53 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 # --- Серверээс ирэх ----------------------------------------------------------
 
 func _on_open() -> void:
-	_notify("Сервертэй холбогдлоо.")
-	if room_code.is_empty():
-		net.create_room()
-	elif room_code == "*":
-		# Нээлттэй өрөөнд ор. Кодоо мэдэхгүй хүн (эсвэл шалгах скрипт)
-		# ингэж ордог.
+	# `room_code` нь ЗӨВХӨН хөгжүүлэлтийн товчлол (`tools/play.sh`).
+	# Жинхэнэ тоглогч лоббигоор дамжина.
+	if room_code == "*":
+		_auto_join = true
 		net.list_rooms()
-	else:
+	elif not room_code.is_empty():
 		net.join_room(room_code)
 	if verbose:
-		print("NET open -> ", "create" if room_code.is_empty() else "join " + room_code)
+		print("NET open -> ", "lobby" if room_code.is_empty() else "join " + room_code)
+
+
+func _remembered_name(fallback: String) -> String:
+	# Нэрээ дахин бичүүлэх нь утсан дээр ядаргаатай. Нэг удаа хадгална.
+	var cfg := ConfigFile.new()
+	if cfg.load("user://identity.cfg") == OK:
+		var got: String = cfg.get_value("me", "name", "")
+		if not got.is_empty():
+			return got
+	return fallback
+
+
+func _remember_name(v: String) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load("user://identity.cfg")
+	cfg.set_value("me", "name", v)
+	cfg.save("user://identity.cfg")
+
+
+func _on_create(name_v: String, is_public: bool) -> void:
+	if name_v.is_empty():
+		lobby.set_note("Нэрээ бичээрэй.")
+		return
+	_remember_name(name_v)
+	net.player_name = name_v
+	net.create_room(is_public)
+
+
+func _on_join(name_v: String, code: String) -> void:
+	if name_v.is_empty():
+		lobby.set_note("Нэрээ бичээрэй.")
+		return
+	if code.length() != 4:
+		lobby.set_note("Код 4 үсэгтэй.")
+		return
+	_remember_name(name_v)
+	net.player_name = name_v
+	net.join_room(code)
 
 
 func _on_close(_code: int) -> void:
@@ -160,7 +217,12 @@ func _on_room_list(d: Dictionary) -> void:
 	if rooms.is_empty():
 		_notify("Нээлттэй өрөө алга.")
 		return
-	net.join_room(str((rooms[0] as Dictionary).get("code", "")))
+	if _auto_join:
+		_auto_join = false
+		net.join_room(str((rooms[0] as Dictionary).get("code", "")))
+		return
+	if lobby != null and lobby.visible:
+		lobby.show_rooms(rooms)
 
 
 func _on_room_state(d: Dictionary) -> void:
@@ -169,6 +231,14 @@ func _on_room_state(d: Dictionary) -> void:
 	if verbose:
 		print("NET roomState code=", d.get("code", "?"), " phase=", _phase,
 			" players=", _players.size())
+	if lobby != null:
+		if _phase == "lobby":
+			lobby.show_room(str(d.get("code", "")), _players,
+				str(d.get("hostId", "")) == net.player_id, MIN_PLAYERS)
+		else:
+			lobby.hide_all()
+		if hud != null:
+			hud.visible = not lobby.visible
 	_refresh()
 
 
@@ -228,7 +298,10 @@ func _on_voice(d: Dictionary) -> void:
 func _on_error(code: String, _d: Dictionary) -> void:
 	if verbose:
 		print("NET error=", code)
-	_notify(ERR_TEXT.get(code, "Алдаа: %s" % code))
+	var text: String = ERR_TEXT.get(code, "Алдаа: %s" % code)
+	if lobby != null and lobby.visible:
+		lobby.set_note(text)
+	_notify(text)
 
 
 # --- Тоглогчоос ирэх ---------------------------------------------------------
@@ -255,6 +328,8 @@ func _on_act() -> void:
 # --- Дэлгэц ------------------------------------------------------------------
 
 func _notify(text: String) -> void:
+	if lobby != null and lobby.visible:
+		lobby.set_note(text)
 	_notice = text
 	_notice_until = Time.get_ticks_msec() + 4000
 	_refresh()
