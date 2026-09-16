@@ -20,6 +20,9 @@ config/icon="res://icon.svg"
 window/size/viewport_width=720
 window/size/viewport_height=1600
 window/stretch/mode="canvas_items"
+; «expand» — өөр харьцаатай утсанд хар туузаар хүрээлэхгүй, илүү
+; өндөр дэлгэцэнд илүү тайз харагдана.
+window/stretch/aspect="expand"
 window/handheld/orientation=1
 
 [rendering]

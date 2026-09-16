@@ -21,6 +21,8 @@ extends Node3D
 const MatLib := preload("res://scripts/mat_lib.gd")
 const Props := preload("res://scripts/props.gd")
 const Humanoid := preload("res://scripts/humanoid.gd")
+const TableCamera := preload("res://scripts/table_camera.gd")
+const Hud := preload("res://scripts/hud.gd")
 
 # --- Хэмжээс (метр) ----------------------------------------------------------
 
@@ -104,6 +106,12 @@ var _skin: Array[Color] = [
 var _eye: Transform3D = Transform3D(Basis(), Vector3(0, EYE_Y, 0))
 var _eye_found := false
 var _marks: Dictionary = {}
+## seat → толгойн дэлхийн цэг. Камер үүгээр суудал сонгоно.
+var _heads: Dictionary = {}
+var _ring: MeshInstance3D = null
+var _selected := -1
+var _hud: CanvasLayer = null
+var _cam: Camera3D = null
 
 
 ## Тушаалын мөрөөс тохиргоо авна: `-- overview=1 key=3.2 shaft=0`.
@@ -127,11 +135,14 @@ func _ready() -> void:
 	_build_people()
 	_build_lamp()
 	_build_env()
-	var cam := _build_camera()
+	_cam = _build_camera()
 	_build_post()
+	_build_hud()
+	if _arg("pick", -1.0) >= 0.0:
+		select_seat(int(_arg("pick", 0.0)))
 	print("BUILD ms=", Time.get_ticks_msec() - t0)
 	await get_tree().process_frame
-	_report_framing(cam)
+	_report_framing(_cam)
 
 
 # --- Өрөө --------------------------------------------------------------------
@@ -337,7 +348,9 @@ func _build_people() -> void:
 			pre, post, str(ax.get("up", Vector3.ZERO)).pad_decimals(2)])
 		if i == viewer_seat:
 			_capture_eye(who, sk)
-		_mark("seat%d_head" % i, _head_world(who, sk))
+		var hw: Vector3 = _head_world(who, sk)
+		_heads[i] = hw
+		_mark("seat%d_head" % i, hw)
 
 
 ## Дүрийн материалыг хуулж, бага зэрэг өнгө нэмнэ.
@@ -607,30 +620,70 @@ func _build_env() -> void:
 # --- Камер -------------------------------------------------------------------
 
 func _build_camera() -> Camera3D:
-	var cam := Camera3D.new()
-	cam.fov = FOV
-	cam.near = 0.04
-	cam.far = 24.0
-	add_child(cam)
-	cam.current = true
-
 	if overview:
-		cam.look_at_from_position(Vector3(2.4, 2.9, 3.2), Vector3(0, TABLE_H, 0), Vector3.UP)
-		cam.fov = 58.0
-		return cam
+		var top := Camera3D.new()
+		top.fov = 58.0
+		top.near = 0.04
+		top.far = 24.0
+		add_child(top)
+		top.current = true
+		top.look_at_from_position(Vector3(2.4, 2.9, 3.2), Vector3(0, TABLE_H, 0), Vector3.UP)
+		return top
 
 	var a := _angle_of(viewer_seat)
-	var inward := -Vector3(sin(a), 0, cos(a))            # ширээний төв рүү
 	var eye: Vector3 = _eye.origin
 	if not _eye_found:
 		# Суудал дээрх хүний нүд: ширээний ирмэг рүү бага зэрэг тонгойсон.
 		eye = Vector3(sin(a) * (SEAT_R - 0.17), EYE_Y, cos(a) * (SEAT_R - 0.17))
 
-	var basis := Basis.looking_at(inward, Vector3.UP)
-	basis = Basis(Vector3.UP, deg_to_rad(YAW)) * basis
-	basis = basis * Basis(Vector3.RIGHT, deg_to_rad(PITCH))
-	cam.global_transform = Transform3D(basis, eye)
+	var cam: Camera3D = TableCamera.new()
+	cam.fov = FOV
+	cam.near = 0.04
+	cam.far = 24.0
+	add_child(cam)
+	cam.current = true
+	# `a` нь тоглогчийн суудлын өнцөг; ширээний төв рүү харах чиглэл нь
+	# түүний эсрэг тал. Камер -Z рүү хардаг тул тэр өнцгийг шууд өгнө.
+	cam.setup(eye, a + deg_to_rad(YAW), deg_to_rad(PITCH))
+	for seat in _heads:
+		cam.set_head(int(seat), _heads[seat])
+	cam.seat_tapped.connect(select_seat)
 	return cam
+
+
+## Сонгосон суудлын өмнө ширээн дээр нарийхан гэрэлтэх нум гарна.
+##
+## Дүр дээр нь тэмдэг тавихгүй — толгой дээр хөвөх сум, эргэн тойрны гэрэл
+## зэрэг нь ХАРАНХУЙ ӨРӨӨНИЙ мэдрэмжийг эвдэнэ. Ширээн дээрх тэмдэг нь
+## бодит эд зүйл мэт: тэнд гэрэл тусав гэсэн үг.
+func select_seat(seat: int) -> void:
+	_selected = seat
+	if _ring == null:
+		var t := TorusMesh.new()
+		t.inner_radius = 0.088
+		t.outer_radius = 0.101
+		t.rings = 26
+		t.ring_segments = 5
+		_ring = MeshInstance3D.new()
+		_ring.mesh = t
+		# Гэрэлтэлт БАГА. Эхний тохиргоо (2.6) нь цагаан болж цоо цайраад
+		# гэрэлтэлтийн шүүлтүүрээр дамжин БҮХ тайзыг гэрэлтүүлж байв —
+		# харанхуй өрөө гэсэн мэдрэмж алга болсон. Тэмдэг нь анхаарал
+		# татах ёстой, тайзыг живүүлэх ёсгүй.
+		_ring.material_override = MatLib.glow(Color(0.16, 0.09, 0.05),
+			Color(0.80, 0.42, 0.16), 0.55)
+		_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_ring)
+	if seat < 0:
+		_ring.visible = false
+		return
+	var a := _angle_of(seat)
+	_ring.visible = true
+	_ring.position = Vector3(sin(a) * (TABLE_R - 0.38), TABLE_H + 0.004, cos(a) * (TABLE_R - 0.38))
+
+
+func selected_seat() -> int:
+	return _selected
 
 
 # --- Дараах боловсруулалт ----------------------------------------------------
@@ -649,6 +702,60 @@ func _build_post() -> void:
 		m.shader = sh
 		rect.material = m
 	layer.add_child(rect)
+
+
+# --- Дэлгэцийн мэдээлэл ------------------------------------------------------
+
+## Үе шатны монгол нэр. Серверээс ЗӨВХӨН үе шатны шошго ирдэг — сервер
+## ямар ч хэлний тухай мэдэхгүй (`packages/protocol`).
+const PHASE_NAME := {
+	"lobby": "ӨРӨӨ",
+	"dealing": "ХӨЗӨР ТАРААЖ БАЙНА",
+	"nightFalls": "ХОТ УНТЛАА",
+	"nightMafia": "АЛУУРЧИД СЭРЛЭЭ",
+	"nightDoctor": "ЭМЧ СЭРЛЭЭ",
+	"nightDetective": "МӨРДӨГЧ СЭРЛЭЭ",
+	"dawn": "ҮҮР ЦАЙЛАА",
+	"day": "ӨДӨР",
+	"vote": "САНАЛ ХУРААЛТ",
+	"elimination": "ХАСАЛТ",
+	"gameOver": "ТОГЛОЛТ ДУУСЛАА",
+}
+
+
+func _build_hud() -> void:
+	if overview:
+		return
+	_hud = Hud.new()
+	add_child(_hud)
+	# ЖИШЭЭ төлөв. Сервер холбогдоход `net_client.gd` үүнийг дарна.
+	_hud.apply({
+		"phase": PHASE_NAME["vote"],
+		"seconds": 42,
+		"hint": "Хэнийг хасах вэ? Нэг хүнийг сонго.",
+		"voice": "МИКРОФОН НЭЭЛТТЭЙ — БҮГД СОНСОЖ БАЙНА",
+		"can_speak": true,
+		"action": "САНАЛ ӨГӨХ",
+		"action_ready": true,
+	})
+
+
+func _process(_delta: float) -> void:
+	# Сонгосон хүний нэрийг толгой дээр нь тогтооно. Камер эргэхэд шошго
+	# дагаж хөдөлнө — гурван хэмжээст орон зайд бэхлэгдсэн мэт.
+	if _hud == null or _cam == null:
+		return
+	if _selected < 0 or not _heads.has(_selected):
+		_hud.show_name("", Vector2.ZERO, false)
+		return
+	var w: Vector3 = _heads[_selected]
+	_hud.show_name(_seat_name(_selected), _cam.unproject_position(w),
+		not _cam.is_position_behind(w))
+
+
+## Түр зуурын нэр. Сервер холбогдоход жинхэнэ нэрээр солигдоно.
+func _seat_name(seat: int) -> String:
+	return "%d-Р СУУДАЛ" % (seat + 1)
 
 
 # --- Хэмжилт -----------------------------------------------------------------
