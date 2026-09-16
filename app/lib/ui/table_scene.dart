@@ -240,28 +240,6 @@ class _ScenePainter extends CustomPainter {
           <double>[0.0, 0.30, 0.55, 1.0],
         ),
     );
-
-    // Чийдэнгийн туяа — дээрээс доош тархсан конус.
-    final double cx = size.width / 2;
-    canvas.drawPath(
-      Path()
-        ..moveTo(cx - size.width * 0.06, 0)
-        ..lineTo(cx + size.width * 0.06, 0)
-        ..lineTo(cx + size.width * 0.78, size.height * 0.70)
-        ..lineTo(cx - size.width * 0.78, size.height * 0.70)
-        ..close(),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(cx, 0),
-          Offset(cx, size.height * 0.70),
-          <Color>[
-            kRust.withValues(alpha: 0.055 * lamp),
-            kRust.withValues(alpha: 0.025 * lamp),
-            Colors.transparent,
-          ],
-          <double>[0.0, 0.30, 1.0],
-        ),
-    );
   }
 
   // --- Ширээ: ЖИНХЭНЭ 3D --------------------------------------------------
@@ -548,27 +526,73 @@ class _ScenePainter extends CustomPainter {
 
   // --- Чийдэн -------------------------------------------------------------
 
+  /// Чийдэн — ДЭЛХИЙН орон зайд бэхлэгдсэн.
+  ///
+  /// АЛДАА БАЙСАН: чийдэнг дэлгэцийн голд (`size.width / 2`) зурж байв.
+  /// Тиймээс толгойгоо эргүүлэхэд ширээ, хүмүүс хөдлөх атлаа чийдэн
+  /// дэлгэцэнд наалдсан хэвээр үлдэж, орон зайн мэдрэмж эвдэрч байв.
+  ///
+  /// Одоо чийдэнгийн БОДИТ байрлалыг (ширээний голоос дээш) буулгана —
+  /// эргэхэд хамт хөдөлнө, ширээнээс хол харвал дэлгэцээс гарна.
   void _paintLampGlow(Canvas canvas, Size size) {
-    final double cx = size.width / 2;
-    final double cy = size.height * 0.035;
+    final Projected p = cam.project(
+      const Vec3(0, kLampHeight, 0),
+      size.width,
+      size.height,
+    );
+    if (!p.visible) return;
+    final double cx = p.x;
+    final double cy = p.y;
+    // Хэмжээ нь гүнээс хамаарна — хол байвал жижиг.
+    final double k = (3.2 / p.depth).clamp(0.5, 1.8);
+    final double shadeW = size.width * 0.16 * k;
+
+    // Гэрлийн конус — чийдэнгээс ширээ рүү.
+    final Projected floor = cam.project(
+      const Vec3(0, 0, 0),
+      size.width,
+      size.height,
+    );
+    if (floor.visible) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(cx - shadeW * 0.35, cy)
+          ..lineTo(cx + shadeW * 0.35, cy)
+          ..lineTo(floor.x + size.width * 0.80, floor.y)
+          ..lineTo(floor.x - size.width * 0.80, floor.y)
+          ..close(),
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(cx, cy),
+            Offset(floor.x, floor.y),
+            <Color>[
+              kRust.withValues(alpha: 0.055 * lamp),
+              kRust.withValues(alpha: 0.018 * lamp),
+              Colors.transparent,
+            ],
+            <double>[0.0, 0.30, 1.0],
+          ),
+      );
+    }
+
     // Чийдэнгийн хүрээ.
     canvas.drawPath(
       Path()
-        ..moveTo(cx - size.width * 0.16, cy + 14)
-        ..lineTo(cx + size.width * 0.16, cy + 14)
-        ..lineTo(cx + size.width * 0.05, cy - 8)
-        ..lineTo(cx - size.width * 0.05, cy - 8)
+        ..moveTo(cx - shadeW, cy + 8 * k)
+        ..lineTo(cx + shadeW, cy + 8 * k)
+        ..lineTo(cx + shadeW * 0.30, cy - 14 * k)
+        ..lineTo(cx - shadeW * 0.30, cy - 14 * k)
         ..close(),
       Paint()..color = const Color(0xFF0E0F11),
     );
     // Гэрэл.
     canvas.drawCircle(
-      Offset(cx, cy + 14),
-      size.width * 0.20,
+      Offset(cx, cy + 8 * k),
+      size.width * 0.20 * k,
       Paint()
         ..shader = ui.Gradient.radial(
-          Offset(cx, cy + 14),
-          size.width * 0.20,
+          Offset(cx, cy + 8 * k),
+          size.width * 0.20 * k,
           <Color>[
             const Color(0xFFFFE6C4).withValues(alpha: 0.55 * lamp),
             kRust.withValues(alpha: 0.18 * lamp),

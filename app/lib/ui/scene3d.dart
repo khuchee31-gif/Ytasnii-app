@@ -231,7 +231,18 @@ class TableLayout {
 /// Бодит гэрлийн загвар биш — ХЯМД дөхөлт. Чийдэн ширээний яг дээр өлгөөтэй
 /// тул голд ойр байх тусам гэрэлтэй. Гар утасны GPU-д пиксел тутмын
 /// гэрэлтүүлэг хэрэггүй: орой тутамд нэг тоо хангалттай.
-double lampFalloff(Vec3 p, {double lampHeight = 1.9, double reach = 3.1}) {
+/// Чийдэн ширээнээс хэр өндөрт өлгөөтэй вэ.
+///
+/// НЭГ утга: гэрэлтүүлгийн тооцоо ба чийдэнгийн ЗУРАГ хоёул үүнийг уншина.
+/// Хоёр газар тус тусад нь бичвэл нэгийг нь өөрчлөхөд гэрэл нь чийдэнгээсээ
+/// салж хөвнө.
+const double kLampHeight = 1.9;
+
+double lampFalloff(
+  Vec3 p, {
+  double lampHeight = kLampHeight,
+  double reach = 3.1,
+}) {
   final double dx = p.x;
   final double dz = p.z;
   final double dy = lampHeight - p.y;
