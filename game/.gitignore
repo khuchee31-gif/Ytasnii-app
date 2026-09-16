@@ -2,4 +2,3 @@
 .godot/
 # Хөгжүүлэлтийн зураг. Эдгээр нь `tools/render.sh`-аар дахин үүснэ.
 shots/
-export_presets.cfg
