@@ -53,6 +53,48 @@ const PHASE_SUB := {
 	"gameOver": "",
 }
 
+## Дүрийн МОНГОЛ нэр, үүрэг, өнгө.
+##
+## ЗӨВХӨН ӨӨРИЙН дүрд хэрэглэгдэнэ — сервер бусдын дүрийг илгээдэггүй
+## тул энэ хүснэгтээр өөр хэний ч дүрийг харуулах БОЛОМЖГҮЙ.
+const ROLE_CARD := {
+	"killer": {
+		"name": "АЛУУРЧИН",
+		"sub": "Шөнө нэг хүнийг сонгоно. Өдөр бүгд шиг аашилна.",
+		"tone": Color(0.82, 0.24, 0.22),
+	},
+	"boss": {
+		"name": "АХЛАГЧ",
+		"sub": "Мафийн тэргүүн. Шөнө нэг хүнийг сонгоно.",
+		"tone": Color(0.82, 0.24, 0.22),
+	},
+	"doctor": {
+		"name": "ЭМЧ",
+		"sub": "Шөнө нэг хүнийг аварна. Хоёр шөнө дараалж нэг хүнийг биш.",
+		"tone": Color(0.36, 0.76, 0.62),
+	},
+	"detective": {
+		"name": "МӨРДӨГЧ",
+		"sub": "Шөнө нэг хүнийг шалгана. Мафийн мөр байгаа эсэхийг мэднэ.",
+		"tone": Color(0.42, 0.66, 0.92),
+	},
+	"watcher": {
+		"name": "АЖИГЛАГЧ",
+		"sub": "Шөнө нэг хүнийг ажиглана. Хэн түүн рүү очсоныг үүрээр мэднэ.",
+		"tone": Color(0.62, 0.72, 0.96),
+	},
+	"mayor": {
+		"name": "ХОТЫН ДАРГА",
+		"sub": "Өдөр нэг удаа илчилж болно. Тэр цагаас хойш чиний санал гурав.",
+		"tone": Color(0.92, 0.72, 0.30),
+	},
+	"citizen": {
+		"name": "ИРГЭН",
+		"sub": "Шөнө чадвар байхгүй. Өдөр чиний үг л зэвсэг.",
+		"tone": Color(0.86, 0.84, 0.80),
+	},
+}
+
 ## Дүр бүр аль шөнийн үе шатанд үйлддэг вэ.
 const ACTS_IN := {
 	"killer": "nightMafia",
@@ -424,10 +466,38 @@ func _on_your_role(d: Dictionary) -> void:
 	# ЭНЭ БОЛ ЗӨВХӨН МИНИЙ дүр. Сервер бусдынхыг илгээдэггүй.
 	_my_seat = int(d.get("seat", -1))
 	_my_role = str(d.get("role", ""))
+	_show_role_card(d)
 	# Суудлаа мэдсэн тул ТЭР суудлын нүдээр харах ёстой.
 	if table != null:
 		table.set_roster(_players, _my_seat)
 	_refresh()
+
+
+## Дүрийн хөзрийг БҮТЭН дэлгэцээр харуулна.
+##
+## Мафи тоглоомын хамгийн чухал мөч бол «би хэн бэ» гэдгийг мэдэх тэр
+## хором. Өмнө нь энэ нь дээд буланд жижиг бичвэрээр өнгөрдөг байсан
+## тул тоглогч ямар дүртэйгээ мэдэхгүй тоглож эхэлдэг байв.
+func _show_role_card(d: Dictionary) -> void:
+	if hud == null or _my_role.is_empty():
+		return
+	var card: Dictionary = ROLE_CARD.get(_my_role, {
+		"name": _my_role.to_upper(),
+		"sub": "",
+		"tone": Color(0.86, 0.84, 0.80),
+	})
+	var extra := ""
+	var allies: Array = d.get("allySeats", []) if d.get("allySeats") is Array else []
+	if not allies.is_empty():
+		var names: Array = []
+		for x in allies:
+			names.append("%d" % int(x))
+		extra = "Хамтрагч: %s-р суудал" % ", ".join(names)
+	elif str(d.get("faction", "")) == "mafi":
+		extra = "Чи ГАНЦААРАА."
+	hud.show_role_card(str(card["name"]),
+		"%d-р суудал · %s" % [_my_seat, str(card["sub"])],
+		extra, Color(card["tone"]))
 
 
 func _on_phase(d: Dictionary) -> void:
@@ -440,6 +510,9 @@ func _on_phase(d: Dictionary) -> void:
 		hud.announce(str(PHASE_NAME.get(_phase, "")), PHASE_SUB.get(_phase, ""))
 	if _phase == "nightFalls":
 		_watch_seen.clear()
+		# Хөзрөө хаагаагүй хүн ч шөнө эхлэхэд ширээгээ харах ёстой.
+		if hud != null and hud.role_card_open():
+			hud.hide_role_card()
 	# Шинэ үе шат бүрд дахин саналын хязгаар арилна — сервер шинээр
 	# зарлавал `eliminated`-аар дахин ирнэ.
 	if _phase != "vote":
@@ -506,10 +579,44 @@ func _on_investigate(d: Dictionary) -> void:
 			_notify("Хариу: %s" % code)
 
 
+## Тоглолт дууслаа — ЭНД Л бүх дүр ил болно.
+##
+## Энэ бол тоглоомын хамгийн их хүлээгддэг хором: «хэн мафи байсан бэ».
+## Өмнө нь ганц мөрөөр «Мафи ялав» гэж бичээд өнгөрдөг байсан бөгөөд
+## хэн хэн байсныг хэн ч харахгүй — тоглолт ДУУСДАГГҮЙ, зүгээр л
+## зогсдог байв.
 func _on_game_over(d: Dictionary) -> void:
 	var w := str(d.get("winner", ""))
+	var reveal: Dictionary = d.get("reveal", {}) if d.get("reveal") is Dictionary else {}
+	var seats: Array = []
+	for k in reveal:
+		seats.append(int(str(k)))
+	seats.sort()
+	var lines: Array = []
+	for st in seats:
+		var role := str(reveal[str(st)])
+		var card: Dictionary = ROLE_CARD.get(role, {})
+		var nm := str(card.get("name", role.to_upper()))
+		var who := str(_name_of_seat(int(st)))
+		lines.append("%d. %s — %s" % [int(st), who, nm])
+	if hud != null:
+		hud.show_role_card(
+			"МАФИ ЯЛАВ" if w == "mafi" else "ХОТЫНХОН ЯЛАВ",
+			"\n".join(lines),
+			"",
+			Color(0.82, 0.24, 0.22) if w == "mafi" else Color(0.42, 0.78, 0.52),
+			24)
 	_notify("Мафи ялав." if w == "mafi" else "Хотынхон ялав.")
 	_refresh()
+
+
+## Суудлын эзний нэр (СЕРВЕРИЙН дугаар). Нийтийн мэдээлэл.
+func _name_of_seat(seat: int) -> String:
+	for p in _players:
+		var d: Dictionary = p
+		if int(d.get("seat", -1)) == seat:
+			return str(d.get("name", ""))
+	return "%d-р суудал" % seat
 
 
 func _on_eliminated(d: Dictionary) -> void:

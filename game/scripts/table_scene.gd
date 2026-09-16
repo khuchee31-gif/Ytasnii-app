@@ -255,6 +255,15 @@ func _ready() -> void:
 		if _hud != null and _arg("ann", 0.0) > 0.5:
 			_hud.ann_freeze = true
 			_hud.announce("ХОТ УНТЛАА", "Бүгд нүдээ ань")
+	# Хөгжүүлэлтийн шалгалт: дүрийн хөзрийг харах.
+	var rc := _arg_str("card", "")
+	if not rc.is_empty() and _hud != null:
+		var c: Dictionary = Session.ROLE_CARD.get(rc, {})
+		if not c.is_empty():
+			_hud.show_role_card(str(c["name"]),
+				"3-р суудал · %s" % str(c["sub"]),
+				"Хамтрагч: 7-р суудал" if rc == "killer" else "",
+				Color(c["tone"]))
 	# Хөгжүүлэлтийн шалгалт: саналын тоололыг харах.
 	#   tools/render.sh -- votes=1:4,2:4,3:6 weights=1:3
 	var vs := _arg_str("votes", "")

@@ -64,6 +64,22 @@ const EMOTES: Array[Dictionary] = [
 ## гэж мэдрэгдэнэ. Тиймээс энд ч барина.
 const EMOTE_GAP_MS := 1200
 
+## ДҮРИЙН ХӨЗӨР — тоглолтын эхэнд нэг удаа, БҮТЭН дэлгэцээр.
+##
+## Мафи тоглоомын хамгийн чухал мөч бол «би хэн бэ» гэдгийг мэдэх тэр
+## хором. Өмнө нь энэ нь дээд буланд жижиг бичвэрээр өнгөрдөг байв —
+## тоглогч ямар дүртэйгээ мэдэхгүй тоглож эхэлдэг.
+##
+## ХӨЗРИЙГ ӨӨРӨӨ ХААНА. Автоматаар алга болговол хажуугийн хүн рүү
+## хараад буцахад аль хэдийн өнгөрсөн байж болно; харин «ойлголоо»
+## гэж дарах нь хөзрөө НУУХ гэсэн ухамсартай үйлдэл.
+var _card_scrim := ColorRect.new()
+var _card_box := VBoxContainer.new()
+var _card_role := Label.new()
+var _card_sub := Label.new()
+var _card_extra := Label.new()
+var _card_btn := Button.new()
+
 ## ҮЕ ШАТНЫ ЗАРЛАЛ — дэлгэцийн төвд томоор гарч, уусан алга болно.
 ##
 ## ЯАГААД ХЭРЭГТЭЙ ВЭ: үе шат солигдохыг зөвхөн дээд буланд жижиг
@@ -167,6 +183,46 @@ func _ready() -> void:
 	_band(_ann_sub, Control.PRESET_CENTER, -600, 14, 600, 54)
 	_ann_sub.visible = false
 	root.add_child(_ann_sub)
+
+	# --- Дүрийн хөзөр ---------------------------------------------------------
+	_card_scrim.color = Color(0.02, 0.02, 0.03, 0.93)
+	_card_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card_scrim.visible = false
+	root.add_child(_card_scrim)
+
+	_card_box.add_theme_constant_override("separation", 12)
+	_band(_card_box, Control.PRESET_CENTER, -520, -180, 520, 190)
+	_card_box.visible = false
+	root.add_child(_card_box)
+
+	_card_role.add_theme_font_size_override("font_size", 76)
+	_card_role.add_theme_constant_override("outline_size", 12)
+	_card_role.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_card_role.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_box.add_child(_card_role)
+
+	_card_sub.add_theme_font_size_override("font_size", 28)
+	_card_sub.add_theme_color_override("font_color", INK)
+	_card_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_box.add_child(_card_sub)
+
+	_card_extra.add_theme_font_size_override("font_size", 26)
+	_card_extra.add_theme_color_override("font_color", AMBER)
+	_card_extra.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_box.add_child(_card_extra)
+
+	var pad := Control.new()
+	pad.custom_minimum_size = Vector2(0, 14)
+	_card_box.add_child(pad)
+
+	_card_btn.text = "ОЙЛГОЛОО"
+	_card_btn.add_theme_font_size_override("font_size", 30)
+	_card_btn.custom_minimum_size = Vector2(0, 76)
+	_card_btn.focus_mode = Control.FOCUS_NONE
+	_card_btn.pressed.connect(hide_role_card)
+	_style(_card_btn, 16, 18)
+	_card_box.add_child(_card_btn)
 
 	# --- Доод: микрофон ба үйлдэл --------------------------------------------
 	_mic.add_theme_font_size_override("font_size", 24)
@@ -309,6 +365,30 @@ func _process(delta: float) -> void:
 			_ann.visible = false
 			_ann_sub.visible = false
 			_ann_scrim.visible = false
+
+
+## Дүрийн хөзрийг БҮТЭН дэлгэцээр харуулна.
+##
+## `extra` нь зөвхөн мафид: хамтрагчийн суудлууд. Бусад дүрд хоосон.
+func show_role_card(title: String, sub: String, extra: String,
+		tone: Color, sub_size := 28) -> void:
+	_card_role.text = title
+	_card_role.add_theme_color_override("font_color", tone)
+	_card_sub.add_theme_font_size_override("font_size", sub_size)
+	_card_sub.text = sub
+	_card_extra.text = extra
+	_card_extra.visible = not extra.is_empty()
+	_card_scrim.visible = true
+	_card_box.visible = true
+
+
+func hide_role_card() -> void:
+	_card_scrim.visible = false
+	_card_box.visible = false
+
+
+func role_card_open() -> bool:
+	return _card_box.visible
 
 
 ## Үе шатыг дэлгэцийн төвд зарлана.
