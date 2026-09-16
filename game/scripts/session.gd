@@ -231,6 +231,16 @@ func _on_room_state(d: Dictionary) -> void:
 	if verbose:
 		print("NET roomState code=", d.get("code", "?"), " phase=", _phase,
 			" players=", _players.size())
+	# Ширээнд ЖИНХЭНЭ тоглогчдыг суулгана. Тоглолт эхлээгүй бол суудал
+	# хуваарилагдаагүй тул чимэглэлийн ширээ хэвээр үлдэнэ.
+	if table != null:
+		table.set_roster(_players, _my_seat)
+		if voice != null:
+			var heads: Dictionary = {}
+			var raw: Dictionary = table.seat_heads()
+			for i in raw:
+				heads[int(i) + 1] = raw[i]
+			voice.set_seats(heads)
 	if lobby != null:
 		if _phase == "lobby":
 			lobby.show_room(str(d.get("code", "")), _players,
@@ -246,6 +256,9 @@ func _on_your_role(d: Dictionary) -> void:
 	# ЭНЭ БОЛ ЗӨВХӨН МИНИЙ дүр. Сервер бусдынхыг илгээдэггүй.
 	_my_seat = int(d.get("seat", -1))
 	_my_role = str(d.get("role", ""))
+	# Суудлаа мэдсэн тул ТЭР суудлын нүдээр харах ёстой.
+	if table != null:
+		table.set_roster(_players, _my_seat)
 	_refresh()
 
 

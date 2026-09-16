@@ -123,6 +123,16 @@ var _selected := -1
 var _hud: CanvasLayer = null
 var _cam: Camera3D = null
 
+## Суудлаас хамаардаг бүх зүйл (сандал, хүн, хөзөр, камер) ЭНД байна.
+## Тоглогчийн жагсаалт өөрчлөгдвөл үүнийг бүхэлд нь сольно — өрөө,
+## ширээ, чийдэн нь хэвээр үлдэнэ.
+var _stage: Node3D = null
+var _names: Dictionary = {}
+var _alive: Dictionary = {}
+var _looking := -1
+## seat → {root, skel}
+var _people: Dictionary = {}
+
 
 ## Тушаалын мөрөөс тохиргоо авна: `-- overview=1 key=3.2 shaft=0`.
 ##
@@ -147,12 +157,16 @@ func _ready() -> void:
 	_build_room()
 	_build_table()
 	_build_props()
-	_build_people()
 	_build_lamp()
 	_build_env()
-	_cam = _build_camera()
 	_build_post()
 	_build_hud()
+	_rebuild_stage()
+	# Хөгжүүлэлтийн шалгалт: тухайн суудлыг үхсэн болгож харна.
+	var dead_seat := int(_arg("dead", -1.0))
+	if dead_seat >= 0:
+		_alive[dead_seat] = false
+		_apply_alive()
 	if _arg("pick", -1.0) >= 0.0:
 		select_seat(int(_arg("pick", 0.0)))
 	print("BUILD ms=", Time.get_ticks_msec() - t0)
@@ -277,18 +291,8 @@ func _build_table() -> void:
 
 
 func _build_props() -> void:
-	# Суудал бүрийн өмнө хоёр хөзөр — АР талаараа. Бүгд ижил.
-	for i in range(seat_count):
-		var a := _angle_of(i)
-		var dirv := Vector3(sin(a), 0, cos(a))
-		var right := Vector3(cos(a), 0, -sin(a))
-		var base := dirv * (TABLE_R - 0.19)
-		for k in range(2):
-			var off := right * (float(k) * 0.075 - 0.037)
-			var p := base + off + dirv * (float(k) * 0.012)
-			p.y = TABLE_H + 0.001
-			add_child(Props.card(p, -a + float(k) * 0.16 - 0.08))
-
+	# Ширээний ГОЛД байгаа зүйлс. Суудлаас хамаардаггүй тул тоглогчийн
+	# жагсаалт солигдоход эдгээр хэвээр үлдэнэ.
 	add_child(Props.ashtray(Vector3(0.22, TABLE_H, -0.16)))
 	add_child(Props.glass(Vector3(-0.38, TABLE_H, 0.14), 0.55))
 	add_child(Props.glass(Vector3(0.52, TABLE_H, 0.34), 0.20))
@@ -304,7 +308,30 @@ func _build_props() -> void:
 
 # --- Хүмүүс ------------------------------------------------------------------
 
-func _build_people() -> void:
+## Суудлаас хамаарах бүхнийг ДАХИН барина.
+##
+## Тоглолт эхлэхэд сервер суудал хуваарилдаг тул тэр мөчид л дуудагдана.
+## Бүх зүйлийг дахин барих нь үрэлгэн мэт боловч нэг тоглолтод НЭГ УДАА
+## болдог: суудлын тоо өөрчлөгдвөл өнцөг, камерын байрлал, хөзрийн
+## байрлал бүгд өөрчлөгдөнө.
+func _rebuild_stage() -> void:
+	if _stage != null:
+		_stage.queue_free()
+	_stage = Node3D.new()
+	add_child(_stage)
+	_heads.clear()
+	_people.clear()
+	_ring = null
+	_eye_found = false
+
+	_build_seats()
+	_cam = _build_camera()
+	_apply_alive()
+	if _selected >= 0:
+		select_seat(_selected)
+
+
+func _build_seats() -> void:
 	for i in range(seat_count):
 		var a := _angle_of(i)
 		var pivot := Node3D.new()
@@ -312,7 +339,15 @@ func _build_people() -> void:
 		# Ширээ рүү харна, гэхдээ ЯГ ТӨВ рүү биш: хүн бүр 8° хүртэл
 		# хазайна. Ялгаа нь суудлаас л тооцогдоно (дүрээс биш).
 		pivot.rotation.y = a + PI + (float((i * 19) % 9) - 4.0) * 0.035
-		add_child(pivot)
+		_stage.add_child(pivot)
+
+		# Энэ суудлын өмнөх хоёр хөзөр — АР талаараа, бүгд ижил.
+		var dirv := Vector3(sin(a), 0, cos(a))
+		var right := Vector3(cos(a), 0, -sin(a))
+		for k in range(2):
+			var cp := dirv * (TABLE_R - 0.19) + right * (float(k) * 0.075 - 0.037)
+			cp.y = TABLE_H + 0.001
+			_stage.add_child(Props.card(cp, -a + float(k) * 0.16 - 0.08))
 
 		var ch := Props.chair(i)
 		ch.position = Vector3(sin(a) * (CHAIR_R - SEAT_R), 0, cos(a) * (CHAIR_R - SEAT_R))
@@ -357,14 +392,15 @@ func _build_people() -> void:
 		# 4. Өнгөний бага зэргийн ялгаа — найман ижил хүн суухаас сэргийлнэ.
 		_dress(who, i)
 
-		var ax := Humanoid.body_axes(sk)
-		print("  PERSON seat=%d %-13s meas=%.3f scale=%.3f lean=%.2f spine(pre=%.3f post=%.3f) up=%s" % [
-			i, _models[(i * 5) % _models.size()].get_file(), h, who.scale.y, lean,
-			pre, post, str(ax.get("up", Vector3.ZERO)).pad_decimals(2)])
+		if _arg("verbose", 0.0) > 0.5:
+			print("  PERSON seat=%d %-13s meas=%.3f scale=%.3f lean=%.2f spine=%.3f→%.3f" % [
+				i, _models[(i * 5) % _models.size()].get_file(), h, who.scale.y,
+				lean, pre, post])
 		if i == viewer_seat:
 			_capture_eye(who, sk)
 		var hw: Vector3 = _head_world(who, sk)
 		_heads[i] = hw
+		_people[i] = {"root": who, "skel": sk}
 		_mark("seat%d_head" % i, hw)
 
 
@@ -640,7 +676,7 @@ func _build_camera() -> Camera3D:
 		top.fov = 58.0
 		top.near = 0.04
 		top.far = 24.0
-		add_child(top)
+		_stage.add_child(top)
 		top.current = true
 		top.look_at_from_position(Vector3(2.4, 2.9, 3.2), Vector3(0, TABLE_H, 0), Vector3.UP)
 		return top
@@ -655,7 +691,7 @@ func _build_camera() -> Camera3D:
 	cam.fov = FOV
 	cam.near = 0.04
 	cam.far = 24.0
-	add_child(cam)
+	_stage.add_child(cam)
 	cam.current = true
 	# `a` нь тоглогчийн суудлын өнцөг; ширээний төв рүү харах чиглэл нь
 	# түүний эсрэг тал. Камер -Z рүү хардаг тул тэр өнцгийг шууд өгнө.
@@ -688,7 +724,7 @@ func select_seat(seat: int) -> void:
 		_ring.material_override = MatLib.glow(Color(0.16, 0.09, 0.05),
 			Color(0.80, 0.42, 0.16), 0.55)
 		_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(_ring)
+		_stage.add_child(_ring)
 	if seat < 0:
 		_ring.visible = false
 		return
@@ -757,21 +793,125 @@ func _build_hud() -> void:
 
 
 func _process(_delta: float) -> void:
-	# Сонгосон хүний нэрийг толгой дээр нь тогтооно. Камер эргэхэд шошго
-	# дагаж хөдөлнө — гурван хэмжээст орон зайд бэхлэгдсэн мэт.
 	if _hud == null or _cam == null:
 		return
-	if _selected < 0 or not _heads.has(_selected):
+	_looking = _seat_at_centre()
+	# Сонгосон хүн байвал түүний нэр; эс бөгөөс ХАРЖ БАЙГАА хүнийх.
+	#
+	# Найман нэрийг зэрэг харуулбал ширээ шошгоор дүүрч, харанхуй өрөөний
+	# мэдрэмж алга болно. Толгой эргүүлэхэд нэр нь өөрөө гарч ирэх нь
+	# бодит амьдралд ойр: хэн рүү харж байна, түүнийг л «таньж» байна.
+	var seat := _selected if _selected >= 0 else _looking
+	if seat < 0 or not _heads.has(seat):
 		_hud.show_name("", Vector2.ZERO, false)
 		return
-	var w: Vector3 = _heads[_selected]
-	_hud.show_name(_seat_name(_selected), _cam.unproject_position(w),
+	var w: Vector3 = _heads[seat]
+	_hud.show_name(_seat_name(seat), _cam.unproject_position(w),
 		not _cam.is_position_behind(w))
 
 
-## Түр зуурын нэр. Сервер холбогдоход жинхэнэ нэрээр солигдоно.
+## Дэлгэцийн ТӨВД хамгийн ойр байгаа суудал.
+func _seat_at_centre() -> int:
+	var centre := get_viewport().get_visible_rect().size * 0.5
+	var best := -1
+	var best_d := 180.0
+	for seat in _heads:
+		var w: Vector3 = _heads[seat]
+		if _cam.is_position_behind(w):
+			continue
+		var d := _cam.unproject_position(w).distance_to(centre)
+		if d < best_d:
+			best_d = d
+			best = int(seat)
+	return best
+
+
 func _seat_name(seat: int) -> String:
-	return "%d-Р СУУДАЛ" % (seat + 1)
+	var n: String = str(_names.get(seat, ""))
+	return n if not n.is_empty() else "%d-Р СУУДАЛ" % (seat + 1)
+
+
+# --- Тоглогчийн жагсаалт -----------------------------------------------------
+
+## Серверийн өгсөн жагсаалтыг ширээнд суулгана.
+##
+## `players` нь НИЙТИЙН мэдээлэл: нэр, суудал, амьд эсэх. Дүр АГУУЛАХГҮЙ
+## бөгөөд агуулах ч ёсгүй — `packages/protocol`-д тэр талбар байхгүй.
+## `my_seat` нь 1-ээс эхэлнэ (серверийн тоолол), тайзных 0-ээс.
+func set_roster(players: Array, my_seat: int) -> void:
+	var seated: Array = []
+	for p in players:
+		var d: Dictionary = p
+		if d.get("seat") != null:
+			seated.append(d)
+	if seated.is_empty():
+		return          # тоглолт эхлээгүй — чимэглэлийн ширээ хэвээр
+
+	seated.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a["seat"]) < int(b["seat"]))
+
+	var names: Dictionary = {}
+	var alive: Dictionary = {}
+	for i in range(seated.size()):
+		var d: Dictionary = seated[i]
+		names[i] = str(d.get("name", ""))
+		alive[i] = bool(d.get("alive", true))
+
+	var viewer: int = clampi(my_seat - 1, 0, seated.size() - 1)
+	var changed := seated.size() != seat_count or viewer != viewer_seat
+	_names = names
+	seat_count = seated.size()
+	viewer_seat = viewer
+	_alive = alive
+	if changed:
+		_rebuild_stage()
+	else:
+		_apply_alive()
+
+
+## Үхсэн хүн ширээн дээр унана.
+##
+## Тэмдэг, тэмдэглэгээ ашиглахгүй: тоглогч дэлгэц уншихгүй, ХАРНА.
+## Ширээн дээр унасан хүн ямар ч тайлбаргүйгээр ойлгомжтой.
+func _apply_alive() -> void:
+	for seat in _people:
+		var e: Dictionary = _people[seat]
+		var dead: bool = not bool(_alive.get(seat, true))
+		if bool(e.get("dead", false)) == dead:
+			continue
+		e["dead"] = dead
+		if not dead:
+			continue        # үхсэн хүн эргэж босохгүй — буцах зам хэрэггүй
+		var root: Node3D = e["root"]
+		var sk: Skeleton3D = e["skel"]
+		Humanoid.pose_seated(sk, 1.7, 0.0, -0.05)
+		# Зөвхөн доошлуулбал толгой нь ширээний ЦААНА, шалан дээр унана:
+		# суудал 1.52 м-т, ширээний ирмэг 1.24 м-т. Ширээн дээр унахын
+		# тулд ШИРЭЭ РҮҮ бас зөөнө. Тулгуур цэг нь ширээ рүү харсан тул
+		# дотоод +Z нь төв рүү чиглэнэ.
+		root.position.z += 0.42
+		Humanoid.seat_by_head(root, sk, TABLE_H + 0.05)
+		_drain(root)
+		if _heads.has(seat):
+			_heads[seat] = _head_world(root, sk)
+
+
+## Өнгийг нь сорж авна — үхсэн хүн саарал болно.
+func _drain(root: Node) -> void:
+	for n in Humanoid.walk(root):
+		if not (n is MeshInstance3D):
+			continue
+		var mi := n as MeshInstance3D
+		var count: int = mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for i in range(count):
+			var m := mi.get_active_material(i)
+			var bm := m.duplicate() as BaseMaterial3D if m != null else null
+			if bm == null:
+				continue
+			var c := bm.albedo_color
+			var grey := c.get_luminance()
+			bm.albedo_color = Color(grey, grey, grey * 1.05).lerp(c, 0.22) * 0.78
+			mi.set_surface_override_material(i, bm)
 
 
 # --- Хэмжилт -----------------------------------------------------------------
