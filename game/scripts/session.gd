@@ -88,6 +88,10 @@ var _notice := ""
 var _notice_until := 0
 ## Хөгжүүлэлтийн товчлол: жагсаалтаас эхний өрөөг шууд сонгоно.
 var _auto_join := false
+## Холбогдсоны дараа гүйцэтгэх үйлдэл: {} эсвэл {kind, code}.
+var _pending: Dictionary = {}
+var _url := ""
+var _public := true
 
 
 ## Холбогдсоны дараа юу хийх вэ. Хоосон бол ШИНЭ өрөө үүсгэнэ, эс бөгөөс
@@ -134,8 +138,11 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	lobby.join_pressed.connect(_on_join)
 	lobby.ready_toggled.connect(func(v: bool) -> void: net.set_ready(v))
 	lobby.start_pressed.connect(func() -> void: net.start_game())
-	lobby.refresh_pressed.connect(func() -> void: net.list_rooms())
+	lobby.refresh_pressed.connect(func() -> void:
+		if net.is_open():
+			net.list_rooms())
 	lobby.set_name_text(_remembered_name(name_v))
+	lobby.set_server_text(_remembered("server", url))
 	# Лобби нээлттэй үед тоглоомын дэлгэц харагдах ёсгүй — хоёр давхар
 	# бичвэр давхцаж, аль аль нь уншигдахгүй болно.
 	if hud != null:
@@ -151,7 +158,11 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 			heads[int(i) + 1] = table.seat_heads()[i]
 		voice.set_seats(heads)
 
-	net.open(url, name_v)
+	_url = url
+	# Хөгжүүлэлтэд хаяг тушаалын мөрөөр ирдэг — шууд холбогдоно.
+	# Утсан дээр хаяггүй эхэлж, хэрэглэгч бичсэний дараа холбогдоно.
+	if not url.is_empty():
+		net.open(url, name_v)
 
 
 # --- Серверээс ирэх ----------------------------------------------------------
@@ -159,7 +170,11 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 func _on_open() -> void:
 	# `room_code` нь ЗӨВХӨН хөгжүүлэлтийн товчлол (`tools/play.sh`).
 	# Жинхэнэ тоглогч лоббигоор дамжина.
-	if room_code == "*":
+	if not _pending.is_empty():
+		var job: Dictionary = _pending
+		_pending = {}
+		_run(str(job.get("kind", "create")), str(job.get("code", "")))
+	elif room_code == "*":
 		_auto_join = true
 		net.list_rooms()
 	elif not room_code.is_empty():
@@ -169,29 +184,59 @@ func _on_open() -> void:
 
 
 func _remembered_name(fallback: String) -> String:
-	# Нэрээ дахин бичүүлэх нь утсан дээр ядаргаатай. Нэг удаа хадгална.
+	return _remembered("name", fallback)
+
+
+## Нэр, серверийн хаягийг дахин бичүүлэх нь утсан дээр ядаргаатай.
+func _remembered(key: String, fallback: String) -> String:
 	var cfg := ConfigFile.new()
 	if cfg.load("user://identity.cfg") == OK:
-		var got: String = cfg.get_value("me", "name", "")
+		var got: String = cfg.get_value("me", key, "")
 		if not got.is_empty():
 			return got
 	return fallback
 
 
-func _remember_name(v: String) -> void:
+func _remember(key: String, v: String) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load("user://identity.cfg")
-	cfg.set_value("me", "name", v)
+	cfg.set_value("me", key, v)
 	cfg.save("user://identity.cfg")
+
+
+## Холбогдоод үйлдлээ гүйцэтгэнэ. Аль хэдийн холбогдсон бол шууд.
+func _connect_then(kind: String, code: String, name_v: String) -> void:
+	var url: String = lobby.server_url()
+	if url.is_empty():
+		url = _url
+	if url.is_empty():
+		lobby.set_note("Серверийн хаягийг бичээрэй.")
+		return
+	_remember("server", lobby.server_url())
+	net.player_name = name_v
+	if url == _url and net.is_open():
+		_run(kind, code)
+		return
+	_pending = {"kind": kind, "code": code}
+	_url = url
+	lobby.set_note("Холбогдож байна…")
+	net.open(url, name_v)
+
+
+func _run(kind: String, code: String) -> void:
+	if kind == "create":
+		net.create_room(_public)
+	else:
+		net.join_room(code)
 
 
 func _on_create(name_v: String, is_public: bool) -> void:
 	if name_v.is_empty():
 		lobby.set_note("Нэрээ бичээрэй.")
 		return
-	_remember_name(name_v)
-	net.player_name = name_v
-	net.create_room(is_public)
+	_remember("name", name_v)
+	_public = is_public
+	_connect_then("create", "", name_v)
 
 
 func _on_join(name_v: String, code: String) -> void:
@@ -201,9 +246,8 @@ func _on_join(name_v: String, code: String) -> void:
 	if code.length() != 4:
 		lobby.set_note("Код 4 үсэгтэй.")
 		return
-	_remember_name(name_v)
-	net.player_name = name_v
-	net.join_room(code)
+	_remember("name", name_v)
+	_connect_then("join", code, name_v)
 
 
 func _on_close(_code: int) -> void:

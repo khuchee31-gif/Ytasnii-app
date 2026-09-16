@@ -31,6 +31,7 @@ var _dim := ColorRect.new()
 var _pages: Dictionary = {}
 
 var _name_field := LineEdit.new()
+var _server_field := LineEdit.new()
 var _code_field := LineEdit.new()
 var _public_toggle := CheckBox.new()
 var _rooms := VBoxContainer.new()
@@ -158,6 +159,16 @@ func _build_name() -> Control:
 	box.add_child(_spacer(10))
 	_name_field = _field("Нэрээ бич", 16)
 	box.add_child(_name_field)
+
+	# СЕРВЕРИЙН ХАЯГ.
+	#
+	# Тоглоом нь нэг компьютер дээр ажиллаж буй серверт холбогдоно
+	# (`packages/server`). Ангийн Wi-Fi дээр тэр компьютерийн дотоод
+	# хаягийг бичнэ. Хаягийг цээжлүүлэхгүй — нэг удаа бичээд хадгална.
+	_server_field = _field("Серверийн хаяг, ж: 192.168.1.5", 64)
+	_server_field.add_theme_font_size_override("font_size", 24)
+	_server_field.custom_minimum_size = Vector2(0, 62)
+	box.add_child(_server_field)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
@@ -293,6 +304,29 @@ func set_name_text(v: String) -> void:
 
 func player_name() -> String:
 	return _name_field.text.strip_edges()
+
+
+func set_server_text(v: String) -> void:
+	_server_field.text = v
+
+
+## Хэрэглэгчийн бичсэнийг БҮТЭН хаяг болгоно.
+##
+## Хүн «192.168.1.5» гэж бичихэд ажиллах ёстой. «ws://» болон порт
+## бичүүлэх нь алдаа гаргах цорын ганц эх сурвалж болно — ангид
+## хэн ч тэмдэглэж авахгүй.
+func server_url() -> String:
+	var v := _server_field.text.strip_edges()
+	if v.is_empty():
+		return ""
+	if not (v.begins_with("ws://") or v.begins_with("wss://")):
+		v = "ws://" + v
+	# Порт байхгүй бол үндсэн портыг нэмнэ. «ws://» дараах хэсэгт
+	# хоёр цэг байгаа эсэхээр шалгана.
+	var tail := v.substr(v.find("//") + 2)
+	if not tail.contains(":"):
+		v += ":8080"
+	return v
 
 
 func set_note(text: String) -> void:

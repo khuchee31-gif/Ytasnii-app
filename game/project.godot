@@ -1,47 +1,41 @@
-; «Хот унтлаа» — Godot төсөл.
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
 ;
-; ЯАГААД GODOT: Flutter дээр 3D хийх оролдлого бүтсэнгүй. Тэнд байгаа нь
-; хавтгай зураг, шатлалт өнгө — жинхэнэ тор, текстур, сүүдэр, ясжуулсан дүр
-; байхгүй. Buckshot Roulette өөрөө Godot дээр хийгдсэн.
-;
-; ДҮРМИЙН ХӨДӨЛГҮҮР ЭНД БАЙХГҮЙ. Тэр нь `packages/engine` дотор, Dart дээр,
-; серверт ажиллана. Энэ төсөл бол ЗӨВХӨН ЦОНХ.
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
 [application]
+
 config/name="Хот унтлаа"
 config/description="Ангийн мафи — онлайн"
 run/main_scene="res://scenes/table.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[audio]
+
+driver/enable_input=true
+
 [display]
+
 window/size/viewport_width=1600
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
-; «expand» — өөр харьцаатай утсанд хар туузаар хүрээлэхгүй, илүү
-; өндөр дэлгэцэнд илүү тайз харагдана.
 window/stretch/aspect="expand"
-; 0 = хэвтээ. Тоглоом утсыг ХӨНДЛӨН барьж тоглоно.
-window/handheld/orientation=0
+
+[physics]
+
+common/physics_ticks_per_second=30
 
 [rendering]
-; GL Compatibility — Redmi 9A (PowerVR GE8320, Vulkan БАЙХГҮЙ) дээр
-; ажиллах цорын ганц зам.
+
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=1
-; Сүүдрийн атлас: анхны 4096 нь GE8320-д хэт том. Тайзанд сүүдэр хаядаг
-; ГАНЦ туяа байгаа тул 2048 хангалттай, санах ой дөрөв дахин бага.
 lights_and_shadows/positional_shadow/atlas_size=2048
 lights_and_shadows/positional_shadow/atlas_size.mobile=1024
-
-[audio]
-
-; Микрофон. Үүнгүйгээр `AudioStreamMicrophone` чимээгүй байна.
-driver/enable_input=true
-
-[physics]
-common/physics_ticks_per_second=30

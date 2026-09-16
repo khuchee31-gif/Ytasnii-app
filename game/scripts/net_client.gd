@@ -85,6 +85,10 @@ func open(server_url: String, name_v: String, avatar := "punk_01") -> void:
 	_dial()
 
 
+func is_open() -> bool:
+	return _open
+
+
 func close() -> void:
 	_want = false
 	if _ws != null:

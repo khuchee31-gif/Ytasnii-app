@@ -82,7 +82,25 @@ static func rig_of(sk: Skeleton3D) -> Dictionary:
 
 # --- Ачаалах -----------------------------------------------------------------
 
+## Дүрийн загварыг ачаална.
+##
+## ХОЁР ЗАМ, ЯАГААД гэвэл:
+##
+## Эхэндээ зөвхөн `FileAccess.get_file_as_bytes` ашиглаж, glTF-ийг гараар
+## задалдаг байв. Тэр нь хөгжүүлэлтэд ажилласан ч APK-д БҮТЭХГҮЙ:
+## Godot нь `.glb`-г импортлож `.scn` болгодог бөгөөд ТҮҮХИЙ файлыг
+## багцад оруулдаггүй. (Энэ алдааг зөвхөн бэлэн APK-г задалж үзэхэд
+## олсон — утсан дээр ширээ хоосон гарах байсан.)
+##
+## Одоо: эхлээд импортлогдсон дүр зургийг авна — жижиг, хурдан, APK-д
+## үргэлж байна. Ямар нэг шалтгаанаар байхгүй бол түүхий байтаас
+## задална.
 static func load_glb(path: String) -> Node3D:
+	if ResourceLoader.exists(path):
+		var packed := ResourceLoader.load(path) as PackedScene
+		if packed != null:
+			return packed.instantiate() as Node3D
+
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
 		push_warning("Загвар олдсонгүй: %s" % path)

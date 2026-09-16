@@ -8,6 +8,20 @@ extends Node
 @export var out_path: String = "res://shots/shot.png"
 
 func _ready() -> void:
+	# ЗУРАГ АВАХ ГЭЖ ХЭЛСЭН ҮЕД Л ажиллана.
+	#
+	# Энэ зангилаа гол дүр зурагт сууж байдаг тул БЭЛЭН APK дотор ч
+	# ордог. Хэрэв болзолгүй ажилладаг байсан бол тоглоом утсан дээр
+	# 20 кадрын дараа өөрөө хаагдах байв — алдааг зөвхөн бэлэн APK-ийн
+	# агуулгыг жагсаахад олсон.
+	var wanted := false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("out="):
+			wanted = true
+	if not wanted:
+		queue_free()
+		return
+
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("hold="):
 			# Сүлжээний шалгалтад тайз хэдэн секунд амьд байх ёстой:
