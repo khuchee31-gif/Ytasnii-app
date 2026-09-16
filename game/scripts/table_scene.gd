@@ -1,0 +1,571 @@
+# Ширээний тайз — тоглоомын гол орчин.
+#
+# ЭНД ДҮРЭМ БАЙХГҮЙ. Хэн алуурчин болох, хэн ялахыг СЕРВЕР шийднэ
+# (`packages/server`). Энэ файл зөвхөн: өрөө барих, хүмүүсийг суулгах,
+# гэрэл тавих, камер байрлуулах.
+#
+# ДҮР ТӨРХИЙН ЗАРЧИМ:
+#   1. ГАНЦ хатуу гэрэл дээрээс. Түүнээс гадна зөвхөн хүйтэн неоны тусгал
+#      — тэр нь хүний хар дүрсийг хананаас салгах цорын ганц зорилготой.
+#   2. Ширээ дэлгэцийн доод хэсгийг эзэлнэ — тэр бол тайзны шал.
+#   3. Дүрүүд эсрэг талд, ЦЭЭЖНЭЭС ДЭЭШ. Хөл нь ширээний ард нуугдана.
+#   4. Өнгө маш цөөн: хув, яс, хар, нэг хүйтэн цэг.
+#   5. Гадаргуу бүр эвдэрсэн — гөлгөр нэг өнгө бол прототипийн шинж.
+#
+# КАМЕРЫГ ТААМАГЛААГҮЙ. `_report_framing()` нь гол цэгүүд дэлгэцийн хаана
+# буусныг ТООГООР хэвлэнэ. Зураг «зөв санагдах» хүртэл таах биш — тоог нь
+# харж тохируулна.
+
+extends Node3D
+
+const MatLib := preload("res://scripts/mat_lib.gd")
+const Props := preload("res://scripts/props.gd")
+const Humanoid := preload("res://scripts/humanoid.gd")
+
+# --- Хэмжээс (метр) ----------------------------------------------------------
+
+const ROOM_W := 7.4
+const ROOM_D := 7.4
+const CEIL := 2.85
+
+const TABLE_H := 0.72
+const TABLE_R := 0.94
+const SEAT_R := 1.24
+const CHAIR_R := 1.46
+const LAMP_Y := 1.96
+
+# --- Камер -------------------------------------------------------------------
+
+## Хүний нүдний өндөр суусан үед. Толгойн яснаас хэмжинэ, энэ нь зөвхөн
+## нөөц утга.
+const EYE_Y := 1.31
+## Чийдэнгийн хүч. Godot-ийн omni нь `energy * pow(1 - d/range, atten)`.
+## 1.2 м зайд 9.0 нь 6.6 болж, ширээ цоо цайрч байсан — модны судал
+## бүрэн алга болсон. Гэрэл хэт их байх нь дутахаас ДОР.
+const KEY_ENERGY := 4.0
+const FILL_ENERGY := 1.25
+const BOUNCE_ENERGY := 0.42
+const SHAFT_STRENGTH := 0.30
+## Нүд толгойноос хэр урагш (хамрын оронд).
+const EYE_FWD := 0.11
+## Доош харах өнцөг (градус).
+const PITCH := -9.0
+## Хажуу тийш эргэлт. ЯГ ТӨВД байрлуулах нь хөшүүн — жаахан эргүүлэхэд
+## эсрэг талын хүн голоос гарч, хажуугийн хүний мөр хүрээнд орж ирнэ.
+const YAW := 1.5
+## Босоо харах өнцөг.
+const FOV := 47.0
+
+@export var seat_count: int = 8
+@export var viewer_seat: int = 0
+## true бол ширээг дээрээс харна (хөгжүүлэлтийн шалгалт).
+@export var overview: bool = false
+
+var _models: Array[String] = [
+	"res://models/Soldier.glb",
+	"res://models/Xbot.glb",
+	"res://models/Michelle.glb",
+]
+
+## Хувцасны өнгө. ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ — зөвхөн суудлаар тодорхойлогдоно,
+## тул алуурчин, иргэн хоёр ижил өнгөтэй байж болно.
+##
+## Бүгд ХАРАНХУЙ. Загварууд нь цайвар «хүүхэлдэй» өнгөтэй ирдэг бөгөөд
+## дулаан гэрлийн дор ягаан мах мэт харагдана. Гүн бараан болгосноор
+## тэд харанхуй өрөөнд суусан ХҮМҮҮС мэт болж, гэрэл зөвхөн мөр, хацрын
+## ирмэгийг л зурна.
+var _tints: Array[Color] = [
+	Color(0.30, 0.29, 0.31), Color(0.22, 0.26, 0.31), Color(0.34, 0.28, 0.25),
+	Color(0.25, 0.29, 0.27), Color(0.32, 0.26, 0.28), Color(0.23, 0.27, 0.33),
+	Color(0.35, 0.31, 0.25), Color(0.27, 0.25, 0.26),
+]
+
+## Загвар бүрийн анхны тод байдал өөр: Xbot бол цайвар саарал хүүхэлдэй,
+## Soldier аль хэдийн бараан дүрэмт хувцастай. Ижил үржүүлэгч өгвөл нэг нь
+## гялалзаж, нөгөө нь харагдахаа болино.
+var _model_gain: Array[float] = [1.15, 0.72, 0.66]
+
+var _eye: Transform3D = Transform3D(Basis(), Vector3(0, EYE_Y, 0))
+var _eye_found := false
+var _marks: Dictionary = {}
+
+
+## Тушаалын мөрөөс тохиргоо авна: `-- overview=1 key=3.2 shaft=0`.
+##
+## Толгойгүй орчинд зураг авах бүрт кодоо засаад дахин хөрвүүлэх нь удаан.
+## Тохиргоог гаднаас өгвөл нэг зурган дээр хэдэн хувилбар шалгана.
+static func _arg(key: String, def: float) -> float:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(key + "="):
+			return a.substr(key.length() + 1).to_float()
+	return def
+
+
+func _ready() -> void:
+	var t0 := Time.get_ticks_msec()
+	overview = _arg("overview", 0.0) > 0.5
+	viewer_seat = int(_arg("viewer", float(viewer_seat)))
+	_build_room()
+	_build_table()
+	_build_props()
+	_build_people()
+	_build_lamp()
+	_build_env()
+	var cam := _build_camera()
+	_build_post()
+	print("BUILD ms=", Time.get_ticks_msec() - t0)
+	await get_tree().process_frame
+	_report_framing(cam)
+
+
+# --- Өрөө --------------------------------------------------------------------
+
+func _build_room() -> void:
+	var floor_mat := MatLib.concrete("floor", Color(0.100, 0.092, 0.086), 7, 0.96)
+	var wall_mat := MatLib.concrete("wall", Color(0.118, 0.110, 0.104), 23, 0.97)
+	var ceil_mat := MatLib.concrete("ceil", Color(0.070, 0.066, 0.062), 41, 0.99)
+
+	add_child(Props.box(Vector3(ROOM_W, 0.24, ROOM_D), floor_mat, Vector3(0, -0.12, 0)))
+	add_child(Props.box(Vector3(ROOM_W, 0.24, ROOM_D), ceil_mat, Vector3(0, CEIL + 0.12, 0)))
+
+	var hw := ROOM_W * 0.5
+	var hd := ROOM_D * 0.5
+	add_child(Props.box(Vector3(ROOM_W, CEIL, 0.24), wall_mat, Vector3(0, CEIL * 0.5, hd + 0.12)))
+	add_child(Props.box(Vector3(ROOM_W, CEIL, 0.24), wall_mat, Vector3(0, CEIL * 0.5, -hd - 0.12)))
+	add_child(Props.box(Vector3(0.24, CEIL, ROOM_D), wall_mat, Vector3(hw + 0.12, CEIL * 0.5, 0)))
+	add_child(Props.box(Vector3(0.24, CEIL, ROOM_D), wall_mat, Vector3(-hw - 0.12, CEIL * 0.5, 0)))
+
+	# Таазны хоолой — «энэ бол засвар хийгээгүй хуучин байшин» гэдгийг нэг
+	# дор хэлнэ. Гэрлийн дор өнгөрөх тул тод гялалзана.
+	var pipe := MatLib.metal("pipe", Color(0.22, 0.21, 0.20), 131)
+	for i in range(3):
+		var p := Props.cyl(0.055, 0.055, ROOM_W, 12, pipe,
+			Vector3(0, CEIL - 0.16 - float(i) * 0.02, -1.5 + float(i) * 1.15))
+		p.rotation.z = PI * 0.5
+		add_child(p)
+
+	# Хаалга — гүн хонхор. Хүн орж гарах гарц байхгүй бол өрөө хайрцаг мэт.
+	var frame := MatLib.wood("door_wood", Color(0.115, 0.070, 0.042), Color(0.035, 0.022, 0.014), 733)
+	add_child(Props.box(Vector3(1.02, 2.10, 0.10), MatLib.plain(Color(0.012, 0.011, 0.010), 1.0),
+		Vector3(-hw + 0.05, 1.05, -0.6)))
+	add_child(Props.box(Vector3(0.09, 2.22, 0.09), frame, Vector3(-hw + 0.10, 1.11, -1.14)))
+	add_child(Props.box(Vector3(0.09, 2.22, 0.09), frame, Vector3(-hw + 0.10, 1.11, -0.06)))
+	add_child(Props.box(Vector3(0.09, 0.09, 1.16), frame, Vector3(-hw + 0.10, 2.20, -0.6)))
+
+	# Буланд овоолсон хайрцгууд.
+	var crate := MatLib.wood("crate", Color(0.135, 0.085, 0.048), Color(0.042, 0.026, 0.016), 511)
+	add_child(Props.box(Vector3(0.62, 0.52, 0.58), crate, Vector3(hw - 0.62, 0.26, -hd + 0.70)))
+	var c2 := Props.box(Vector3(0.52, 0.44, 0.50), crate, Vector3(hw - 0.70, 0.74, -hd + 0.62))
+	c2.rotation.y = 0.30
+	add_child(c2)
+
+	_build_backdrop(hw, hd)
+
+	# ЦОНХ. Хоёр ажилтай: (1) «гадаа шөнө» гэдгийг хэлнэ; (2) хүйтэн
+	# эсрэг гэрэл өгч, хүний хар дүрсийг хананаас салгана. Дулаан дээд
+	# гэрэл + хүйтэн хажуугийн тусгал — энэ ХОЁРЫН ЯЛГАА л гүн үүсгэдэг.
+	var pane := MatLib.glow(Color(0.10, 0.16, 0.22), Color(0.20, 0.42, 0.62), 1.5)
+	add_child(Props.box(Vector3(0.08, 1.24, 1.60), pane, Vector3(hw - 0.02, 1.62, 1.35)))
+	var bars := MatLib.metal("win_bars", Color(0.10, 0.10, 0.11), 601)
+	for i in range(5):
+		add_child(Props.box(Vector3(0.05, 1.28, 0.035), bars,
+			Vector3(hw - 0.08, 1.62, 0.32 + float(i) * 0.37)))
+	var cold := OmniLight3D.new()
+	cold.position = Vector3(hw - 0.5, 1.60, 1.05)
+	cold.light_color = Color(0.34, 0.58, 0.86)
+	cold.light_energy = 1.0
+	cold.omni_range = 6.5
+	cold.omni_attenuation = 1.3
+	cold.shadow_enabled = false
+	add_child(cold)
+
+
+## Тоглогчийн харцны ЦААНАХ хана.
+##
+## Эхний хувилбарт энэ нь хоосон бор налуу байв — дэлгэцийн дээд тал
+## бүхэлдээ юу ч биш. Хүн орчныг «хоосон эсэх»-ээр нь шүүдэг: хоосон
+## хана = дуусаагүй тоглоом. Энд байх бүхэн УТГАГҮЙ чимэг биш — гудамжны
+## байшингийн ард талын ханыг л дүрсэлнэ.
+##
+## Юу ч ДҮРИЙГ илтгэхгүй. Хананд «алуурчин зүүн талд» гэсэн сэжүүр
+## байхгүй — тоглоом тэр дор нь үхнэ.
+func _build_backdrop(hw: float, hd: float) -> void:
+	var z := hd - 0.03
+	# Неон — толгойн хажууд, хүйтэн ирмэг өгнө.
+	add_child(Props.neon(Vector3(-0.58, 1.18, z), Color(0.22, 0.80, 0.92)))
+
+	# Хаалттай төмөр хаалт — банзан хана хэвтээ судалтай болно.
+	var shutter := MatLib.metal("shutter", Color(0.115, 0.112, 0.108), 313)
+	for i in range(9):
+		add_child(Props.box(Vector3(1.50, 0.085, 0.05), shutter,
+			Vector3(0.92, 0.86 + float(i) * 0.105, z - 0.02)))
+
+	# Босоо хоолой — хананы хавтгайг таслана.
+	var pipe := MatLib.metal("wall_pipe", Color(0.19, 0.17, 0.15), 227)
+	add_child(Props.cyl(0.048, 0.048, CEIL, 10, pipe, Vector3(-1.62, CEIL * 0.5, z - 0.08)))
+	add_child(Props.box(Vector3(0.14, 0.09, 0.14), pipe, Vector3(-1.62, 1.90, z - 0.08)))
+
+	# Хуучин зурагт хуудас — бараан тэгш өнцөгт. Ямар ч бичиггүй.
+	add_child(Props.box(Vector3(0.62, 0.86, 0.012),
+		MatLib.plain(Color(0.085, 0.072, 0.058), 0.95), Vector3(0.05, 1.86, z - 0.01)))
+
+
+func _build_table() -> void:
+	var wood := MatLib.wood("table", Color(0.122, 0.082, 0.055), Color(0.034, 0.022, 0.015), 3)
+	var dark := MatLib.wood("table_edge", Color(0.105, 0.070, 0.047), Color(0.028, 0.018, 0.013), 19)
+	var iron := MatLib.metal("table_iron", Color(0.14, 0.135, 0.130), 97)
+
+	add_child(Props.cyl(TABLE_R, TABLE_R, 0.062, 56, wood, Vector3(0, TABLE_H - 0.031, 0)))
+	# Ирмэгийн зузаан — ширээ нимгэн хавтан биш, ЭД ЗҮЙЛ мэт болно.
+	add_child(Props.cyl(TABLE_R * 0.997, TABLE_R * 0.975, 0.075, 56, dark,
+		Vector3(0, TABLE_H - 0.099, 0)))
+	add_child(Props.cyl(0.13, 0.155, TABLE_H - 0.17, 20, iron, Vector3(0, (TABLE_H - 0.17) * 0.5, 0)))
+	add_child(Props.cyl(0.46, 0.50, 0.04, 28, iron, Vector3(0, 0.02, 0)))
+
+
+func _build_props() -> void:
+	# Суудал бүрийн өмнө хоёр хөзөр — АР талаараа. Бүгд ижил.
+	for i in range(seat_count):
+		var a := _angle_of(i)
+		var dirv := Vector3(sin(a), 0, cos(a))
+		var right := Vector3(cos(a), 0, -sin(a))
+		var base := dirv * (TABLE_R - 0.19)
+		for k in range(2):
+			var off := right * (float(k) * 0.075 - 0.037)
+			var p := base + off + dirv * (float(k) * 0.012)
+			p.y = TABLE_H + 0.001
+			add_child(Props.card(p, -a + float(k) * 0.16 - 0.08))
+
+	add_child(Props.ashtray(Vector3(0.22, TABLE_H, -0.16)))
+	add_child(Props.glass(Vector3(-0.38, TABLE_H, 0.14), 0.55))
+	add_child(Props.glass(Vector3(0.52, TABLE_H, 0.34), 0.20))
+	add_child(Props.glass(Vector3(-0.10, TABLE_H, -0.52), 0.85))
+	for i in range(7):
+		var a := float(i) * 1.91
+		add_child(Props.coin(Vector3(cos(a) * (0.16 + float(i) * 0.045), TABLE_H + 0.001,
+			sin(a) * (0.16 + float(i) * 0.038))))
+	# Унтарсан лаа — гэрэл асахаас өмнө хэн нэгэн энд байсан.
+	add_child(Props.cyl(0.022, 0.026, 0.11, 10, MatLib.plain(Color(0.52, 0.48, 0.40), 0.75),
+		Vector3(-0.60, TABLE_H + 0.055, -0.38)))
+
+
+# --- Хүмүүс ------------------------------------------------------------------
+
+func _build_people() -> void:
+	for i in range(seat_count):
+		var a := _angle_of(i)
+		var pivot := Node3D.new()
+		pivot.position = Vector3(sin(a) * SEAT_R, 0.0, cos(a) * SEAT_R)
+		pivot.rotation.y = a + PI                    # ширээ рүү харна
+		add_child(pivot)
+
+		var ch := Props.chair(i)
+		ch.position = Vector3(sin(a) * (CHAIR_R - SEAT_R), 0, cos(a) * (CHAIR_R - SEAT_R))
+		ch.rotation.y = a + PI - pivot.rotation.y
+		pivot.add_child(ch)
+
+		if _arg("people", 1.0) < 0.5:
+			continue
+		# ӨӨРИЙГӨӨ ЗУРАХГҮЙ. Камер нүдэнд байгаа тул өөрийн толгой, мөр нь
+		# дэлгэцийн 70 %-ийг хар балархай болгож эзэлж байв. Эхний хүний
+		# харцанд бие нь харагдахгүй — зөвхөн ширээн дээрх гар нь (дараа
+		# тусад нь нэмнэ).
+		if i == viewer_seat and not overview:
+			continue
+		var who := Humanoid.load_glb(_models[(i * 5) % _models.size()])
+		if who == null:
+			continue
+		pivot.add_child(who)
+		var sk: Skeleton3D = Humanoid.skeleton_of(who)
+		if sk == null:
+			continue
+
+		# 1. ХЭМЖИНЭ, дараа нь масштаблана. glTF бүр өөр нэгжтэй.
+		var h := Humanoid.measure_height(who, sk)
+		var want := Humanoid.BASE_HEIGHT * (0.955 + float((i * 37) % 11) / 100.0)
+		if h > 0.01:
+			who.scale = Vector3.ONE * (want / h)
+
+		# 2. СУУЛГАНА. T-байрлал бол хүн биш.
+		var lean := 0.24 + float((i * 13) % 7) / 18.0
+		var turn := (float((i * 29) % 13) - 6.0) / 13.0 * 0.85
+		var spread := float((i * 17) % 5) / 42.0
+		var pre := _bone_world(who, sk, "mixamorig_Head").y - _bone_world(who, sk, "mixamorig_Hips").y
+		Humanoid.pose_seated(sk, lean, turn, spread)
+		var post := _bone_world(who, sk, "mixamorig_Head").y - _bone_world(who, sk, "mixamorig_Hips").y
+		Humanoid.seat_by_head(who, sk, Humanoid.HEAD_SEATED + float((i * 23) % 7) * 0.012 - 0.036)
+
+		# 3. Хайрцгийг зөв болгоно, эс бөгөөс камер хаашаа ч харсан
+		#    «хараанаас гадуур» гэж хасагдана.
+		Humanoid.fix_skin_bounds(who)
+
+		# 4. Өнгөний бага зэргийн ялгаа — найман ижил хүн суухаас сэргийлнэ.
+		var mi := (i * 5) % _models.size()
+		_tint(who, _tints[i % _tints.size()] * _model_gain[mi])
+
+		var ax := Humanoid.body_axes(sk)
+		print("  PERSON seat=%d %-13s meas=%.3f scale=%.3f lean=%.2f spine(pre=%.3f post=%.3f) up=%s" % [
+			i, _models[(i * 5) % _models.size()].get_file(), h, who.scale.y, lean,
+			pre, post, str(ax.get("up", Vector3.ZERO)).pad_decimals(2)])
+		if i == viewer_seat:
+			_capture_eye(who, sk)
+		_mark("seat%d_head" % i, _bone_world(who, sk, "mixamorig_Head"))
+
+
+## Дүрийн материалыг хуулж, бага зэрэг өнгө нэмнэ.
+##
+## Хуулахгүй бол Godot материалыг ХУВААЛЦдаг тул нэгийг өөрчилвөл бүгд
+## өөрчлөгдөж, найман хүн дахин ижил болно.
+func _tint(root: Node, c: Color) -> void:
+	for n in Humanoid.walk(root):
+		if not (n is MeshInstance3D):
+			continue
+		var mi := n as MeshInstance3D
+		var count: int = mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for s in range(count):
+			var src := mi.get_active_material(s)
+			if src == null:
+				continue
+			var dup := src.duplicate() as BaseMaterial3D
+			if dup == null:
+				continue
+			dup.albedo_color = dup.albedo_color * c
+			# Загварууд гялгар өнгөлгөөтэй ирдэг тул мөр, цээжин дээр
+			# хуванцар тоглоом мэт цагаан гялбаа суудаг. Хувцас, арьс
+			# ХУУРАЙ байх ёстой.
+			dup.roughness = maxf(dup.roughness, 0.80)
+			dup.metallic = minf(dup.metallic, 0.04)
+			dup.metallic_specular = 0.20
+
+			# ХОЁР ТАЛТАЙ нимгэн хавтан. Загварууд ихэвчлэн `cull_disabled`
+			# байдаг: үс, хувцасны хормой нь нэг давхар гурвалжин. Дээрээс
+			# унасан хатуу гэрлийн дор эдгээрийн ар тал нь гэнэт гэрэлтэж,
+			# толгойноос цацарсан хэлтэрхий мэт харагдана.
+			#
+			# (Хэмжилт: Michelle-ийн тор НЭГ гадаргуутай, тунгалаг БИШ —
+			# өөрөөр хэлбэл энэ нь эрэмбэлэлтийн алдаа биш, харин үсний
+			# ГЕОМЕТР өөрөө өргөстэй. Бүрэн засах цорын ганц арга бол
+			# илүү сайн загвар. Энд зөвхөн гялбааг нь дарна.)
+			if dup.cull_mode == BaseMaterial3D.CULL_DISABLED:
+				dup.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+
+			mi.set_surface_override_material(s, dup)
+
+
+func _bone_world(root: Node3D, sk: Skeleton3D, bone: String) -> Vector3:
+	var b := sk.find_bone(bone)
+	if b < 0:
+		return Vector3.ZERO
+	return sk.global_transform * sk.get_bone_global_pose(b).origin
+
+
+## Харагчийн НҮДийг толгойн яснаас олно — тоглогч өөрийн биеэ мэдэрнэ:
+## ширээн дээр өөрийн шуу, гар нь харагдана.
+func _capture_eye(root: Node3D, sk: Skeleton3D) -> void:
+	var ax := Humanoid.body_axes(sk)
+	var head := _bone_world(root, sk, "mixamorig_Head")
+	if head == Vector3.ZERO or ax.is_empty():
+		return
+	var fwd: Vector3 = (sk.global_transform.basis * (ax["fwd"] as Vector3)).normalized()
+	var up: Vector3 = (sk.global_transform.basis * (ax["up"] as Vector3)).normalized()
+	_eye = Transform3D(Basis(), head + fwd * EYE_FWD + up * 0.115)
+	_eye_found = true
+
+
+func _angle_of(seat: int) -> float:
+	var rel := (seat - viewer_seat + seat_count) % seat_count
+	return PI + TAU * float(rel) / float(seat_count)
+
+
+# --- Гэрэл -------------------------------------------------------------------
+
+func _build_lamp() -> void:
+	add_child(Props.lamp(LAMP_Y, CEIL))
+
+	# ГОЛ гэрэл — ЦАЦРАГ биш, ДООШ ЧИГЛЭСЭН туяа.
+	#
+	# Эхэндээ OmniLight байсан. Тэр нь бүх зүг рүү адилхан цацдаг тул
+	# тааз, хана, хоолой бүгд гэрэлтэж, харанхуй гэсэн ойлголт алга
+	# болсон. Чийдэнд хаалт байгаа бол гэрэл ДООШ л явна. SpotLight нь
+	# яг үүнийг хийнэ: ширээн дээр гэрлийн ТОЙРОГ үүсч, түүний гадна
+	# бүх юм үхнэ. Лавлагаа тоглоомуудын гол заль энэ.
+	var key := SpotLight3D.new()
+	key.position = Vector3(0, LAMP_Y - 0.06, 0)
+	key.rotation_degrees = Vector3(-90, 0, 0)
+	key.light_color = Color(1.0, 0.71, 0.44)
+	key.light_energy = _arg("key", KEY_ENERGY)
+	key.spot_range = 6.2
+	key.spot_angle = 49.0
+	key.spot_angle_attenuation = 1.30
+	key.spot_attenuation = 1.05
+	key.shadow_enabled = true
+	key.shadow_bias = 0.028
+	key.shadow_normal_bias = 1.2
+	key.light_specular = 0.55
+	add_child(key)
+
+	# ХОЁР ДАХЬ туяа — ижил цэгээс, өргөн, сул. Тусдаа эх үүсвэр мэт
+	# харагдахгүй (ижил байрлалтай), гэхдээ нүүрийг гэрэлтүүлнэ.
+	#
+	# Чанга тойрог 49° нь ширээг гэрэлтүүлдэг ч суудлууд 1.24 м-т байгаа
+	# тул ТОЛГОЙ нь тойргийн гадна үлдэж, хүмүүс нүүргүй хар дүрс болж
+	# байв. Кино зураачид яг ингэж шийддэг: нэг чанга, нэг зөөлөн.
+	var fill := SpotLight3D.new()
+	fill.position = Vector3(0, LAMP_Y - 0.10, 0)
+	fill.rotation_degrees = Vector3(-90, 0, 0)
+	fill.light_color = Color(1.0, 0.76, 0.54)
+	fill.light_energy = _arg("fill", FILL_ENERGY)
+	fill.spot_range = 4.6
+	fill.spot_angle = 76.0
+	fill.spot_angle_attenuation = 0.55
+	fill.spot_attenuation = 1.25
+	fill.shadow_enabled = false
+	fill.light_specular = 0.25
+	add_child(fill)
+
+	# Гэрлийн багана + тоос. Энэ хоёр нь харанхуйд ГҮН үүсгэнэ — тоглоом
+	# хавтгай зураг биш, АГААРТАЙ орон зай мэт болно.
+	if _arg("shaft", 1.0) > 0.5:
+		add_child(Props.shaft(LAMP_Y + 0.02, TABLE_H - 0.02, 0.28, 1.34,
+			Color(1.0, 0.70, 0.40), SHAFT_STRENGTH))
+	if _arg("dust", 1.0) > 0.5:
+		# Тоос нь ЭРГЭЛЗЭЭ төрүүлэх зэрэг л байх ёстой. Эхний тохиргоо нь
+		# цас будран буух мэт болж, бүх дүр төрхийг сүйтгэсэн.
+		add_child(Props.dust(LAMP_Y - 0.30, TABLE_H, 0.58, 18))
+
+	# ШИРЭЭНЭЭС ОЙСОН гэрэл. Дээрээс унасан туяа нь нүүрийг бараг
+	# гэрэлтүүлдэггүй (гэрэл дээрээс, нүүр хажуу тийш хардаг тул N·L
+	# бараг тэг) — тиймээс бүх дүр нүүргүй хар дүрс болж байв. Гэтэл
+	# бодит амьдралд гэгээн ширээ өөрөө гэрэл ойлгож, эрүү, хамрыг
+	# ДООРООС нь зурдаг. Энэ нэг сул гэрэл бүх нүүрийг амилуулна.
+	var bounce := OmniLight3D.new()
+	bounce.position = Vector3(0, TABLE_H + 0.16, 0)
+	bounce.light_color = Color(1.0, 0.66, 0.40)
+	bounce.light_energy = _arg("bounce", BOUNCE_ENERGY)
+	bounce.omni_range = 3.1
+	bounce.omni_attenuation = 1.9
+	bounce.shadow_enabled = false
+	bounce.light_specular = 0.10
+	add_child(bounce)
+
+	_mark("lamp", Vector3(0, LAMP_Y, 0))
+
+
+func _build_env() -> void:
+	var w := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0, 0, 0)
+	# Орчны гэрэл маш бага — сүүдэр ҮНЭХЭЭР хар байх ёстой.
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(0.09, 0.11, 0.16)
+	e.ambient_light_energy = 0.22
+
+	# Манан — гүн үүсгэж, хол буланг залгина.
+	e.fog_enabled = true
+	e.fog_mode = Environment.FOG_MODE_DEPTH
+	e.fog_light_color = Color(0.020, 0.019, 0.023)
+	e.fog_light_energy = 1.0
+	# Манан хэт өтгөн байсан тул хана бүрэн алга болж, тоглоом «хоосон
+	# харанхуйд хөвөх ширээ» болсон. ӨРӨӨ харагдах ёстой — бүдэг ч гэсэн.
+	e.fog_density = 0.055
+	e.fog_depth_begin = 2.2
+	e.fog_depth_end = 11.0
+
+	e.glow_enabled = true
+	e.glow_intensity = 0.40
+	e.glow_bloom = 0.15
+	e.glow_hdr_threshold = 0.90
+
+	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.tonemap_exposure = 1.0
+	e.tonemap_white = 3.0
+
+	w.environment = e
+	add_child(w)
+
+
+# --- Камер -------------------------------------------------------------------
+
+func _build_camera() -> Camera3D:
+	var cam := Camera3D.new()
+	cam.fov = FOV
+	cam.near = 0.04
+	cam.far = 24.0
+	add_child(cam)
+	cam.current = true
+
+	if overview:
+		cam.look_at_from_position(Vector3(2.4, 2.9, 3.2), Vector3(0, TABLE_H, 0), Vector3.UP)
+		cam.fov = 58.0
+		return cam
+
+	var a := _angle_of(viewer_seat)
+	var inward := -Vector3(sin(a), 0, cos(a))            # ширээний төв рүү
+	var eye: Vector3 = _eye.origin
+	if not _eye_found:
+		# Суудал дээрх хүний нүд: ширээний ирмэг рүү бага зэрэг тонгойсон.
+		eye = Vector3(sin(a) * (SEAT_R - 0.17), EYE_Y, cos(a) * (SEAT_R - 0.17))
+
+	var basis := Basis.looking_at(inward, Vector3.UP)
+	basis = Basis(Vector3.UP, deg_to_rad(YAW)) * basis
+	basis = basis * Basis(Vector3.RIGHT, deg_to_rad(PITCH))
+	cam.global_transform = Transform3D(basis, eye)
+	return cam
+
+
+# --- Дараах боловсруулалт ----------------------------------------------------
+
+func _build_post() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := load("res://shaders/grade.gdshader") if _arg("post", 1.0) > 0.5 else null
+	if sh != null:
+		var m := ShaderMaterial.new()
+		m.shader = sh
+		rect.material = m
+	layer.add_child(rect)
+
+
+# --- Хэмжилт -----------------------------------------------------------------
+
+func _mark(name_v: String, p: Vector3) -> void:
+	_marks[name_v] = p
+
+
+## Гол цэгүүд дэлгэцийн хаана буусныг ТООГООР хэвлэнэ.
+##
+## «Сайхан харагдах болов уу» гэж таах нь Flutter дээр дөрвөн удаа
+## бүтэлгүйтсэн. Хэмжвэл нэг л удаа хийнэ.
+func _report_framing(cam: Camera3D) -> void:
+	if cam == null:
+		return
+	var size := get_viewport().get_visible_rect().size
+	var pr := cam.get_camera_projection()
+	var vfov := rad_to_deg(atan(1.0 / pr.y.y)) * 2.0
+	var hfov := rad_to_deg(atan(1.0 / pr.x.x)) * 2.0
+	print("CAM fov_prop=%.1f -> vfov=%.1f hfov=%.1f  view=%dx%d" % [
+		cam.fov, vfov, hfov, int(size.x), int(size.y)])
+	print("CAM pos=", cam.global_position, " basis_z=", cam.global_transform.basis.z)
+
+	_marks["table_near"] = Vector3(sin(_angle_of(viewer_seat)) * TABLE_R, TABLE_H,
+		cos(_angle_of(viewer_seat)) * TABLE_R)
+	_marks["table_far"] = Vector3(sin(_angle_of(viewer_seat)) * -TABLE_R, TABLE_H,
+		cos(_angle_of(viewer_seat)) * -TABLE_R)
+
+	var keys: Array = _marks.keys()
+	keys.sort()
+	for k in keys:
+		var p: Vector3 = _marks[k]
+		if p == Vector3.ZERO:
+			continue
+		var behind := cam.is_position_behind(p)
+		var s := cam.unproject_position(p)
+		print("  %-14s world=(%.2f,%.2f,%.2f) screen=(%.2f,%.2f)%s" % [
+			k, p.x, p.y, p.z, s.x / size.x, s.y / size.y,
+			"  BEHIND" if behind else ""])
