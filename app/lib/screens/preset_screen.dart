@@ -10,10 +10,10 @@ import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
 import '../game/settings.dart';
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 import 'setup_parts.dart';
-import '../ui/glyphs.dart';
 
 class PresetScreen extends StatefulWidget {
   const PresetScreen({
@@ -119,6 +119,9 @@ class _PresetScreenState extends State<PresetScreen> {
           // --- Чипүүд ---------------------------------------------------
           Stepper48(
             label: 'Суудал',
+            // «Суудал» бол ДҮР БИШ — тэмдэг өгөхгүй. Зөвхөн доорх дүрийн
+            // мөрүүдтэй шошго нь эгнэхийн тулд ижил өргөнтэй зай үлдээнэ.
+            leading: const SizedBox(width: 26),
             value: '$_n',
             big: true,
             onMinus: _n > kMinSeats ? () => _edit(() => _n--) : null,
@@ -127,6 +130,8 @@ class _PresetScreenState extends State<PresetScreen> {
           const SizedBox(height: 8),
           Stepper48(
             label: 'Алуурчин',
+            // Дүрийн тэмдэг — жагсаалт биш, БҮРЭЛДЭХҮҮН гэдэг нь харагдана.
+            leading: RoleSigil(_boss ? Role.boss : Role.killer, size: 26),
             note: _boss ? 'Ахлагч нэг суудлыг эзэлнэ' : null,
             value: '$_mafia',
             valueColor: _b < 0 ? kDanger : null,
@@ -136,6 +141,7 @@ class _PresetScreenState extends State<PresetScreen> {
           const SizedBox(height: 8),
           Stepper48(
             label: 'Эмч',
+            leading: const RoleSigil(Role.doctor, size: 26),
             value: _doctor ? '1' : '0',
             onMinus: _doctor ? () => _edit(() => _doctor = false) : null,
             onPlus: _doctor ? null : () => _edit(() => _doctor = true),
@@ -143,6 +149,7 @@ class _PresetScreenState extends State<PresetScreen> {
           const SizedBox(height: 8),
           Stepper48(
             label: 'Мөрдөгч',
+            leading: const RoleSigil(Role.detective, size: 26),
             value: _detective ? '1' : '0',
             onMinus: _detective ? () => _edit(() => _detective = false) : null,
             onPlus: _detective ? null : () => _edit(() => _detective = true),
@@ -151,6 +158,8 @@ class _PresetScreenState extends State<PresetScreen> {
           // Иргэн нь ТООЦООЛОГДДОГ — гараар өөрчлөгдөхгүй тул `+`/`−` байхгүй.
           Row(
             children: <Widget>[
+              const RoleSigil(Role.citizen, size: 26, color: kTextMuted),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text('Иргэн', style: kBody.copyWith(color: kTextMuted)),
               ),
@@ -192,20 +201,11 @@ class _PresetScreenState extends State<PresetScreen> {
               ),
             ],
           ),
-          const SizedBox(height: kGap),
 
-          // --- Суудлын уншилт -------------------------------------------
-          InfoCard(
-            children: <Widget>[
-              InfoRow('Суудал', '$_n'),
-              InfoRow('Мафи', '$_mafia${_boss ? " (Ахлагчтай)" : ""}'),
-              InfoRow(
-                'Эмч · Мөрдөгч',
-                '${_doctor ? "тийм" : "үгүй"} · ${_detective ? "тийм" : "үгүй"}',
-              ),
-              InfoRow('Иргэн', '$_citizens'),
-            ],
-          ),
+          // ХАСАГДСАН: энд «Суудал / Мафи / Эмч · Мөрдөгч / Иргэн» гэсэн
+          // уншилтын хайрцаг байсан. Тэр нь дээрх тоолуур бүрийн утгыг ЯГ
+          // ДАХИН давтаж, дэлгэцийг тохиргооны маягт мэт харагдуулж байв.
+          // Тоолуурууд өөрсдөө утгаа харуулдаг тул хэрэггүй.
 
           // GDD-11 §8 — зөвхөн хамгийн анхны тоглолтод, блоклохгүй нэг мөр.
           if (widget.controller.gamesPlayed == 0) ...<Widget>[

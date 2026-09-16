@@ -174,10 +174,15 @@ class Stepper48 extends StatelessWidget {
     this.valueColor,
     this.big = false,
     this.valueWidth,
+    this.leading,
   });
 
   final String label;
   final String value;
+
+  /// Шошгын өмнөх ТЭМДЭГ — дүрийн дүрс. Мөрийг «тохиргооны мөр» биш
+  /// «бүрэлдэхүүний мөр» болгож харагдуулна.
+  final Widget? leading;
 
   /// `null` бол тэр тал нь түгжээтэй — товч байрандаа үлдэнэ, дарагдахгүй.
   final VoidCallback? onMinus;
@@ -198,6 +203,10 @@ class Stepper48 extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
+              if (leading != null) ...<Widget>[
+                ExcludeSemantics(child: leading!),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

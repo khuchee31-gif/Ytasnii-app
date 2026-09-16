@@ -169,7 +169,9 @@ class _AtmospherePainter extends CustomPainter {
     // --- Скан шугам --------------------------------------------------------
     if (scanlines) {
       final Paint line = Paint()
-        ..color = Colors.black.withValues(alpha: 0.10)
+        // 0.10 байхад том цагаан тоо, тэмдэг дээр зураас хэт тод харагдаж,
+        // унших чанарыг мууТгаж байв. Бүтэц үлдэнэ, хашгирахаа болино.
+        ..color = Colors.black.withValues(alpha: 0.055)
         ..strokeWidth = 1;
       for (double y = 0; y < size.height; y += 3) {
         canvas.drawLine(Offset(0, y), Offset(size.width, y), line);

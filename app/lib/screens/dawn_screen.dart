@@ -34,6 +34,7 @@ import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
 import '../ui/platform_guard.dart';
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 
@@ -208,6 +209,10 @@ class _DawnScreenState extends State<DawnScreen> {
     return PhoneScaffold(
       // 40 % гэрэл — тодролын API байхгүй тул суурь өнгөөр дүйцүүлнэ.
       background: kSurface,
+      // Үүр цайх — доороос дулаан туяа. Хоосон хар биш, «өглөө болж байна».
+      backdrop: const NightBackdrop(glow: 0.85, motes: 18, seed: 31),
+      // Нэг мөр бичиг дэлгэцийн ДЭЭД ирмэгт наалдахаа больсон.
+      center: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

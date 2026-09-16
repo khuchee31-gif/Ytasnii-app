@@ -34,6 +34,7 @@ import 'package:engine/engine.dart';
 import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 import '../ui/glyphs.dart';
@@ -347,6 +348,8 @@ class _NightActionScreenState extends State<NightActionScreen> {
     );
 
     return PhoneScaffold(
+      backdrop: const NightBackdrop(glow: 0.4, motes: 20, seed: 53),
+      center: true,
       background: kNight,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

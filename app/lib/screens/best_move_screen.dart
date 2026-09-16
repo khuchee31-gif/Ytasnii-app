@@ -26,6 +26,7 @@ import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
 import '../ui/platform_guard.dart';
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 
@@ -150,6 +151,8 @@ class _BestMoveScreenState extends State<BestMoveScreen> {
     final List<Seat> alive = _c.alive.toList()..sort();
 
     return PhoneScaffold(
+      backdrop: const NightBackdrop(glow: 0.45, motes: 16, seed: 47),
+      center: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

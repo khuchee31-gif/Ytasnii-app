@@ -178,13 +178,15 @@ class SeatMedallion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color c = dim ? color.withValues(alpha: 0.32) : color;
+    // Цагираг нь тоонд ойр жинтэй байх ёстой — хэт бүдгэрвэл «унтарсан»
+    // харагдана. Медаль бол ширээн дээрх ганц гэрэлтэй зүйл.
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
         painter: _MedallionPainter(
           seed: seat,
-          ring: (accent ?? c).withValues(alpha: dim ? 0.25 : 0.55),
+          ring: (accent ?? c).withValues(alpha: dim ? 0.25 : 0.78),
           slash: dim,
         ),
         child: Center(

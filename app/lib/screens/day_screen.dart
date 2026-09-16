@@ -26,6 +26,8 @@ import 'package:engine/engine.dart' show Seat;
 import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
+import '../ui/atmosphere.dart';
+import '../ui/glyphs.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 
@@ -535,25 +537,43 @@ class _DayScreenState extends State<DayScreen> {
         onTap: _pin,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(kGutter, 8, kGutter, kGutter),
-          child: Container(
-            decoration: BoxDecoration(
-              color: kSurfaceRaised,
-              borderRadius: BorderRadius.circular(kRadius),
-              border: Border.all(color: kHairline),
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            constraints: const BoxConstraints(minHeight: kMinTouch),
-            // Ямар ч ripple, ямар ч масштаб — бичиг БҮТНЭЭРЭЭ солигдоно
-            // (GDD-08 §5-ын «хэзээ ч анимац хийхгүй» жагсаалтын 5-р мөр).
-            child: Text(
-              _pinFlash ?? 'Тэмдэглэ',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                height: 1.45,
-                color: kTextPrimary,
+          // Энэ талбай дэлгэцийн 45 % — тиймээс ХООСОН ХАЙРЦАГ мэт харагдаж
+          // болохгүй. Гараар зурсан хүрээ, тэмдэг, тайлбар гурав нь энэ нь
+          // зориуд том товч гэдгийг хэлнэ.
+          child: SizedBox.expand(
+            child: InkFrame(
+              color: kTextMuted.withValues(alpha: 0.45),
+              thickness: 1.4,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Mark(MarkShape.pin, size: 30, color: kTextMuted),
+                    const SizedBox(height: 14),
+                    // Ямар ч ripple, ямар ч масштаб — бичиг БҮТНЭЭРЭЭ
+                    // солигдоно (GDD-08 §5-ын «хэзээ ч анимац хийхгүй»).
+                    Text(
+                      _pinFlash ?? 'Тэмдэглэ',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: kDisplayFont,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                        height: 1.3,
+                        color: kTextPrimary,
+                      ),
+                    ),
+                    if (_pinFlash == null) ...<Widget>[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Энэ агшныг дэвтэрт хадна',
+                        textAlign: TextAlign.center,
+                        style: kBody.copyWith(fontSize: 14, color: kTextMuted),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),

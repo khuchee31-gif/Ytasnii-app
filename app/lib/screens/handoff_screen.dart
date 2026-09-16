@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Intent;
 
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 
 /// Акселерометргүй утсанд «өргөв» гэдгийг мэдэх боломжгүй — GDD-10 §5-ын
@@ -111,16 +112,18 @@ class _HandoffGateState extends State<HandoffGate> {
     final int n = widget.nextSeat;
     // Яг GDD-06 S05-ын мөр. Хоёр хэсэгт хуваагдсан ч `toPlainText()` нь
     // «Ширээн дээр тавь. Дараах — №7» хэвээр — тестийн шалгуур энэ.
+    // ДУГААР НЬ МЕДАЛЬ ДОТОР том харагдана (доор), тиймээс өгүүлбэр дэх
+    // «№7» нь ЖИЖИГ — хоёр удаа хашгирахгүй. Өгүүлбэрийн үг GDD-06 S05-аар
+    // тогтсон тул үсэг бүр хэвээр.
     final Widget headline = Text.rich(
       TextSpan(
-        style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
+        style: kBody.copyWith(color: kTextMuted, height: 1.45),
         children: <InlineSpan>[
           const TextSpan(text: 'Ширээн дээр тавь. Дараах — '),
           TextSpan(
             text: '№$n',
-            style: TextStyle(
+            style: kBody.copyWith(
               color: kEmber,
-              fontSize: 40,
               fontWeight: FontWeight.w700,
               height: 1.45,
             ),
@@ -138,61 +141,73 @@ class _HandoffGateState extends State<HandoffGate> {
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _lift,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: kGutter,
-                vertical: kGutter,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  if (_skipping)
-                    Text(
-                      '№${widget.skippedSeat} байхгүй. Дараах — №$n',
-                      style: kBody.copyWith(color: kTextMuted),
-                      textAlign: TextAlign.center,
-                    )
-                  else ...<Widget>[
-                    headline,
-                    const SizedBox(height: kGap),
-                    // `armed` болтол энэ мөр хоосон — өндөр нь хэвээр тул
-                    // текст гарахад дэлгэц үсрэхгүй.
-                    SizedBox(
-                      height: 56,
-                      child: Center(
-                        child: Text(
-                          _stage == HandoffStage.armed
-                              ? '№$n — утсаа өргө'
-                              : '',
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              // Хоосон хар дэлгэц бол алдаа. Маш нам гүм гэрэл, тоосны ширхэг —
+              // ширээн дунд хэвтэх утас «унтарсан» биш «хүлээж буй» харагдана.
+              const NightBackdrop(glow: 0.5, motes: 22),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: kGutter,
+                    vertical: kGutter,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      if (_skipping)
+                        Text(
+                          '№${widget.skippedSeat} байхгүй. Дараах — №$n',
                           style: kBody.copyWith(color: kTextMuted),
                           textAlign: TextAlign.center,
+                        )
+                      else ...<Widget>[
+                        // ГОЛ ДҮРС: суудлын медаль. Ширээний нөгөө талаас ч
+                        // уншигдана — хэний ээлж болохыг хүн бүр шалгаж чадна.
+                        Center(child: SeatMedallion(seat: n, size: 196)),
+                        const SizedBox(height: 26),
+                        headline,
+                        const SizedBox(height: kGap),
+                        // `armed` болтол энэ мөр хоосон — өндөр нь хэвээр тул
+                        // текст гарахад дэлгэц үсрэхгүй.
+                        SizedBox(
+                          height: 56,
+                          child: Center(
+                            child: Text(
+                              _stage == HandoffStage.armed
+                                  ? '№$n — утсаа өргө'
+                                  : '',
+                              style: kBody.copyWith(color: kTextMuted),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: kPrimaryButtonHeight,
-                      child: _showLiftButton
-                          ? Center(
-                              child: TextButton(
-                                onPressed: _lift,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: kEmber,
-                                  minimumSize: const Size(
-                                    kMinTouch * 3,
-                                    kPrimaryButtonHeight,
+                        SizedBox(
+                          height: kPrimaryButtonHeight,
+                          child: _showLiftButton
+                              ? Center(
+                                  child: TextButton(
+                                    onPressed: _lift,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: kEmber,
+                                      minimumSize: const Size(
+                                        kMinTouch * 3,
+                                        kPrimaryButtonHeight,
+                                      ),
+                                    ),
+                                    child: const Text('Товшиж нээ'),
                                   ),
-                                ),
-                                child: const Text('Товшиж нээ'),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ],
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

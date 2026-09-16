@@ -31,6 +31,7 @@ import 'package:flutter/semantics.dart';
 
 import '../game/game_controller.dart';
 import '../ui/platform_guard.dart';
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 import 'handoff_screen.dart';
 import '../ui/glyphs.dart';
@@ -478,6 +479,13 @@ class _RevealScreenState extends State<RevealScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    // ДҮРИЙН ТЭМДЭГ — хөзрийн нүүр. Хүн үгийг уншихаас
+                    // өмнө дүрсийг хардаг; 2.5 секунд дотор тэр л чухал.
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: RoleSigil(role, size: 64, color: accent),
+                    ),
+                    const SizedBox(height: 12),
                     Text(
                       copy.theme,
                       style: kDisplay.copyWith(color: kTextPrimary),

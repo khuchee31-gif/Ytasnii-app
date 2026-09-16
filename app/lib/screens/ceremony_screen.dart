@@ -20,6 +20,8 @@ import 'package:engine/engine.dart' show Role, Seat, WinState;
 import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
+import '../ui/glyphs.dart';
+import '../ui/scenery.dart';
 import '../ui/tokens.dart';
 import 'day_screen.dart' show TwoFingerSwipe;
 import 'reveal_screen.dart' show cardCopyFor;
@@ -222,34 +224,71 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: kSurface,
-    body: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(kGutter),
-        child: switch (_stage) {
-          CeremonyStage.winLine => _winView(),
-          CeremonyStage.horse => _horseView(),
-          CeremonyStage.reveal => _revealView(),
-          CeremonyStage.done => _doneView(),
-        },
-      ),
+    body: Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        // Тоглолтын төгсгөл — хамгийн дулаан гэрэл. Хоосон хар биш.
+        const NightBackdrop(glow: 0.9, motes: 30, seed: 71),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(kGutter),
+            child: switch (_stage) {
+              CeremonyStage.winLine => _winView(),
+              CeremonyStage.horse => _horseView(),
+              CeremonyStage.reveal => _revealView(),
+              CeremonyStage.done => _doneView(),
+            },
+          ),
+        ),
+      ],
     ),
   );
 
-  Widget _winView() => Center(
-    child: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        _winLineMn,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 44,
-          fontWeight: FontWeight.w700,
-          height: 1.45,
-          color: kEmber,
-        ),
+  /// Ялалтын мөр — тоглолтын ЦЭГ. Ганц өгүүлбэр хар талбайд хөвж байснаа
+  /// одоо тэмдэг, зураас, шошготой болж «хаагдсан» мэдрэмж төрүүлнэ.
+  Widget _winView() {
+    final bool mafi = c.win == WinState.mafi;
+    final Color accent = mafi ? kRust : kBone;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Mark(
+            mafi ? MarkShape.triangle : MarkShape.discFilled,
+            size: 46,
+            color: accent,
+          ),
+          const SizedBox(height: 26),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                _winLineMn,
+                textAlign: TextAlign.center,
+                style: kDisplay.copyWith(
+                  fontSize: 46,
+                  letterSpacing: 2,
+                  color: accent,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            width: 120,
+            child: Divider(color: kTextMuted.withValues(alpha: 0.5), height: 1),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            mafi ? 'ХОТ УНТСААР ҮЛДЛЭЭ' : 'ХОТ СЭРЛЭЭ',
+            textAlign: TextAlign.center,
+            style: kLabel.copyWith(color: kTextMuted),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 
   // S18. «ялагдал» гэсэн үг энэ мод дотор БАЙХГҮЙ.
   Widget _horseView() {
@@ -323,9 +362,19 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
               ),
             ),
             const SizedBox(height: kGap),
+            // Дүрийн ТЭМДЭГ — нэрийг уншихаас өмнө дүрс нь хэлнэ.
+            SizedBox(
+              height: 92,
+              child: Center(
+                child: _roleShown && r != null
+                    ? RoleSigil(r, size: 84)
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            const SizedBox(height: 4),
             // Дүрийн нэр 96 sp — нарийн дэлгэц дээр өөрөө багасна.
             SizedBox(
-              height: 120,
+              height: 110,
               child: Center(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,

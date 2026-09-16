@@ -19,6 +19,8 @@ class PhoneScaffold extends StatelessWidget {
     this.action,
     this.background = kSurface,
     this.padded = true,
+    this.backdrop,
+    this.center = false,
   });
 
   final String? title;
@@ -30,47 +32,106 @@ class PhoneScaffold extends StatelessWidget {
   final Color background;
   final bool padded;
 
+  /// Агуулгын АРД зурагдах давхарга — `NightBackdrop` гэх мэт.
+  /// Тайз хоосон харагдахаас сэргийлнэ.
+  final Widget? backdrop;
+
+  /// Богино агуулгыг ХӨНДЛӨН ТЭНХЛЭГТ ТӨВЛӨРҮҮЛНЭ.
+  ///
+  /// ЯАГААД ХЭРЭГТЭЙ: өмнө нь бүх агуулга `SingleChildScrollView`-ийн дээд
+  /// ирмэгт наалдаж, доор нь хоосон хар талбай үлддэг байв. Нэг мөр бичигтэй
+  /// дэлгэц «дуусаагүй» мэт харагдана. Одоо богино бол голдоо, урт бол
+  /// урьдын адил гүйлгэнэ.
+  final bool center;
+
   @override
   Widget build(BuildContext context) {
+    final EdgeInsets pad = padded
+        ? const EdgeInsets.fromLTRB(kGutter, 20, kGutter, 20)
+        : EdgeInsets.zero;
+
+    final Widget scroller = LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints box) {
+        if (!center || !box.hasBoundedHeight) {
+          return SingleChildScrollView(padding: pad, child: body);
+        }
+        return SingleChildScrollView(
+          padding: pad,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: box.maxHeight - pad.top - pad.bottom,
+            ),
+            child: Center(child: body),
+          ),
+        );
+      },
+    );
+
+    final Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (title != null || subtitle != null) _Slab(title, subtitle),
+        Expanded(child: scroller),
+        if (action != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kGutter, 8, kGutter, 20),
+            child: action,
+          ),
+      ],
+    );
+
     return Scaffold(
       backgroundColor: background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            if (title != null || subtitle != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(kGutter, 20, kGutter, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (title != null)
-                      Text(title!, style: kTitle.copyWith(color: kTextPrimary)),
-                    if (subtitle != null) ...<Widget>[
-                      const SizedBox(height: 4),
-                      Text(subtitle!, style: kBody.copyWith(color: kTextMuted)),
-                    ],
-                  ],
-                ),
-              ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: padded
-                    ? const EdgeInsets.fromLTRB(kGutter, 20, kGutter, 20)
-                    : EdgeInsets.zero,
-                child: body,
-              ),
+      body: backdrop == null
+          ? SafeArea(child: content)
+          : Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                backdrop!,
+                SafeArea(child: content),
+              ],
             ),
-            if (action != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(kGutter, 8, kGutter, 20),
-                child: action,
-              ),
-          ],
-        ),
-      ),
     );
   }
+}
+
+/// Дэлгэцийн толгой: зэвэн зураас + гарчиг. Энгийн текст мөр биш —
+/// хуудас нээгдэж буй мэдрэмж өгнө.
+class _Slab extends StatelessWidget {
+  const _Slab(this.title, this.subtitle);
+  final String? title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(kGutter, 20, kGutter, 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (title != null)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Container(width: 22, height: 3, color: kRust),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title!,
+                  style: kTitle.copyWith(color: kTextPrimary),
+                ),
+              ),
+            ],
+          ),
+        if (subtitle != null) ...<Widget>[
+          const SizedBox(height: 4),
+          Padding(
+            padding: EdgeInsets.only(left: title != null ? 32 : 0),
+            child: Text(subtitle!, style: kBody.copyWith(color: kTextMuted)),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// Мэдээллийн хайрцаг. Хоёр тал уян хатан — 360px дээр мөр халихгүй.
