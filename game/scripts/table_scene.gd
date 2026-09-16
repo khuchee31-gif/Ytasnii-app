@@ -143,6 +143,18 @@ var _emote_at: Dictionary = {}    # суудал → хэн рүү заасан
 var _revealed: Dictionary = {}    # илчилсэн даргын суудлууд
 var _tally: Dictionary = {}       # суудал → ирсэн саналын жин
 var _candidates: Dictionary = {}  # дахин саналын нэрс (хоосон = чөлөөт)
+
+# --- Үе шатны АЯС ------------------------------------------------------------
+var _key: SpotLight3D = null
+var _fill: SpotLight3D = null
+var _rims: Array[OmniLight3D] = []
+var _bounce: OmniLight3D = null
+var _grade: ShaderMaterial = null
+
+var _mood: Dictionary = {}        # одоогийн (хэлбэлзэж буй) утгууд
+var _mood_to: Dictionary = {}     # очих утгууд
+var _blackout := 0.0              # үхлийн харанхуй (сек)
+var _pending_dead: Array = []     # харанхуйн дунд унах суудлууд
 var _tally_top := 0               # хамгийн их нь
 var _mayor_marks: Dictionary = {} # суудал → ширээн дээрх тэмдэг
 # Зөвхөн хөгжүүлэлт: зураг авахад эмоци дуусчихсан байдаг тул давтана.
@@ -192,6 +204,16 @@ func _ready() -> void:
 		_apply_alive()
 	if _arg("pick", -1.0) >= 0.0:
 		select_seat(int(_arg("pick", 0.0)))
+	# Хөгжүүлэлтийн шалгалт: үе шатны аясыг харах.
+	#   tools/render.sh -- demo=1 mood=night
+	var md := _arg_str("mood", "")
+	if not md.is_empty():
+		set_phase(md)
+		_mood = _mood_to.duplicate()
+		_apply_mood(1.0)
+		if _hud != null and _arg("ann", 0.0) > 0.5:
+			_hud.ann_freeze = true
+			_hud.announce("ХОТ УНТЛАА", "Бүгд нүдээ ань")
 	# Хөгжүүлэлтийн шалгалт: саналын тоололыг харах.
 	#   tools/render.sh -- votes=1:4,2:4,3:6 weights=1:3
 	var vs := _arg_str("votes", "")
@@ -622,6 +644,7 @@ func _build_lamp() -> void:
 	key.shadow_normal_bias = 1.2
 	key.light_specular = 0.55
 	add_child(key)
+	_key = key
 
 	# ХОЁР ДАХЬ туяа — ижил цэгээс, өргөн, сул. Тусдаа эх үүсвэр мэт
 	# харагдахгүй (ижил байрлалтай), гэхдээ нүүрийг гэрэлтүүлнэ.
@@ -641,6 +664,7 @@ func _build_lamp() -> void:
 	fill.shadow_enabled = false
 	fill.light_specular = 0.25
 	add_child(fill)
+	_fill = fill
 
 	# Гэрлийн багана + тоос. Энэ хоёр нь харанхуйд ГҮН үүсгэнэ — тоглоом
 	# хавтгай зураг биш, АГААРТАЙ орон зай мэт болно.
@@ -678,6 +702,7 @@ func _build_lamp() -> void:
 		rim.shadow_enabled = false
 		rim.light_specular = 0.55
 		add_child(rim)
+		_rims.append(rim)
 
 	var bounce := OmniLight3D.new()
 	bounce.position = Vector3(0, TABLE_H + 0.16, 0)
@@ -688,6 +713,7 @@ func _build_lamp() -> void:
 	bounce.shadow_enabled = false
 	bounce.light_specular = 0.10
 	add_child(bounce)
+	_bounce = bounce
 
 	_mark("lamp", Vector3(0, LAMP_Y, 0))
 
@@ -833,6 +859,7 @@ func _build_post() -> void:
 		var m := ShaderMaterial.new()
 		m.shader = sh
 		rect.material = m
+		_grade = m
 	layer.add_child(rect)
 
 
@@ -879,6 +906,7 @@ func _build_hud() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	_drive_mood(delta)
 	_drive_actors(delta)
 	if _hud == null or _cam == null:
 		return
@@ -1048,6 +1076,112 @@ func _seat_name(seat: int) -> String:
 	return "%d. %s%s" % [seat + 1, n, tag]
 
 
+# --- Үе шатны аяс ------------------------------------------------------------
+#
+# ГЭРЭЛ БОЛ ХАМГИЙН ХҮЧТЭЙ ӨГҮҮЛЭГЧ. «Хот унтлаа» гэсэн бичвэр бол
+# зөвхөн үг; гэрэл унтарч, өнгө хүйтэн болж, хүрээ хаагдах нь ХЭЛЭХГҮЙ
+# мэдрүүлнэ. Дэлгэц уншдаггүй хүн ч шөнө болсныг мэднэ.
+#
+# Утга бүр нь ҮРЖҮҮЛЭГЧ (гэрэлд) эсвэл ШУУД утга (өнгөний засварт).
+# Бүгд ЖИГД шилжинэ — үсрэлт нь кино биш, алдаа мэт мэдрэгдэнэ.
+const MOODS := {
+	"lobby": {"key": 1.0, "fill": 1.0, "rim": 1.0, "bounce": 1.0,
+		"sat": 0.72, "vig": 1.34, "contrast": 1.22, "tint": Color(1.04, 0.98, 0.92)},
+	# ШӨНӨ: чийдэн бараг унтарна, хүйтэн, хүрээ хаагдана.
+	# ХЭТ ХАРАНХУЙ БОЛГОЖ БОЛОХГҮЙ: алуурчин шөнө суудал СОНГОХ ёстой.
+	# Эхний тохиргоо (key 0.22, rim 0.75) нь дүрсийг бүрэн залгиж,
+	# хэн хаана сууж байгааг таахын аргагүй болгож байв. Арын хүйтэн
+	# гэрлийг ЧАНГАЛЖ, гол гэрлийг сул үлдээвэл дүрс нь ХАРАНХУЙГААС
+	# ТАСАРНА — шөнө хэвээр, гэхдээ товшиж болно.
+	"night": {"key": 0.30, "fill": 0.26, "rim": 1.10, "bounce": 0.22,
+		"sat": 0.34, "vig": 1.76, "contrast": 1.34, "tint": Color(0.80, 0.90, 1.12)},
+	# ҮҮР: дулаан гэрэл буцаж ирнэ, гэхдээ бүрэн биш.
+	"dawn": {"key": 0.72, "fill": 0.70, "rim": 0.85, "bounce": 0.80,
+		"sat": 0.60, "vig": 1.50, "contrast": 1.26, "tint": Color(1.10, 0.96, 0.86)},
+	"day": {"key": 1.0, "fill": 1.0, "rim": 1.0, "bounce": 1.0,
+		"sat": 0.76, "vig": 1.30, "contrast": 1.20, "tint": Color(1.04, 0.98, 0.92)},
+	# САНАЛ: чийдэн доошилсон мэт — хүрээ хаагдаж, ширээ л үлдэнэ.
+	"vote": {"key": 1.12, "fill": 0.78, "rim": 0.80, "bounce": 1.05,
+		"sat": 0.66, "vig": 1.62, "contrast": 1.32, "tint": Color(1.06, 0.96, 0.90)},
+	"elimination": {"key": 0.90, "fill": 0.55, "rim": 0.60, "bounce": 0.80,
+		"sat": 0.40, "vig": 1.78, "contrast": 1.40, "tint": Color(1.00, 0.94, 0.92)},
+	"gameOver": {"key": 0.80, "fill": 0.80, "rim": 1.20, "bounce": 0.60,
+		"sat": 0.22, "vig": 1.60, "contrast": 1.30, "tint": Color(0.92, 0.95, 1.06)},
+}
+
+## Үе шатны нэрийг аяс руу зураглана.
+const PHASE_MOOD := {
+	"lobby": "lobby",
+	"dealing": "night",
+	"nightFalls": "night",
+	"nightMafia": "night",
+	"nightDoctor": "night",
+	"nightDetective": "night",
+	"dawn": "dawn",
+	"day": "day",
+	"vote": "vote",
+	"elimination": "elimination",
+	"gameOver": "gameOver",
+}
+
+## Аяс хэр хурдан солигдох вэ (нэг секундэд хэдэн хувь).
+const MOOD_SPEED := 1.6
+
+
+## Үе шат солигдов — аясыг тийш нь ЖИГД аваачна.
+func set_phase(name_v: String) -> void:
+	var mood: String = str(PHASE_MOOD.get(name_v, "day"))
+	_mood_to = MOODS.get(mood, MOODS["day"]).duplicate()
+
+
+## Аясыг кадр тутам ойртуулна.
+func _drive_mood(delta: float) -> void:
+	if _mood_to.is_empty():
+		return
+	if _mood.is_empty():
+		_mood = _mood_to.duplicate()
+	var k: float = clampf(delta * MOOD_SPEED, 0.0, 1.0)
+	# ҮХЛИЙН ХАРАНХУЙ. Гэрэл унтарч, дахин асахад хүн аль хэдийн унасан
+	# байна. Ясыг нь жигд хөдөлгөх боломжгүй (суух байрлал нь нэг удаа
+	# тооцогддог) тул шилжилтийг ХАРАНХУЙН АРД нуух нь кино хэлээр
+	# бол зүгээр л ОГТЛОЛТ.
+	var dim := 1.0
+	if _blackout > 0.0:
+		_blackout -= delta
+		dim = clampf(1.0 - sin(clampf(_blackout / 0.55, 0.0, 1.0) * PI) * 0.94,
+			0.06, 1.0)
+		if _blackout <= 0.30 and not _pending_dead.is_empty():
+			_drop_pending()
+	for f in ["key", "fill", "rim", "bounce", "sat", "vig", "contrast"]:
+		_mood[f] = lerpf(float(_mood[f]), float(_mood_to[f]), k)
+	_mood["tint"] = Color(_mood["tint"]).lerp(Color(_mood_to["tint"]), k)
+	_apply_mood(dim)
+
+
+func _apply_mood(dim: float) -> void:
+	if _key != null:
+		_key.light_energy = _arg("key", KEY_ENERGY) * float(_mood["key"]) * dim
+	if _fill != null:
+		_fill.light_energy = _arg("fill", FILL_ENERGY) * float(_mood["fill"]) * dim
+	if _bounce != null:
+		_bounce.light_energy = \
+			_arg("bounce", BOUNCE_ENERGY) * float(_mood["bounce"]) * dim
+	for r in _rims:
+		r.light_energy = _arg("rim", RIM_ENERGY) * float(_mood["rim"]) * dim
+	if _grade != null:
+		_grade.set_shader_parameter("saturation", float(_mood["sat"]))
+		_grade.set_shader_parameter("vignette", float(_mood["vig"]))
+		_grade.set_shader_parameter("contrast", float(_mood["contrast"]))
+		_grade.set_shader_parameter("tint", Color(_mood["tint"]))
+
+
+## Харанхуйн дунд унана.
+func _drop_pending() -> void:
+	for seat in _pending_dead:
+		_slump(int(seat))
+	_pending_dead.clear()
+
+
 ## ДАХИН САНАЛЫН нэрс (СЕРВЕРИЙН дугаар). Хоосон бол чөлөөт санал.
 ##
 ## Тэнцсэн хоёроос ӨӨР хүнийг товшиход сонголт болохгүй — сервер ч
@@ -1183,18 +1317,32 @@ func _apply_alive() -> void:
 			a.dead = dead
 		if not dead:
 			continue        # үхсэн хүн эргэж босохгүй — буцах зам хэрэггүй
-		var root: Node3D = e["root"]
-		var sk: Skeleton3D = e["skel"]
-		Humanoid.pose_slumped(sk)
-		# Зөвхөн доошлуулбал толгой нь ширээний ЦААНА, шалан дээр унана:
-		# суудал 1.52 м-т, ширээний ирмэг 1.24 м-т. Ширээн дээр унахын
-		# тулд ШИРЭЭ РҮҮ бас зөөнө. Тулгуур цэг нь ширээ рүү харсан тул
-		# дотоод +Z нь төв рүү чиглэнэ.
-		root.position.z += 0.42
-		Humanoid.seat_by_head(root, sk, TABLE_H + 0.05)
-		_drain(root)
-		if _heads.has(seat):
-			_heads[seat] = _head_world(root, sk)
+		# ХАРАНХУЙН АРД унана. Тайз анх баригдаж байгаа бол (жишээ нь
+		# дахин холбогдсон хүн) шууд — тэр үед «мөч» гэж байхгүй.
+		if _mood.is_empty():
+			_slump(int(seat))
+		else:
+			_pending_dead.append(int(seat))
+			_blackout = maxf(_blackout, 0.55)
+
+
+## Нэг хүнийг ширээн дээр унагана.
+func _slump(seat: int) -> void:
+	if not _people.has(seat):
+		return
+	var e: Dictionary = _people[seat]
+	var root: Node3D = e["root"]
+	var sk: Skeleton3D = e["skel"]
+	Humanoid.pose_slumped(sk)
+	# Зөвхөн доошлуулбал толгой нь ширээний ЦААНА, шалан дээр унана:
+	# суудал 1.52 м-т, ширээний ирмэг 1.24 м-т. Ширээн дээр унахын
+	# тулд ШИРЭЭ РҮҮ бас зөөнө. Тулгуур цэг нь ширээ рүү харсан тул
+	# дотоод +Z нь төв рүү чиглэнэ.
+	root.position.z += 0.42
+	Humanoid.seat_by_head(root, sk, TABLE_H + 0.05)
+	_drain(root)
+	if _heads.has(seat):
+		_heads[seat] = _head_world(root, sk)
 
 
 ## Өнгийг нь сорж авна — үхсэн хүн саарал болно.

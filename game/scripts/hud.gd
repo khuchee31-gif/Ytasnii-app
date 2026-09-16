@@ -64,6 +64,21 @@ const EMOTES: Array[Dictionary] = [
 ## гэж мэдрэгдэнэ. Тиймээс энд ч барина.
 const EMOTE_GAP_MS := 1200
 
+## ҮЕ ШАТНЫ ЗАРЛАЛ — дэлгэцийн төвд томоор гарч, уусан алга болно.
+##
+## ЯАГААД ХЭРЭГТЭЙ ВЭ: үе шат солигдохыг зөвхөн дээд буланд жижиг
+## бичвэрээр хэлж байсан. Ангийн шуугиан дунд хэн ч түүнийг анзаарахгүй
+## — «одоо шөнө болов уу?» гэж асуусаар байна. Дэлгэцийг хэдэн хором
+## эзэлсэн том үсэг нь ярианы дундуур ч хүрнэ.
+var _ann_scrim := ColorRect.new()
+var _ann := Label.new()
+var _ann_sub := Label.new()
+var _ann_t := 0.0
+const ANN_TOTAL := 2.1
+
+## Зөвхөн хөгжүүлэлт: зарлалыг зогсоож зураг авна.
+var ann_freeze := false
+
 ## Санал хураалтын тоолол — толгой бүрийн дээрх тоо.
 var _tally_root := Control.new()
 var _tally: Array[Label] = []
@@ -126,6 +141,32 @@ func _ready() -> void:
 	_tally_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_tally_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_tally_root)
+
+	# --- Үе шатны зарлал ------------------------------------------------------
+	_ann_scrim.color = Color(0, 0, 0, 0.0)
+	_ann_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ann_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ann_scrim.visible = false
+	root.add_child(_ann_scrim)
+
+	_ann.add_theme_font_size_override("font_size", 72)
+	_ann.add_theme_color_override("font_color", INK)
+	_ann.add_theme_constant_override("outline_size", 12)
+	_ann.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_ann.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ann.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_band(_ann, Control.PRESET_CENTER, -600, -70, 600, 10)
+	_ann.visible = false
+	root.add_child(_ann)
+
+	_ann_sub.add_theme_font_size_override("font_size", 26)
+	_ann_sub.add_theme_color_override("font_color", AMBER)
+	_ann_sub.add_theme_constant_override("outline_size", 8)
+	_ann_sub.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_ann_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_band(_ann_sub, Control.PRESET_CENTER, -600, 14, 600, 54)
+	_ann_sub.visible = false
+	root.add_child(_ann_sub)
 
 	# --- Доод: микрофон ба үйлдэл --------------------------------------------
 	_mic.add_theme_font_size_override("font_size", 24)
@@ -248,10 +289,40 @@ func _sync_emotes() -> void:
 		b.disabled = cool
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# Хүлээлт дуусахад товчийг эргүүлж асаана.
 	if _emote_bar.visible:
 		_sync_emotes()
+	if _ann_t > 0.0:
+		# Зөвхөн хөгжүүлэлт: толгойгүй орчинд нэг кадр ~0.16 сек тул
+		# зарлал зураг авахаас өмнө уусчихдаг.
+		if ann_freeze:
+			_ann_t = ANN_TOTAL * 0.65
+		_ann_t -= delta
+		var k: float = 1.0 - clampf(_ann_t / ANN_TOTAL, 0.0, 1.0)
+		# Хурдан гарч, барьж, уусна.
+		var a: float = smoothstep(0.0, 0.14, k) * (1.0 - smoothstep(0.62, 1.0, k))
+		_ann.modulate.a = a
+		_ann_sub.modulate.a = a
+		_ann_scrim.color.a = a * 0.45
+		if _ann_t <= 0.0:
+			_ann.visible = false
+			_ann_sub.visible = false
+			_ann_scrim.visible = false
+
+
+## Үе шатыг дэлгэцийн төвд зарлана.
+func announce(text: String, sub := "") -> void:
+	if text.is_empty():
+		return
+	_ann.text = text
+	_ann_sub.text = sub
+	_ann.visible = true
+	_ann_sub.visible = not sub.is_empty()
+	_ann_scrim.visible = true
+	_ann.modulate.a = 0.0
+	_ann_sub.modulate.a = 0.0
+	_ann_t = ANN_TOTAL
 
 
 ## Дэлгэцийг шинэчилнэ.

@@ -40,6 +40,19 @@ const PHASE_NAME := {
 	"gameOver": "ТОГЛОЛТ ДУУСЛАА",
 }
 
+## Үе шатны зарлалын дэд мөр. Богино, ХЭЛЭХГҮЙ мэдрүүлэх үг.
+const PHASE_SUB := {
+	"nightFalls": "Бүгд нүдээ ань",
+	"nightMafia": "Хэн ч хөдөлж болохгүй",
+	"nightDoctor": "Нэг хүн аврагдана",
+	"nightDetective": "Нэг нэр шалгагдана",
+	"dawn": "Хот сэрлээ",
+	"day": "Ярилц",
+	"vote": "Гараа өргө",
+	"elimination": "Шийдвэр",
+	"gameOver": "",
+}
+
 ## Дүр бүр аль шөнийн үе шатанд үйлддэг вэ.
 const ACTS_IN := {
 	"killer": "nightMafia",
@@ -413,6 +426,12 @@ func _on_your_role(d: Dictionary) -> void:
 
 func _on_phase(d: Dictionary) -> void:
 	_phase = str(d.get("phase", _phase))
+	if table != null:
+		table.set_phase(_phase)
+	# ҮЕ ШАТЫГ ЗАРЛАНА. Лобби, хөзөр тараах хоёрыг алгасна — тэд
+	# өөрсдийн дэлгэцтэй.
+	if hud != null and _phase != "lobby" and _phase != "dealing":
+		hud.announce(str(PHASE_NAME.get(_phase, "")), PHASE_SUB.get(_phase, ""))
 	if _phase == "nightFalls":
 		_watch_seen.clear()
 	# Шинэ үе шат бүрд дахин саналын хязгаар арилна — сервер шинээр
