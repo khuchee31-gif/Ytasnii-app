@@ -107,3 +107,5 @@ flutter:
           weight: 500
         - asset: assets/fonts/Rubik-Bold.ttf
           weight: 700
+  shaders:
+    - shaders/probe.frag
