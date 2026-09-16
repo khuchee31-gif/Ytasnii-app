@@ -1162,7 +1162,11 @@ class GameRoom {
     // Шивнээ нь НИЙТИЙНХ — ботын санах ойд ч бичигдэнэ. Энэ нь шинэ
     // суваг нээхгүй: яг ижил тоо бүх утас руу явна.
     for (final BotSeat b in _bots.values) {
-      b.mem.whispered.addAll(r.whisper);
+      // ЗӨВХӨН СҮҮЛЧИЙН ШӨНИЙНХ. Хуримтлуулбал дөрөв дэх шөнө гэхэд
+      // ширээний хагас нь «сэжигтэй» болж, дохио утгаа алдана.
+      b.mem.whispered
+        ..clear()
+        ..addAll(r.whisper);
     }
     out.add(Outbound.all(Envelope(S2C.nightResult, <String, Object?>{
       'night': _nightNo,
