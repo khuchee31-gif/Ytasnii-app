@@ -72,6 +72,18 @@ class GameRoom {
   int _phaseEndsAtMs = 0;
 
   eng.Setup? _setup;
+
+  /// Тараалтаас гарсан тэнцэл тайлах эрэмбэ. Шөнө бүр ижил.
+  List<int> _orderPerm = const <int>[];
+
+  /// Өмнөх шөнөөс ДАМЖИХ төлөв.
+  ///
+  /// Эмчийн хоёр дүрэм — «хоёр шөнө дараалж нэг хүнийг эмчлэхгүй» ба
+  /// «өөрийгөө нэг л удаа» — ЗӨВХӨН эдгээрээр ажилладаг. Сервер тэднийг
+  /// хаядаг байсан тул онлайн тоглолтод хоёр дүрэм НЭГ Ч УДАА
+  /// хэрэгжиж байгаагүй: эмч шөнө бүр өөрийгөө эмчилж болох байв.
+  Map<int, int> _lastHeal = const <int, int>{};
+  Map<int, int> _selfHealUsed = const <int, int>{};
   eng.NightState? _night;
   int _nightNo = 0;
   final List<eng.Intent> _intents = <eng.Intent>[];
@@ -125,6 +137,18 @@ class GameRoom {
 
   /// Тестэд л хэрэгтэй — жинхэнэ урсгалд дүрийг ХЭЗЭЭ Ч ингэж уншихгүй.
   eng.Role? debugRoleOf(PlayerId id) => _secrets[id]?.role;
+
+  /// Тэнцэл тайлах эрэмбэ. НУУЦ БИШ — `GAME_CREATED`-д ил бичигддэг
+  /// (GDD-05). Тестэд серверийн хаядаг байсан эрэмбийг шалгана.
+  List<int> get debugOrderPerm => _orderPerm;
+
+  /// ЯГ ОДООГИЙН шөнийн эрэмбэ. Тестэд л хэрэгтэй: тараалтын эрэмбийг
+  /// хадгалах нь хангалтгүй, түүнийг ХЭРЭГЛЭХ ёстой.
+  List<int> get debugNightOrder => _night?.orderPerm ?? const <int>[];
+
+  /// Өмнөх шөнөөс дамжсан эмчийн төлөв. Тестэд л хэрэгтэй.
+  Map<int, int> get debugLastHeal => _lastHeal;
+  Map<int, int> get debugSelfHealUsed => _selfHealUsed;
 
   /// Тестэд л хэрэгтэй: ботын дугаарууд.
   List<PlayerId> get debugBotIds => _bots.keys.toList(growable: false);
@@ -642,6 +666,13 @@ class GameRoom {
     }
 
     _setup = eng.Setup(n: n, roleBySeat: d.roleBySeat);
+    // ТЭНЦЭЛ ТАЙЛАХ ЭРЭМБЭ. Өмнө нь шөнө бүр `[1..n]` гэж ЗОХИОДОГ
+    // байв — тэр нь тараалтын үрийг бүхэлд нь хаяна. Үр дагавар нь
+    // жижиг мэт боловч ТОГЛООМЫН ШУДАРГА БАЙДАЛ: хоёр мафи өөр хүн
+    // сонговол `pickVictim` тэнцлийг ЭРЭМБЭЭР тайлдаг (resolve.dart
+    // §430) тул 1-р суудал үргэлж ялдаг болно. Эрэмбэ нь `GAME_CREATED`
+    // -д ИЛ бичигддэг тул нууцлах зүйл байхгүй — зүгээр л ашиглах ёстой.
+    _orderPerm = d.orderPerm;
     _nightNo = 0;
     _win = eng.WinState.none;
 
@@ -741,7 +772,11 @@ class GameRoom {
           .map((PublicPlayer p) => p.seat!)
           .toSet(),
       seed: _seed,
-      orderPerm: List<int>.generate(_setup!.n, (int i) => i + 1),
+      orderPerm: _orderPerm.isEmpty
+          ? List<int>.generate(_setup!.n, (int i) => i + 1)
+          : _orderPerm,
+      lastHealTarget: _lastHeal,
+      selfHealUsed: _selfHealUsed,
     );
     _enter(NetPhase.nightFalls, nowMs, _ms(PhaseMs.nightFalls), out);
   }
@@ -773,6 +808,10 @@ class GameRoom {
   void _resolveNight(int nowMs, List<Outbound> out) {
     _fillMissingIntents();
     final eng.NightReport r = eng.resolveNight(_night!, _intents);
+    // ДАМЖИХ ТӨЛӨВИЙГ ХАДГАЛНА. Хөдөлгүүр үүнийг тооцоод буцаадаг ч
+    // сервер хаядаг байв.
+    _lastHeal = r.nextLastHeal;
+    _selfHealUsed = r.nextSelfHealUsed;
 
     for (final eng.Death d in r.deaths) {
       final PlayerId? victim = _bySeat[d.victim];

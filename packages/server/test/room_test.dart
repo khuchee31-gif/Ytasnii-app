@@ -29,15 +29,38 @@ GameRoom _roomWith(int n, {int seed = 5}) {
   return r;
 }
 
-/// Нийтийн мессежийн бүх текстийг нэг мөр болгож буцаана.
+/// Нийтийн мессежийн бүх текстийг нэг мөр болгож, ЖИЖИГ ҮСГЭЭР буцаана.
+///
+/// ЖИЖИГ ҮСЭГ ЯАГААД ЧУХАЛ ВЭ: өмнө нь том жижгээр нь шалгадаг байсан
+/// тул `"detective"` гэсэн ямар ч ЖИЖИГ үсэгтэй алдагдал баригдах ч,
+/// `"Detective"` гэж бичигдсэн бол чимээгүй өнгөрөх байв. Шалгалт нь
+/// бичих хэлбэрээс хамаарч болохгүй.
+///
+/// ҮЕ ШАТНЫ НЭРИЙГ ХАСНА. `{"phase":"nightDoctor"}` нь бүх дэлгэц рүү
+/// зориудаар явдаг бөгөөд тэр нь ямар ч ТОГЛОГЧИЙН дүрийг хэлэхгүй:
+/// үе шатууд хэн амьд байхаас үл хамааран ижил дараалал, ижил уртаар
+/// явдаг (`_fillMissingIntents` яг үүний төлөө оршино). Тэднийг тусад
+/// нь, ЦАГААН ЖАГСААЛТААР шалгана.
 String _publicText(List<Outbound> out) {
   final StringBuffer b = StringBuffer();
   for (final Outbound o in out) {
     if (!o.broadcast) continue;
-    b.write(o.msg.encode());
+    b.write(o.msg.encode().replaceAll(
+        RegExp(r'"phase":"[A-Za-z]*"'), '"phase":"_"'));
     b.write('\n');
   }
-  return b.toString();
+  return b.toString().toLowerCase();
+}
+
+/// Нийтэд явсан БҮХ үе шатны нэр.
+Set<String> _publicPhases(List<Outbound> out) {
+  final Set<String> got = <String>{};
+  for (final Outbound o in out) {
+    if (!o.broadcast) continue;
+    final Object? p = o.msg.data['phase'];
+    if (p is String) got.add(p);
+  }
+  return got;
 }
 
 void main() {
@@ -310,6 +333,21 @@ void main() {
         expect(text.contains(word), isFalse,
             reason: 'нийтийн мессежид «$word» олдлоо');
       }
+
+      // Үе шатны нэр нь ЦАГААН ЖАГСААЛТААС гарна. Шинэ үе шат нэмэх нь
+      // энэ тестийг унагана — тэгээд хүн «энэ нэр юу зарлаж байна?» гэж
+      // бодох ёстой болно.
+      expect(_publicPhases(beforeEnd).difference(<String>{
+        'dealing',
+        'nightFalls',
+        'nightMafia',
+        'nightDoctor',
+        'nightDetective',
+        'dawn',
+        'day',
+        'vote',
+        'elimination',
+      }), isEmpty);
     });
 
     test('`gameOver` дээр л бүх дүр ил болно', () {
