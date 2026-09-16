@@ -8,10 +8,12 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:protocol/protocol.dart';
 import 'package:server/server.dart';
 import 'package:server/src/hub.dart';
+import 'package:server/src/voice_relay.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_web_socket/shelf_web_socket.dart';
@@ -23,6 +25,14 @@ const Duration kTickEvery = Duration(milliseconds: 250);
 /// Нэг холболт хэр олон мессеж илгээж болох вэ (секундэд).
 /// Хэт олон илгээвэл таслана — нэг хүн серверийг дүүргэж болохгүй.
 const int kMaxMsgPerSecond = 20;
+
+/// Дууны хүрээ секундэд хэд ирж болох вэ.
+///
+/// Хэвийн урсгал нь 20 мс тутам нэг = 50. Сүлжээний бөөгнөрөл задрахад
+/// бага зэрэг бөөнөөрөө ирж болох тул 80 хүртэл зөвшөөрнө. Түүнээс
+/// цааш нь ХАЯНА: нэг хүн сувгийг дүүргэж, бусдын дууг живүүлэх
+/// боломжгүй байх ёстой.
+const int kMaxAudioPerSecond = 80;
 
 void main(List<String> args) async {
   final int port = _intArg(args, '--port') ?? 8080;
@@ -56,12 +66,22 @@ class _Conn {
   /// Хурд хязгаарлах цонх.
   int windowStartMs = 0;
   int msgsInWindow = 0;
+  int audioWindowStartMs = 0;
+  int audioInWindow = 0;
 
   void send(Envelope e) {
     try {
       socket.sink.add(e.encode());
     } catch (_) {
       // Хаагдсан сокет — тоохгүй. Цэвэрлэгээ `onDone`-д болно.
+    }
+  }
+
+  void sendBytes(Uint8List b) {
+    try {
+      socket.sink.add(b);
+    } catch (_) {
+      // Хаагдсан сокет — тоохгүй.
     }
   }
 }
@@ -80,8 +100,14 @@ class Server {
     _conns.add(c);
     socket.stream.listen(
       (Object? raw) {
-        if (raw is! String) return;
-        _onMessage(c, raw, clock.elapsedMilliseconds);
+        // Бичвэр хүрээ = удирдлага (JSON). Хоёртын хүрээ = дуу.
+        // Хоёрыг ялгах нь хямд бөгөөд дууны замд JSON задлах зардал
+        // байхгүй болно — секундэд 50 хүрээ ирдэг.
+        if (raw is String) {
+          _onMessage(c, raw, clock.elapsedMilliseconds);
+        } else if (raw is List<int>) {
+          _onAudio(c, raw, clock.elapsedMilliseconds);
+        }
       },
       onDone: () => _detach(c),
       onError: (Object _) => _detach(c),
@@ -95,6 +121,48 @@ class Server {
     _conns.remove(c);
     if (id != null) _byPlayer.remove(id);
     if (id != null && room != null) _dispatch(room, room.leave(id));
+  }
+
+  /// Дууны хүрээг СУВГИЙН ГИШҮҮД рүү дамжуулна.
+  ///
+  /// ЭНЭ БОЛ «зөвхөн хоёр алуурчин бие биенээ сонсоно» гэсэн шаардлагын
+  /// БҮХ хэрэгжилт. Гурван зүйлийг анхаарна:
+  ///
+  ///   1. Ярих эрхийг СЕРВЕР шийднэ (`room.voiceMembers`). Апп «би ярьж
+  ///      болно» гэж хэлсэн ч хамаагүй — эрхгүй бол хүрээг хаяна.
+  ///   2. Сувагт байхгүй хүн рүү пакет ИЛГЭЭХГҮЙ. Чагнахыг хориглох
+  ///      биш — сонсох ЮМ БАЙХГҮЙ. Өөрчилсөн апп ч олох зүйлгүй.
+  ///   3. Өөрийн дууг өөрт нь буцаахгүй (цуурай).
+  void _onAudio(_Conn c, List<int> bytes, int nowMs) {
+    if (nowMs - c.audioWindowStartMs >= 1000) {
+      c.audioWindowStartMs = nowMs;
+      c.audioInWindow = 0;
+    }
+    if (++c.audioInWindow > kMaxAudioPerSecond) return;
+
+    final PlayerId? id = c.playerId;
+    final GameRoom? room = c.room;
+    if (id == null || room == null) return;
+
+    final Set<PlayerId> channel = room.voiceMembers;
+    if (!channel.contains(id)) return;
+
+    final VoiceFrame? f = VoiceFrame.decodeUp(bytes);
+    if (f == null) return;
+
+    final Uint8List down = VoiceFrame(
+      seq: f.seq,
+      seat: room.seatOf(id) ?? 0,
+      audio: f.audio,
+    ).encodeDown();
+
+    // ХЭН сонсохыг `VoiceRelay` шийднэ — тэр нь сүлжээгүйгээр
+    // шалгагддаг (`test/voice_relay_test.dart`). Энэ файл зөвхөн байт
+    // зөөнө.
+    for (final PlayerId to
+        in VoiceRelay.recipients(from: id, channel: channel)) {
+      _byPlayer[to]?.sendBytes(down);
+    }
   }
 
   void _onMessage(_Conn c, String raw, int nowMs) {

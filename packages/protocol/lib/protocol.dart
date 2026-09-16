@@ -5,3 +5,4 @@
 library;
 
 export 'src/messages.dart';
+export 'src/voice.dart';

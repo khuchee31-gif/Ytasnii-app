@@ -25,6 +25,8 @@ signal game_over(data: Dictionary)
 signal room_list(data: Dictionary)
 signal voice_grant(data: Dictionary)
 signal server_error(code: String, data: Dictionary)
+## Дууны хүрээ ирэв: хэн (суудал), дугаар, μ-law байтууд.
+signal audio_frame(seat: int, seq: int, audio: PackedByteArray)
 
 ## Протоколын хувилбар. `packages/protocol/lib/src/messages.dart`-тай
 ## ЯГ тэнцүү байх ёстой. Зөрвөл сервер шууд татгалзана — «хагас
@@ -127,7 +129,14 @@ func _process(delta: float) -> void:
 				send("hello", {"playerId": player_id, "name": player_name})
 				opened.emit()
 			while _ws.get_available_packet_count() > 0:
-				_receive(_ws.get_packet().get_string_from_utf8())
+				# Бичвэр хүрээ = удирдлага (JSON). Хоёртын = дуу.
+				# `was_string_packet()` нь ХАМГИЙН СҮҮЛД авсан хүрээг
+				# хэлдэг тул `get_packet()`-ийн дараа шалгана.
+				var pkt := _ws.get_packet()
+				if _ws.was_string_packet():
+					_receive(pkt.get_string_from_utf8())
+				else:
+					_receive_audio(pkt)
 			_ping_in -= delta
 			if _ping_in <= 0.0:
 				_ping_in = PING_EVERY
@@ -147,6 +156,14 @@ func send(type_v: String, data: Dictionary) -> void:
 	if _ws == null or not _open:
 		return
 	_ws.send_text(JSON.stringify({"v": PROTOCOL_VERSION, "t": type_v, "d": data}))
+
+
+## Дууны хүрээ илгээнэ. Хоёртоор — JSON-д ороодог base64 нь 33 % илүү
+## зай эзэлж, секундэд 50 удаа кодлох шаардлагатай болно.
+func send_audio(bytes: PackedByteArray) -> void:
+	if _ws == null or not _open:
+		return
+	_ws.send(bytes, WebSocketPeer.WRITE_MODE_BINARY)
 
 
 func create_room(is_public := true) -> void:
@@ -186,6 +203,13 @@ func vote(target_seat: int) -> void:
 
 
 # --- Хүлээн авах -------------------------------------------------------------
+
+## `[tag][seq lo][seq hi][seat][μ-law…]`
+func _receive_audio(b: PackedByteArray) -> void:
+	if b.size() < 5 or b[0] != 0x01:
+		return
+	audio_frame.emit(b[3], b[1] | (b[2] << 8), b.slice(4))
+
 
 func _receive(raw: String) -> void:
 	# Сүлжээнээс ирсэн ямар ч байт ИТГЭЛГҮЙ. Буруу хэлбэртэй мессеж нь

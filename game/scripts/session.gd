@@ -16,6 +16,7 @@
 extends Node
 
 const NetClient := preload("res://scripts/net_client.gd")
+const Voice := preload("res://scripts/voice.gd")
 
 ## Үе шатны монгол нэр. Сервер ямар ч хэл мэдэхгүй — зөвхөн шошго илгээнэ.
 const PHASE_NAME := {
@@ -63,6 +64,7 @@ const ERR_TEXT := {
 }
 
 var net: Node = null
+var voice: Node = null
 var table: Node3D = null
 var hud: CanvasLayer = null
 
@@ -117,6 +119,17 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	net.server_error.connect(_on_error)
 	if hud != null:
 		hud.acted.connect(_on_act)
+
+	voice = Voice.new()
+	add_child(voice)
+	voice.setup(net)
+	if table != null:
+		# Серверийн суудал 1-ээс, тайзных 0-ээс эхэлдэг.
+		var heads: Dictionary = {}
+		for i in (table.seat_heads() as Dictionary):
+			heads[int(i) + 1] = table.seat_heads()[i]
+		voice.set_seats(heads)
+
 	net.open(url, name_v)
 
 
@@ -203,6 +216,10 @@ func _on_game_over(d: Dictionary) -> void:
 
 func _on_voice(d: Dictionary) -> void:
 	_can_speak = bool(d.get("canSpeak", false))
+	# Микрофоныг СЕРВЕР нээнэ. Апп өөрөө шийддэггүй — эс бөгөөс
+	# өөрчилсөн апп шөнөжингөө ярина.
+	if voice != null:
+		voice.set_can_speak(_can_speak)
 	if verbose:
 		print("NET voiceGrant canSpeak=", _can_speak)
 	_refresh()

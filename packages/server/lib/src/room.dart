@@ -88,6 +88,13 @@ class GameRoom {
   eng.WinState get win => _win;
   List<PublicPlayer> get players => _players.values.toList(growable: false);
 
+  /// Тоглогчийн суудал. Тоглолт эхлээгүй бол `null`.
+  ///
+  /// Дууны хүрээнд «хэн ярьж байна» гэж бичихэд хэрэгтэй. Суудал нь
+  /// НИЙТИЙН мэдээлэл (`PublicPlayer.seat`) тул үүнийг гаргах нь юу ч
+  /// задлахгүй — дүрийг ХЭЗЭЭ Ч ингэж гаргахгүй.
+  int? seatOf(PlayerId id) => _players[id]?.seat;
+
   /// Тестэд л хэрэгтэй — жинхэнэ урсгалд дүрийг ХЭЗЭЭ Ч ингэж уншихгүй.
   eng.Role? debugRoleOf(PlayerId id) => _secrets[id]?.role;
 
