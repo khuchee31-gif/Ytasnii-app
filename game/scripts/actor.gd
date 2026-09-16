@@ -159,6 +159,14 @@ func emoting() -> bool:
 	return not _emote.is_empty()
 
 
+## Ярианы түвшин (0..1). `table_scene.gd` кадр бүрд бичнэ.
+var talk := 0.0
+
+## Ярихад толгой хэр дохих вэ (радиан) ба цээж хэр өргөгдөх вэ.
+const TALK_NOD := 0.055
+const TALK_LEAN := 0.035
+
+
 func tick(t: float, delta: float) -> void:
 	if sk == null or _rig.is_empty() or dead:
 		return
@@ -195,7 +203,24 @@ func tick(t: float, delta: float) -> void:
 	var micro := sin((t * 0.61 + _phase) * TAU) * 0.6 + sin((t * 0.23 + _phase * 2.1) * TAU) * 0.4
 	Humanoid.spin(sk, _bone_name("head"), left, micro * MICRO_AMP)
 
-	# 6. Эмоци.
+	# 6. ЯРИА — хэн ярьж байгааг ХАРУУЛНА.
+	#
+	# Дуу нь тухайн суудлын толгойноос гардаг ч УТАСНЫ чанга яригч дээр
+	# чиглэл бараг мэдрэгдэхгүй: харанхуй өрөөнд найман хүнээс хэн
+	# ярьж байгааг чихээр олох боломжгүй. Толгой бага зэрэг дохих нь
+	# тэр асуултыг ХАРААГААР хариулна.
+	#
+	# ХЭМЖЭЭ НЬ ЖИЖИГ байх ёстой: том хөдөлгөөн нь «ярих» биш «уурлах»
+	# мэт харагдана. 0.055 радиан ≈ 3 градус.
+	if talk > 0.001:
+		var lvl: float = clampf(talk, 0.0, 1.0)
+		# Хоёр давтамж — үе мөчний хэмнэл. Нэг синус нь «машин» мэт.
+		var jaw := sin(t * 11.3 * TAU) * 0.6 + sin(t * 4.7 * TAU) * 0.4
+		Humanoid.spin(sk, _bone_name("head"), left, jaw * lvl * TALK_NOD)
+		# Цээж бага зэрэг өргөгдөнө — амьсгаа авч байгаа мэт.
+		Humanoid.spin(sk, _bone_name("chest"), left, lvl * TALK_LEAN)
+
+	# 7. Эмоци.
 	if not _emote.is_empty():
 		_emote_t += delta
 		_apply_emote(t)

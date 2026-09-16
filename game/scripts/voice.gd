@@ -58,6 +58,16 @@ var _pcm: PackedInt32Array = PackedInt32Array()
 var _mouths: Dictionary = {}
 var _seats: Dictionary = {}
 
+## Миний суудал. Өөрийн ярианы түвшинг ширээнд харуулахад л хэрэгтэй.
+var my_seat := -1
+
+## seat → сүүлийн хүрээнүүдийн дууны түвшин (0..1). Ширээ уншина.
+var _level: Dictionary = {}
+
+## Ярианы түвшний уналт (секундэд). Хүрээ ирэхээ болиход шууд тэг
+## болговол чийдэн анивчиж байгаа мэт харагдана.
+const LEVEL_FALL := 3.2
+
 ## μ-law илтгэгчийн хүснэгт. Нэг удаа тооцно.
 var _exp: PackedByteArray = PackedByteArray()
 
@@ -148,9 +158,10 @@ func _close_mic() -> void:
 	_silent_for = TAIL
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_pump_mic()
 	_pump_mouths()
+	_fade_levels(delta)
 
 
 func _pump_mic() -> void:
@@ -184,6 +195,12 @@ func _send_frame() -> void:
 	var peak := 0.0
 	for i in range(FRAME):
 		peak = maxf(peak, absf(float(_pcm[i]) / 32767.0))
+
+	# ӨӨРИЙН СУУДЛЫГ ЧУ ХАРУУЛНА. Микрофон ажиллаж байгаа эсэхийг
+	# тоглогч ямар нэг байдлаар МЭДЭХ ёстой; «МИКРОФОН НЭЭЛТТЭЙ» гэсэн
+	# бичиг нь зөвхөн ЗӨВШӨӨРӨЛ байгааг хэлнэ, дуу ЯВЖ байгааг биш.
+	if my_seat > 0:
+		_level[my_seat] = maxf(float(_level.get(my_seat, 0.0)), peak)
 
 	if peak < GATE:
 		_silent_for += 1
@@ -247,10 +264,25 @@ func _on_audio(seat: int, _seq_v: int, law: PackedByteArray) -> void:
 		return
 	var frames := PackedVector2Array()
 	frames.resize(law.size())
+	var sum := 0.0
 	for i in range(law.size()):
 		var s := float(_decode(law[i])) / 32767.0
 		frames[i] = Vector2(s, s)
+		sum += s * s
 	(m["queue"] as Array).append(frames)
+	# ХЭН ЯРЬЖ БАЙГААГ ХЭМЖИНЭ.
+	#
+	# Дуу нь тухайн суудлын толгойноос гардаг ч УТАСНЫ чанга яригч дээр
+	# чиглэл бараг мэдрэгдэхгүй — харанхуй өрөөнд найман хүнээс хэн
+	# ярьж байгааг ЧИХЭЭР олох боломжгүй. Тиймээс түвшнийг гаргаж,
+	# ширээ түүнийг ХАРУУЛНА.
+	#
+	# `_on_audio` нь ЗӨВХӨН сервер тэр хүнийг сувагт оруулсан үед л
+	# дуудагддаг тул энэ нь шинэ мэдээлэл алдагдуулахгүй: сонсож
+	# байгаа дууг л харуулж байна.
+	if law.size() > 0:
+		var rms: float = sqrt(sum / float(law.size()))
+		_level[seat] = maxf(float(_level.get(seat, 0.0)), rms)
 
 
 ## Суудал бүрт нэг чанга яригч. Гурван хэмжээст орон зайд байрлуулснаар
@@ -277,6 +309,16 @@ func _mouth(seat: int) -> Dictionary:
 	var m := {"player": p, "playback": p.get_stream_playback(), "queue": []}
 	_mouths[seat] = m
 	return m
+
+
+## Тухайн суудал хэр чанга ярьж байна (0..1). Ярихгүй бол 0.
+func level_of(seat: int) -> float:
+	return float(_level.get(seat, 0.0))
+
+
+func _fade_levels(delta: float) -> void:
+	for seat in _level:
+		_level[seat] = maxf(0.0, float(_level[seat]) - LEVEL_FALL * delta)
 
 
 func _pump_mouths() -> void:

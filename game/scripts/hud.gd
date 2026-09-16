@@ -45,6 +45,11 @@ var _act := Button.new()
 var _extra := Button.new()
 var _rule := ColorRect.new()
 
+## ХЭН ЯРЬЖ БАЙНА. Ширээн дээрх гэрэлтэлт нь чиглэлийг хэлнэ, энэ мөр
+## нь НЭРИЙГ хэлнэ. Утасны жижиг дэлгэцэн дээр хоёулаа хэрэгтэй:
+## харанхуйд найман суудлын аль нь гэрэлтэж байгааг ялгах нь хэцүү.
+var _talker := Label.new()
+
 ## Дууны систем. `table_scene.gd` өгнө; байхгүй ч HUD ажиллана
 ## (демо, зураг авах горим).
 var sfx: Node = null
@@ -242,6 +247,16 @@ func _ready() -> void:
 	_card_btn.pressed.connect(hide_role_card)
 	_style(_card_btn, 16, 18)
 	_card_box.add_child(_card_btn)
+
+	_talker.add_theme_font_size_override("font_size", 26)
+	_talker.add_theme_color_override("font_color", COLD)
+	_talker.add_theme_constant_override("outline_size", 6)
+	_talker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
+	_talker.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# БАРУУН ДЭЭД булан — зүүн дээд нь үе шат, зөвлөмжийнх.
+	_band(_talker, Control.PRESET_TOP_RIGHT, -700, 96, -PAD, 136)
+	_talker.visible = false
+	root.add_child(_talker)
 
 	# --- Төгсгөлийн илчлэлт ---------------------------------------------------
 	_rev_scrim.color = Color(0.03, 0.02, 0.02, 0.96)
@@ -556,6 +571,7 @@ func _hide_play_ui() -> void:
 	_extra.visible = false
 	_emote_bar.visible = false
 	_name.visible = false
+	_talker.visible = false
 	_mic.visible = false
 	_phase.visible = false
 	_timer.visible = false
@@ -664,6 +680,15 @@ func show_tally(items: Array) -> void:
 ##
 ## `screen` нь `Camera3D.unproject_position`-оос ирнэ. Ард нь байвал
 ## `visible = false` болгож дуудна.
+## Ярьж байгаа хүний нэр. Хоосон бол мөр алга болно.
+func show_talker(text: String) -> void:
+	if reveal_open():
+		_talker.visible = false
+		return
+	_talker.text = text
+	_talker.visible = not text.is_empty()
+
+
 func show_name(text: String, screen: Vector2, visible_v: bool) -> void:
 	# Илчлэлт нээлттэй бол нэрийн шошго ГАРАХГҮЙ: тайз нь хөшгийн
 	# цаана байгаа ч шошго нь ДЭЭР нь зурагдана.

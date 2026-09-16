@@ -162,6 +162,24 @@ var _marks: Dictionary = {}
 ## seat → толгойн дэлхийн цэг. Камер үүгээр суудал сонгоно.
 var _heads: Dictionary = {}
 var _ring: MeshInstance3D = null
+
+## Ярьж байгаа хүний тэмдэг ба түүний жигдрүүлсэн түвшин.
+var _talk_beam: MeshInstance3D = null
+var _talk_show := 0.0
+
+## Зөвхөн хөгжүүлэлт: тухайн суудлыг «ярьж байна» гэж хүчээр тэмдэглэнэ.
+var _dev_talk := -1
+
+## Дууны давхарга. `session.gd` өгнө.
+var _voice: Node = null
+
+## Дууны түвшнийг харагдах хэмжээнд өсгөх коэффициент. Ярианы RMS нь
+## ихэвчлэн 0.05–0.2 хооронд байдаг тул шууд хэрэглэвэл юу ч
+## харагдахгүй.
+const TALK_GAIN := 5.5
+
+## Тэмдэг хэр хурдан унтрах вэ (секундэд).
+const TALK_FALL := 2.6
 var _selected := -1
 var _hud: CanvasLayer = null
 var _sfx: Node = null
@@ -286,6 +304,9 @@ func _ready() -> void:
 				"3-р суудал · %s" % str(c["sub"]),
 				"Хамтрагч: 7-р суудал" if rc == "killer" else "",
 				Color(c["tone"]))
+	# Хөгжүүлэлтийн шалгалт: ярьж байгаа хүний тэмдгийг харах.
+	#   tools/render.sh -- talk=4 hold=1 out=t.png
+	_dev_talk = int(_arg("talk", -1.0))
 	# Хөгжүүлэлтийн шалгалт: төгсгөлийн илчлэлтийг харах.
 	#   tools/render.sh -- reveal=mafi hold=1 out=r.png
 	var rv := _arg_str("reveal", "")
@@ -475,6 +496,7 @@ func _rebuild_stage() -> void:
 	_people.clear()
 	_actors.clear()
 	_ring = null
+	_talk_beam = null
 	_eye_found = false
 
 	_build_seats()
@@ -947,8 +969,91 @@ func select_seat(seat: int) -> void:
 	_ring.position = Vector3(sin(a) * (TABLE_R - 0.38), TABLE_H + 0.004, cos(a) * (TABLE_R - 0.38))
 
 
+## ЯРЬЖ БАЙГАА ХҮНИЙГ ГЭРЭЛТҮҮЛНЭ.
+##
+## Сонгосон суудлын бөгжнөөс ТУСДАА тэмдэг: хоёр өөр зүйлийг нэг
+## дүрсээр хэлж болохгүй. Бөгж нь «би сонгосон» (хувийн, шийдвэр),
+## энэ нь «тэр ярьж байна» (нийтийн, ажиглалт).
+##
+## ТӨРӨЛ НЬ ӨӨР: доороос дээш татсан зөөлөн багана. Ширээн дээр биш,
+## хүний ард — тиймээс бөгжтэй хэзээ ч давхцахгүй.
+func _show_talker(seat: int, level: float, delta: float) -> void:
+	if _talk_beam == null:
+		# ХАВТГАЙ ДУСАЛ, БАГАНА БИШ.
+		#
+		# Эхний хувилбар нь босоо багана байв. Зураг авч харахад тэр нь
+		# ярьж байгаа хүний НҮҮРИЙГ дарж, хэн байгааг нь БҮРХЭЖ байв —
+		# яг эсрэг үр дүн. Ширээн дээр хэвтэх нь хэний ӨМНӨ гэрэлтэж
+		# байгааг шууд хэлнэ, хэнийг ч халхлахгүй.
+		var m := QuadMesh.new()
+		m.size = Vector2(0.46, 0.46)
+		_talk_beam = MeshInstance3D.new()
+		_talk_beam.mesh = m
+		# ЗӨӨЛӨН ИРМЭГ. Хавтгай өнгөт диск нь ширээн дээр наасан цаас
+		# мэт харагдана (зураг авч шалгав) — гэрэл биш. Радиаль
+		# шилжилт нь түүнийг ГЭРЭЛТЭЛТ болгоно; зураг файл хэрэггүй,
+		# утаатай яг ижил аргаар кодоос үүснэ.
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 1))
+		g.set_color(1, Color(1, 1, 1, 0))
+		var tex := GradientTexture2D.new()
+		tex.gradient = g
+		tex.fill = GradientTexture2D.FILL_RADIAL
+		tex.fill_from = Vector2(0.5, 0.5)
+		tex.fill_to = Vector2(1.0, 0.5)
+		tex.width = 64
+		tex.height = 64
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		mat.albedo_texture = tex
+		# ХҮЙТЭН өнгө: ширээн дэх бүх амбер тэмдгээс ялгарна
+		# (сонголтын бөгж, даргын тэмдэг хоёулаа дулаан).
+		mat.albedo_color = Color(0.34, 0.78, 0.92)
+		mat.disable_receive_shadows = true
+		_talk_beam.material_override = mat
+		_talk_beam.rotation.x = -PI * 0.5   # ширээн дээр ХЭВТЭНЭ
+		_talk_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_stage.add_child(_talk_beam)
+
+	# ЖИГД УНАНА. Дуу нь хүрээгээр ирдэг тул түвшин нь үсэрдэг;
+	# шууд дагавал тэмдэг анивчиж, чийдэн эвдэрсэн мэт харагдана.
+	_talk_show = move_toward(_talk_show, level, TALK_FALL * delta) \
+		if level < _talk_show else level
+	if seat < 0 or _talk_show < 0.02:
+		_talk_beam.visible = false
+		if _hud != null:
+			_hud.show_talker("")
+		return
+	if _hud != null:
+		_hud.show_talker("ЯРЬЖ БАЙНА · %s" % _seat_name(seat))
+	var a := _angle_of(seat)
+	_talk_beam.visible = true
+	# Сонголтын бөгжнөөс ГАДНА талд (тэр нь TABLE_R − 0.38). Хоёр
+	# тэмдэг нэг суудал дээр зэрэг гарвал давхцахгүй байх ёстой.
+	# ГАРНЫ ЦААНА. TABLE_R − 0.15 дээр тавихад тоглогчийн гар түүнийг
+	# хагасаар нь дардаг байв (зураг авч шалгав). Ширээний ирмэг рүү
+	# ойртуулбал гэрэлтэлт бүтнээрээ харагдана.
+	_talk_beam.position = Vector3(sin(a) * (TABLE_R - 0.04),
+		TABLE_H + 0.003, cos(a) * (TABLE_R - 0.04))
+	# Зөвхөн ТОМРОХ, БҮДГЭРЭХ — байрлал нь тогтмол.
+	var k: float = 0.55 + 0.45 * _talk_show
+	_talk_beam.scale = Vector3(k, k, 1.0)
+	# Чанга ярих тусам ТОД. Тогтмол тодтой байвал зөвхөн хэмжээ нь
+	# өөрчлөгдөж, хол сууж байгаа хүний тэмдэг мэдэгдэхгүй.
+	var mm := _talk_beam.material_override as StandardMaterial3D
+	if mm != null:
+		mm.albedo_color = Color(0.40, 0.84, 0.98, 0.55 + 0.45 * _talk_show)
+
+
 func selected_seat() -> int:
 	return _selected
+
+
+## Дууны давхаргыг холбоно. Байхгүй ч ширээ ажиллана (демо, зураг).
+func set_voice(v: Node) -> void:
+	_voice = v
 
 
 ## seat (0-ээс) → толгойн дэлхийн цэг. Дуу тухайн хүний зүгээс
@@ -1158,12 +1263,29 @@ func _drive_actors(delta: float) -> void:
 	var focus := _focus
 	if focus < 0:
 		focus = _buzz
+	# ЯРИАНЫ ТҮВШИН. Дууны давхаргаас шууд уншина — сервер сувагт
+	# оруулсан хүний дууг л тоглуулдаг тул энэ нь шинэ мэдээлэл
+	# алдагдуулахгүй: сонсогдож байгаа зүйлийг л ХАРУУЛЖ байна.
+	var loud := -1
+	var loudest := 0.0
 	for seat in _actors:
 		var a: Actor = _actors[seat]
 		if a.dead:
+			a.talk = 0.0
 			continue
+		var lvl := 0.0
+		if _dev_talk == int(seat):
+			lvl = 0.85
+		elif _voice != null:
+			# Суудлын дугаар: тайз 0-ээс, сервер 1-ээс.
+			lvl = clampf(float(_voice.level_of(int(seat) + 1)) * TALK_GAIN, 0.0, 1.0)
+		a.talk = lvl
+		if lvl > loudest:
+			loudest = lvl
+			loud = int(seat)
 		_aim_gaze(a, int(seat), focus)
 		a.tick(_clock, delta)
+	_show_talker(loud, loudest, delta)
 
 
 ## Нэг дүр хэн рүү харахыг шийднэ.

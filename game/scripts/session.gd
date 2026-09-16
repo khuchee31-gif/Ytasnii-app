@@ -364,6 +364,9 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	voice = Voice.new()
 	add_child(voice)
 	voice.setup(net)
+	# Ширээ ярианы түвшинг уншина — хэн ярьж байгааг ХАРУУЛАХЫН тулд.
+	if table != null:
+		table.set_voice(voice)
 	if table != null:
 		# Серверийн суудал 1-ээс, тайзных 0-ээс эхэлдэг.
 		var heads: Dictionary = {}
@@ -580,6 +583,8 @@ func _on_room_state(d: Dictionary) -> void:
 func _on_your_role(d: Dictionary) -> void:
 	# ЭНЭ БОЛ ЗӨВХӨН МИНИЙ дүр. Сервер бусдынхыг илгээдэггүй.
 	_my_seat = int(d.get("seat", -1))
+	if voice != null:
+		voice.my_seat = _my_seat
 	_my_role = str(d.get("role", ""))
 	_show_role_card(d)
 	# Суудлаа мэдсэн тул ТЭР суудлын нүдээр харах ёстой.
