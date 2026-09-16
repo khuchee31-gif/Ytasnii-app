@@ -100,6 +100,14 @@ class GameRoom {
   /// Хиймэл тоглогчид. Хоосон бол өрөө бүхэлдээ хүнийх.
   final Map<PlayerId, BotSeat> _bots = <PlayerId, BotSeat>{};
 
+  /// Ажиглагчтай тоглох уу. ЗӨВХӨН эзэн лоббид асаана.
+  ///
+  /// Нэг ИРГЭНИЙ суудлыг орлоно — мафийн тоо, балансын төсөв хоёулаа
+  /// хөдлөхгүй.
+  bool _optWatcher = false;
+
+  bool get optWatcher => _optWatcher;
+
   /// Ботын өрөөнд үе шатыг богиносгоно.
   ///
   /// Нэг өдөр-шөнийн бүтэн эргэлт 230 секунд. Ганцаараа туршиж байгаа
@@ -374,6 +382,21 @@ class GameRoom {
     return _stateForAll();
   }
 
+  /// Өрөөний тохиргоо. ЗӨВХӨН эзэн, ЗӨВХӨН лоббид.
+  List<Outbound> setOption(PlayerId by, String key, bool on) {
+    if (by != hostId) return <Outbound>[_err(by, ErrCode.notHost)];
+    if (_phase != NetPhase.lobby) {
+      return <Outbound>[_err(by, ErrCode.gameInProgress)];
+    }
+    switch (key) {
+      case 'watcher':
+        _optWatcher = on;
+      default:
+        return const <Outbound>[];
+    }
+    return _stateForAll();
+  }
+
   List<Outbound> setReady(PlayerId id, bool ready) {
     final PublicPlayer? p = _players[id];
     if (p == null || _phase != NetPhase.lobby) return const <Outbound>[];
@@ -634,13 +657,20 @@ class GameRoom {
   bool _mayActNow(eng.Role r) => switch (_phase) {
         NetPhase.nightMafia => eng.factionOf(r) == eng.Faction.mafi,
         NetPhase.nightDoctor => r == eng.Role.doctor,
-        NetPhase.nightDetective => r == eng.Role.detective,
+        // Ажиглагч нь МӨРДӨГЧТЭЙ НЭГ үе шатанд сэрнэ.
+        //
+        // Дүр бүрд тусдаа үе шат нэмэх нь хоёр зүйлийг эвдэнэ: шөнө
+        // уртсаж (63 сек → 108), мөн нийтэд цацагдах үе шатны жагсаалт
+        // нь тоглоомд ЯМАР ДҮРҮҮД байгаагийн тоолол болно. Хоёулаа
+        // «харах» дүр тул нэг хувинд (130) багтана.
+        NetPhase.nightDetective =>
+          r == eng.Role.detective || r == eng.Role.watcher,
         _ => false,
       };
 
   List<Outbound> _deal(int nowMs) {
     final int n = _players.length;
-    final eng.Roster roster = eng.rosterFor(n);
+    final eng.Roster roster = eng.rosterFor(n, watcher: _optWatcher);
     final List<eng.Role> deck = eng.deckFor(roster);
 
     final eng.DealResult d = eng.deal(
@@ -748,14 +778,15 @@ class GameRoom {
     return out;
   }
 
-  /// Тухайн суудал энэ шөнө ХЭНИЙГ шалгасан бэ.
+  /// Тухайн суудал энэ шөнө ХЭНИЙГ сонгосон бэ.
+  ///
+  /// Чадвараар шүүхгүй: инвариант N22-оор амьд суудал бүр шөнөдөө ЯГ
+  /// НЭГ санаа илгээдэг тул үйлдэгчээр хайхад хангалттай. Чадвараар
+  /// шүүх нь дүр нэмэх бүрд өргөжих жагсаалт болно — Ажиглагч нэмэхэд
+  /// түүний хариу нь суудалгүй явж эхэлсэн байх байв.
   int? _askedSeat(int actorSeat) {
     for (final eng.Intent i in _intents) {
-      if (i.actor == actorSeat &&
-          i.night == _nightNo &&
-          i.ability == eng.Ability.investigate) {
-        return i.target;
-      }
+      if (i.actor == actorSeat && i.night == _nightNo) return i.target;
     }
     return null;
   }
@@ -863,6 +894,11 @@ class GameRoom {
       }
     }
 
+    // Шивнээ нь НИЙТИЙНХ — ботын санах ойд ч бичигдэнэ. Энэ нь шинэ
+    // суваг нээхгүй: яг ижил тоо бүх утас руу явна.
+    for (final BotSeat b in _bots.values) {
+      b.mem.whispered.addAll(r.whisper);
+    }
     out.add(Outbound.all(Envelope(S2C.nightResult, <String, Object?>{
       'night': _nightNo,
       'deaths': r.deaths.map((eng.Death d) => d.victim).toList(),
@@ -1003,6 +1039,16 @@ class GameRoom {
         Outbound.all(Envelope(S2C.roomState, <String, Object?>{
           'code': code,
           'phase': _phase.name,
+        // ЯМАР ДҮРҮҮД тоглоомд байна — НИЙТИЙН мэдээлэл. ХЭН аль дүртэй
+        // гэдэг нь нууц; тэр хоёр огт өөр зүйл. Ширээн дээр мафи
+        // тоглохдоо бүрэлдэхүүнээ үргэлж чангаар зарладаг.
+        //
+        // Анхдагчаас ГАДУУР нэмэгдсэн дүрүүдийг л жагсаана. Энэ талбар
+        // нь дүрийн НЭР агуулдаг цорын ганц нийтийн талбар тул
+        // алдагдлын тест түүнийг ТУСАД НЬ, цагаан жагсаалтаар шалгана.
+        'setupRoles': <String>[
+          if (_optWatcher) eng.Role.watcher.name,
+        ],
           'hostId': hostId,
           'isPublic': isPublic,
           'players':

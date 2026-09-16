@@ -342,6 +342,13 @@ abstract final class C2S {
   /// Сүүлчийн ботыг хасах. Ачаалал хоосон.
   static const String removeBot = 'removeBot';
 
+  /// Өрөөний тохиргоо. Ачаалал: `{"key": "watcher", "on": true}`.
+  ///
+  /// ЗӨВХӨН эзэн, ЗӨВХӨН лоббид. ЯМАР ДҮРҮҮД тоглоомд байгаа нь
+  /// НИЙТИЙН мэдээлэл (хүн бүр хөзрөө хараад л мэднэ) тул `roomState`-д
+  /// цацагдана — нуух ёстой нь ХЭН аль дүртэй гэдэг.
+  static const String setOption = 'setOption';
+
   /// Дохио гаргах. Ачаалал: `{"kind": "point", "targetSeat": n|null}`.
   ///
   /// `targetSeat` нь зөвхөн `point`-д утгатай. Бусад дохионд сервер
@@ -370,7 +377,15 @@ abstract final class S2C {
   /// Шөнийн үр дүн — нийтийнх.
   static const String nightResult = 'nightResult';
 
-  /// ЗӨВХӨН мөрдөгчид. Шалгасны хариу.
+  /// ШӨНИЙН ХУВИЙН МЭДЭЭЛЭЛ. ЗӨВХӨН түүнийг олж авсан хүнд.
+  ///
+  /// Хоёр дүр ашиглана:
+  ///   • Мөрдөгч — `traceFound` / `traceNotFound`
+  ///   • Ажиглагч — `watchSaw` (`params.seat`) / `watchNobody`
+  ///
+  /// Нэг суваг байгаа нь ЗОРИУДААР: мессежийн ТӨРӨЛ нь дүрийг хэлэх
+  /// ёсгүй. Хэрэв Ажиглагчид тусдаа төрөл байсан бол сүлжээгээ
+  /// ажиглаж буй хүн «энэ утас Ажиглагчийнх» гэж уншина.
   static const String investigateResult = 'investigateResult';
 
   /// Санал хураалтын явц.

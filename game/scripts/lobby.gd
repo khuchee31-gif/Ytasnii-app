@@ -22,6 +22,9 @@ signal refresh_pressed()
 signal add_bots_pressed(count: int)
 signal remove_bot_pressed()
 
+## Эзэн нэмэлт дүрийг асаав/унтраав.
+signal option_toggled(key: String, on: bool)
+
 enum State { NAME, JOIN, ROOM }
 
 const AMBER := Color(0.92, 0.66, 0.34)
@@ -36,6 +39,13 @@ var _name_field := LineEdit.new()
 var _server_field := LineEdit.new()
 var _code_field := LineEdit.new()
 var _public_toggle := CheckBox.new()
+## ТОВЧ, CheckBox БИШ.
+##
+## `CheckBox`-ийн дөрвөлжин нь Godot-ийн сэдвийн дүрсээр зурагддаг —
+## харанхуй лоббид тэр нь бараг харагдахгүй (зураг авч шалгасан:
+## бичвэр л үлдсэн, төлөв нь уншигдахгүй). Товч нь өөрөө төлөвөө
+## БИЧВЭРЭЭР хэлнэ.
+var _watcher_toggle: Button = null
 var _rooms := VBoxContainer.new()
 var _room_code := Label.new()
 var _roster := GridContainer.new()
@@ -278,6 +288,26 @@ func _build_room() -> Control:
 	box.add_child(bots)
 	box.add_child(_small("Найз дутвал бот нэмээд ганцаараа туршиж болно", 20))
 
+	# --- Нэмэлт дүр ----------------------------------------------------------
+	#
+	# БҮРЭЛДЭХҮҮН НЬ НИЙТИЙН. Ширээн дээр мафи тоглохдоо «өнөөдөр
+	# Ажиглагчтай» гэж чангаар зарладагтай яг адил — нуух ёстой нь
+	# ХЭН аль дүртэй гэдэг, ЯМАР дүрүүд байгаа гэдэг биш. Тиймээс энэ
+	# хайрцаг бүх хүнд харагдана, зөвхөн эзэн л дарж чадна.
+	var opts := HBoxContainer.new()
+	opts.add_theme_constant_override("separation", 12)
+	_watcher_toggle = _style(Button.new())
+	_watcher_toggle.toggle_mode = true
+	_watcher_toggle.custom_minimum_size = Vector2(330, 58)
+	_watcher_toggle.text = "АЖИГЛАГЧ: ҮГҮЙ"
+	_watcher_toggle.toggled.connect(func(v: bool) -> void:
+		option_toggled.emit("watcher", v))
+	opts.add_child(_watcher_toggle)
+	var hint := _small("шөнө хэн хэн рүү очсоныг нэг иргэн харна", 20)
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opts.add_child(hint)
+	box.add_child(opts)
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	_ready_btn = _style(Button.new())
@@ -396,7 +426,7 @@ func show_rooms(list: Array) -> void:
 
 ## Өрөөний төлөв. `players` нь НИЙТИЙН мэдээлэл — дүр агуулахгүй.
 func show_room(code: String, players: Array, is_host: bool,
-		min_players: int, max_players: int) -> void:
+		min_players: int, max_players: int, extras: Array = []) -> void:
 	go(State.ROOM)
 	_room_code.text = code
 	for c in _roster.get_children():
@@ -450,6 +480,16 @@ func show_room(code: String, players: Array, is_host: bool,
 	_bot_add.visible = is_host
 	_bot_add.disabled = players.size() >= max_players
 	_bot_del.visible = is_host and bot_count > 0
+
+	# Нэмэлт дүрийн төлөв СЕРВЕРЭЭС ирнэ — апп өөрөө санахгүй. Эс бөгөөс
+	# хоёр утас өөр өөр зүйл харуулна.
+	var want_watcher: bool = extras.has("watcher")
+	if _watcher_toggle.button_pressed != want_watcher:
+		_watcher_toggle.set_pressed_no_signal(want_watcher)
+	_watcher_toggle.text = "АЖИГЛАГЧ: ТИЙМ" if want_watcher else "АЖИГЛАГЧ: ҮГҮЙ"
+	# Эзэн БИШ хүнд ч ХАРАГДАНА, зөвхөн дарж чадахгүй: бүрэлдэхүүн нь
+	# нийтийн мэдээлэл бөгөөд тоглогч юу тоглохоо мэдэх ёстой.
+	_watcher_toggle.disabled = not is_host
 
 	_start_btn.visible = is_host
 	# Сервер ч гэсэн шалгана (`ErrCode.tooFewPlayers`) — энэ нь зөвхөн

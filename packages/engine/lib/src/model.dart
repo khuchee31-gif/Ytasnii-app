@@ -7,17 +7,51 @@
 //   • IO байхгүй, `DateTime.now()` байхгүй, `Random()` байхгүй, `double` байхгүй.
 //   • Flutter-ээс хамаарахгүй, `dart:io`-гүй.
 //   • Бүх класс immutable.
+//
+// ENUM-Д ЗӨВХӨН АРААС НЬ НЭМНЭ, ДУНД НЬ ХЭЗЭЭ Ч ОРУУЛАХГҮЙ.
+//
+//   • `deckFor` (rosters.dart) нь `Role`-ын дарааллаар хөзөр угсардаг;
+//     дунд нь оруулбал бүх тоглолт өөр тарагдаж, `deal_test.dart`-ийн
+//     гурван АЛТАН ВЕКТОР зэрэг улаан болно.
+//   • `_byTuple` (resolve.dart) нь `ability.index`-ыг гурав дахь түлхүүр
+//     болгон уншдаг.
+//
+// Араас нь нэмэх нь hash-д АЮУЛГҮЙ: `canon` нь enum-ыг `.name`-ээр
+// бичдэг тул индекс байтад ордоггүй.
 
 import 'dart:typed_data';
 
 /// Дэлгэцэн дээрх суудлын дугаар, 1..20. **Индекс биш.**
 typedef Seat = int;
 
-enum Role { killer, boss, doctor, detective, citizen }
+/// Дүрүүд. ШИНИЙГ ЗӨВХӨН АРААС НЬ нэмнэ (файлын толгойг үз).
+///
+/// МАФИЙН ТАЛД ШИНЭ ДҮР НЭМЭХГҮЙ — хүчтэй мафи дүр нь энгийн алуурчны
+/// СУУДЛЫГ ОРЛОНО, тоог нь нэмэхгүй (GDD-02). `boss` яг ингэж орсон.
+enum Role {
+  killer,
+  boss,
+  doctor,
+  detective,
+  citizen,
+
+  /// v2 — Ажиглагч. Нэг суудлыг сонгоод, тэр шөнө ХЭН ТҮҮН РҮҮ ОЧСОНЫГ
+  /// үүрээр мэднэ. Өөрөө зочлолын бүртгэлд ОРОХГҮЙ (resolve.dart §130).
+  watcher,
+}
 
 enum Faction { mafi, hotynhon }
 
-enum Ability { mafiaKill, heal, investigate, suspect, noAction }
+enum Ability {
+  mafiaKill,
+  heal,
+  investigate,
+  suspect,
+  noAction,
+
+  /// v2 — Ажиглагч. Хувин 130, зочлол БИЧИХГҮЙ.
+  watch,
+}
 
 /// v1-д зөвхөн `none` ба `basic` ажиллана. `powerful` нь v2-ын зай —
 /// хөдөлгүүр түүнийг хэзээ ч гаргахгүй (инвариант N13).
@@ -46,10 +80,27 @@ enum RejectCode {
   seatNotInGame,
 }
 
-/// v1-д ЗӨВХӨН эдгээр хоёр мессеж гарна (GDD-05 §9.2, инвариант N15).
-enum MsgCode { traceFound, traceNotFound }
+/// Хувийн мессежийн кодууд (GDD-05 §9.2, инвариант N15).
+enum MsgCode {
+  /// Мөрдөгч: бай нь мафи.
+  traceFound,
+
+  /// Мөрдөгч: бай нь мафи БИШ.
+  traceNotFound,
+
+  /// Ажиглагч: `{'seat': n}` — тэр шөнө байг зочилсон нэг хүн.
+  /// Хэдэн зочин байвал төдөн мессеж гарна.
+  watchSaw,
+
+  /// Ажиглагч: хэн ч очсонгүй.
+  watchNobody,
+}
 
 /// Дүрээс фракц. Цэвэр функц — хөдөлгүүрийн хаанаас ч дуудагдана.
+///
+/// МАФИЙГ НЭРЛЭЖ ЖАГСААНА, хотынхныг биш. Ингэснээр шинэ дүр нэмэхэд
+/// АНХДАГЧААР хотынхон болно: мартагдсан дүр нь тоглоомыг тэнцвэргүй
+/// болгохоос илүү, санамсаргүй мафи болох нь ХАВЬГҮЙ аюултай.
 Faction factionOf(Role r) =>
     (r == Role.killer || r == Role.boss) ? Faction.mafi : Faction.hotynhon;
 
@@ -60,6 +111,7 @@ Ability abilityOf(Role r) => switch (r) {
       Role.doctor => Ability.heal,
       Role.detective => Ability.investigate,
       Role.citizen => Ability.suspect,
+      Role.watcher => Ability.watch,
     };
 
 /// Эрэмбийн шатны хувин (GDD-05 §3.2).
@@ -68,6 +120,12 @@ int bucketOf(Ability a) => switch (a) {
       Ability.heal => 90,
       Ability.mafiaKill => 100,
       Ability.investigate => 130,
+      // Ажиглагч нь Мөрдөгчтэй ИЖИЛ хувинд. Тиймээс тэр Мөрдөгчийг
+      // ХЭЗЭЭ Ч харахгүй: 130-д орох мөчид зочлолын жагсаалт ХӨЛДӨНӨ
+      // (resolve.dart). Эс бөгөөс Ажиглагч 2 дахь өдөр Мөрдөгчийн
+      // суудлыг сайн санаагаар ширээнд зарлаж, 3 дахь шөнө нь мафи
+      // түүнийг алах болно.
+      Ability.watch => 130,
       Ability.suspect => 135,
       Ability.noAction => 135,
     };

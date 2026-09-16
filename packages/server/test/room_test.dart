@@ -45,8 +45,10 @@ String _publicText(List<Outbound> out) {
   final StringBuffer b = StringBuffer();
   for (final Outbound o in out) {
     if (!o.broadcast) continue;
-    b.write(o.msg.encode().replaceAll(
-        RegExp(r'"phase":"[A-Za-z]*"'), '"phase":"_"'));
+    b.write(o.msg
+        .encode()
+        .replaceAll(RegExp(r'"phase":"[A-Za-z]*"'), '"phase":"_"')
+        .replaceAll(RegExp(r'"setupRoles":\[[^\]]*\]'), '"setupRoles":[]'));
     b.write('\n');
   }
   return b.toString().toLowerCase();
@@ -337,6 +339,19 @@ void main() {
       // Үе шатны нэр нь ЦАГААН ЖАГСААЛТААС гарна. Шинэ үе шат нэмэх нь
       // энэ тестийг унагана — тэгээд хүн «энэ нэр юу зарлаж байна?» гэж
       // бодох ёстой болно.
+      // Бүрэлдэхүүний жагсаалт нь ЗӨВХӨН нэмэлт дүрийн нэр агуулна —
+      // суудал, тоо, хэн болох нь ХЭЗЭЭ Ч орохгүй.
+      for (final Outbound o in beforeEnd) {
+        if (!o.broadcast) continue;
+        final Object? sr = o.msg.data['setupRoles'];
+        if (sr == null) continue;
+        expect(sr, isA<List<Object?>>());
+        for (final Object? x in sr as List<Object?>) {
+          expect(<String>{'watcher'}.contains(x), isTrue,
+              reason: '«$x» нь зөвшөөрөгдсөн нэмэлт дүр биш');
+        }
+      }
+
       expect(_publicPhases(beforeEnd).difference(<String>{
         'dealing',
         'nightFalls',

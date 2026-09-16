@@ -310,6 +310,11 @@ class Server {
       case C2S.removeBot:
         _withRoom(c, (GameRoom r, PlayerId id) => r.removeBot(id));
 
+      case C2S.setOption:
+        final String key = _asStr(e.data['key']) ?? '';
+        final bool on = _asBool(e.data['on']) ?? false;
+        _withRoom(c, (GameRoom r, PlayerId id) => r.setOption(id, key, on));
+
       case C2S.startGame:
         _withRoom(c, (GameRoom r, PlayerId id) => r.start(id, nowMs));
 

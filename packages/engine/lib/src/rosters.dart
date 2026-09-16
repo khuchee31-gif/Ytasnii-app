@@ -59,7 +59,14 @@ class Roster {
   final bool doctor;
   final bool detective;
 
-  /// Үлдсэн суудлууд: `n - mafia - doctor - detective`.
+  /// v2 — Ажиглагч гарах уу.
+  ///
+  /// АНХДАГЧААР УНТРААЛТТАЙ. Эзэн нь лоббид зориудаар асаана. Тэр нь
+  /// нэг ИРГЭНИЙ суудлыг ОРЛОНО — мафийн тоо, `b` хоёулаа хөдлөхгүй тул
+  /// GDD-04-ийн балансын хүснэгт хүчинтэй хэвээр.
+  final bool watcher;
+
+  /// Үлдсэн суудлууд: `n - mafia - doctor - detective - watcher`.
   final int citizens;
 
   /// GDD-04 §2-ын хүснэгтэд хэвлэгдсэн `b`. Үргэлж `b0(n, mafia)`-тай тэнцүү.
@@ -73,13 +80,30 @@ class Roster {
     required this.detective,
     required this.citizens,
     required this.b,
+    this.watcher = false,
   });
+
+  /// Нэг иргэнийг Ажиглагч болгоно. Иргэн үлдэхгүй бол ӨӨРЧЛӨХГҮЙ.
+  Roster withWatcher() {
+    if (watcher || citizens < 2) return this;
+    return Roster(
+      n: n,
+      mafia: mafia,
+      boss: boss,
+      doctor: doctor,
+      detective: detective,
+      citizens: citizens - 1,
+      b: b,
+      watcher: true,
+    );
+  }
 
   /// Мафийн дотор хэдэн энгийн Алуурчин байх вэ (Ахлагч суудлыг хассан).
   int get killers => mafia - (boss ? 1 : 0);
 
   @override
-  String toString() => 'Roster(n: $n, M: $mafia, boss: $boss, b: $b)';
+  String toString() =>
+      'Roster(n: $n, M: $mafia, boss: $boss, watcher: $watcher, b: $b)';
 }
 
 /// GDD-04 §2-ын шилжүүлэх хүснэгт, үг үсгээр. **15 мөр, N = 6…20.**
@@ -107,12 +131,15 @@ const Map<int, Roster> _kRosterTable = <int, Roster>{
 ///
 /// `n` нь [kMinSeats]..[kMaxSeats] гадна байвал [ArgumentError] шиднэ —
 /// инвариант N9-ийн «`startGame` хаягдана» гэдгийн хөдөлгүүрийн тал.
-Roster rosterFor(int n) {
+/// [watcher] нь ЗӨВХӨН эзний зориудын сонголт. Анхдагч бүрэлдэхүүн
+/// хөдлөхгүй тул GDD-04 §2-ын хүснэгт, `deal_test`-ийн алтан векторууд
+/// хүчинтэй хэвээр.
+Roster rosterFor(int n, {bool watcher = false}) {
   final r = _kRosterTable[n];
   if (r == null) {
     throw ArgumentError.value(n, 'n', 'Суудлын тоо $kMinSeats..$kMaxSeats байх ёстой');
   }
-  return r;
+  return watcher ? r.withWatcher() : r;
 }
 
 /// Хуваарилахын өмнөх канон хөзрийн багц — ХАТУУ, ТОГТМОЛ дараалалтай.
@@ -130,6 +157,9 @@ List<Role> deckFor(Roster r) {
   }
   if (r.doctor) deck.add(Role.doctor);
   if (r.detective) deck.add(Role.detective);
+  // Ажиглагч нь Мөрдөгчийн ДАРАА, иргэдийн ӨМНӨ. Дараалал нь зөвхөн
+  // детерминизмын төлөө чухал — `fisherYates` дараа нь холино.
+  if (r.watcher) deck.add(Role.watcher);
   for (var i = 0; i < r.citizens; i++) {
     deck.add(Role.citizen);
   }

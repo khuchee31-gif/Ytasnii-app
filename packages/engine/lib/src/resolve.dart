@@ -101,6 +101,18 @@ class _Work {
     protectors.putIfAbsent(target, () => <Seat>[]).add(actor);
   }
 
+  /// 130 `info` — хөлдөөсөн ЗОЧЛОЛЫН snapshot. **Уншихад л зориулсан.**
+  ///
+  /// 130-аас ЧАНД доогуур хувингийн бичсэн зочлолыг л агуулна: 90
+  /// эдгээлт, 100 алалт. Ижил хувингийнх (Мөрдөгч) ОРОХГҮЙ — тэр нь
+  /// давталтын дарааллаас хамаарах болно.
+  List<Visit> visitSnapshot() {
+    assert(bucket == 130, 'зочлолын snapshot нь 130-д хөлдөнө (одоо $bucket)');
+    return List<Visit>.unmodifiable(
+      visits.where((Visit v) => bucketOf(v.ability) < 130),
+    );
+  }
+
   /// 100 `attack` — хөлдөөсөн хамгаалалтын snapshot. **Уншихад л зориулсан.**
   Map<Seat, DefenseLevel> effectiveDefense() {
     assert(bucket == 100, 'snapshot нь 100-д хөлдөнө (одоо $bucket)');
@@ -305,10 +317,26 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
 
   // ---- 130 info -----------------------------------------------------------
   w.enter(130);
+  // ЗОЧЛОЛЫГ ЭНД ХӨЛДӨӨНӨ, хувинд орох яг тэр мөчид.
+  //
+  // Энэ бол GDD-05 §3.2-ын бичих хаалт: хувин нь зөвхөн өөрөөсөө ЧАНД
+  // доогуур хувингийн бичсэнийг уншина. Үр дагавар нь дүрийн шийдвэр:
+  // Ажиглагч ба Мөрдөгч хоёр ижил хувинд байгаа тул Ажиглагч Мөрдөгчийг
+  // ХЭЗЭЭ Ч харахгүй. Эс бөгөөс Ажиглагч 2 дахь өдөр Мөрдөгчийн суудлыг
+  // сайн санаагаар зарлаж, 3 дахь шөнө нь мафи түүнийг алах болно.
+  final List<Visit> frozen = w.visitSnapshot();
   for (final Intent q in a.where((Intent i) => i.ability == Ability.investigate)) {
     final Msg m = infoAnswer(s0, q); // цэвэр, §9.1 — товших мөчийнхтэй ИЖИЛ
     w.msgs.putIfAbsent(q.actor, () => <Msg>[]).add(m);
     w.addVisit(Visit(q.actor, q.target!, Ability.investigate, harmful: false));
+    w.bump(q.target!);
+  }
+  for (final Intent q in a.where((Intent i) => i.ability == Ability.watch)) {
+    w.msgs.putIfAbsent(q.actor, () => <Msg>[]).addAll(watchAnswer(frozen, q));
+    // ЗОЧЛОЛ БИЧИХГҮЙ (§N17): Ажиглагч нь харж байгаа болохоос
+    // ОЧООГҮЙ. Бичвэл хоёр Ажиглагч бие биеэ үнэгүй баталгаажуулах
+    // бөгөөд 140-өөс доош ямар ч хожмын дүр бүртгэлийг уншмагц
+    // бохирдоно.
     w.bump(q.target!);
   }
 
@@ -390,6 +418,30 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   }());
 
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// §9.1b — Ажиглагчийн хариу
+// ---------------------------------------------------------------------------
+
+/// Тэр шөнө `q.target` руу ХЭН ОЧСОН бэ.
+///
+/// ЦЭВЭР ФУНКЦ: зөвхөн хөлдөөсөн зочлолын жагсаалтаас уншина. Тиймээс
+/// хариу нь тайлангаас ДАХИН ТООЦОГДОНО — инвариант N25 үүнийг шалгана.
+///
+/// Зочин бүрд НЭГ мессеж. Хэн ч очоогүй бол ганц `watchNobody`. Ажиглагч
+/// өөрөө жагсаалтад орохгүй (өөрийгөө ажиглах нь хүчингүй).
+List<Msg> watchAnswer(List<Visit> frozen, Intent q) {
+  final List<Seat> seen = frozen
+      .where((Visit v) => v.to == q.target && v.from != q.actor)
+      .map((Visit v) => v.from)
+      .toSet()
+      .toList()
+    ..sort();
+  if (seen.isEmpty) return const <Msg>[Msg(MsgCode.watchNobody)];
+  return <Msg>[
+    for (final Seat s in seen) Msg(MsgCode.watchSaw, <String, int>{'seat': s}),
+  ];
 }
 
 // ---------------------------------------------------------------------------

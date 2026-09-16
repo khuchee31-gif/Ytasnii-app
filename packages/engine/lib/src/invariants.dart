@@ -120,6 +120,10 @@ Map<Seat, int> _rebuildTally(List<Intent> sealed) {
       case Ability.investigate:
       case Ability.suspect:
       case Ability.heal:
+      // Ажиглагч ч ТОВШИЛТ хийсэн — ширээн дээр дугаар болж гарна.
+      // Хэрэв түүний товшилт санд ордоггүй байсан бол Ажиглагчтай
+      // тоглолт нь шивнээ цөөнтэй болж, тэр өөрөө ялгарах байв.
+      case Ability.watch:
         t.update(i.target!, (int v) => v + 1, ifAbsent: () => 1);
       case Ability.noAction:
         break;
@@ -288,19 +292,30 @@ void _checkN14(NightReport r) {
 // N15 — `privateMsgs.keys ⊆ {амьд Мөрдөгчийн суудал}`
 // ---------------------------------------------------------------------------
 
-/// v1-д хувийн мессеж ЗӨВХӨН нэг л байна: Мөрдөгчийн «Мөр олдлоо/олдсонгүй».
-/// Өөр суудал мессеж авбал хэн нэг нь v2-ын дүрийг чимээгүйхэн оруулсан.
+/// Хувийн мессеж хүлээн авах ЭРХ нь ДҮРЭЭС биш, МЕССЕЖИЙН КОДООС гарна.
+///
+/// Өмнө нь «зөвхөн Мөрдөгч» гэж суудлын дүрээр шалгадаг байв. Тэр нь дүр
+/// нэмэх бүрд өргөжих жагсаалт болох бөгөөд ЯГ ЮУГ хориглож байгаагаа
+/// хэлдэггүй. Одоо код бүрд түүнийг авах эрхтэй ГАНЦ дүрийг нэрлэнэ:
+/// шинэ код нэмэх нь энэ хүснэгтэд мөр нэмэхийг шаардана, эс бөгөөс
+/// тест унана.
+const Map<MsgCode, Role> _kMsgOwner = <MsgCode, Role>{
+  MsgCode.traceFound: Role.detective,
+  MsgCode.traceNotFound: Role.detective,
+  MsgCode.watchSaw: Role.watcher,
+  MsgCode.watchNobody: Role.watcher,
+};
+
 void _checkN15(NightState s0, NightReport r) {
   for (final MapEntry<Seat, List<Msg>> e in r.privateMsgs.entries) {
     _require(s0.alive.contains(e.key), 'N15',
         'лацдах мөчид үхсэн байсан ${e.key} хувийн мессеж авлаа');
-    _require(s0.setup.roleOf(e.key) == Role.detective, 'N15',
-        'Мөрдөгч бус ${e.key} хувийн мессеж авлаа');
     for (final Msg m in e.value) {
-      _require(
-          m.code == MsgCode.traceFound || m.code == MsgCode.traceNotFound,
-          'N15',
-          'v1-д `${m.code.name}` гэсэн мессеж байхгүй');
+      final Role? owner = _kMsgOwner[m.code];
+      _require(owner != null, 'N15',
+          '`${m.code.name}` мессежийн эзэн дүр тодорхойгүй');
+      _require(s0.setup.roleOf(e.key) == owner, 'N15',
+          '${e.key} нь ${owner!.name} биш атлаа `${m.code.name}` авлаа');
     }
   }
 }
@@ -357,8 +372,15 @@ void _checkN21(NightState s0, List<Intent> sealed, NightReport r) {
     final List<Msg>? got = r.privateMsgs[e.key];
     _require(got != null, 'N21',
         'Мөрдөгч ${e.key} шалгасан ч тайланд хариу байхгүй');
-    final List<MsgCode> gotCodes =
-        got!.map((Msg m) => m.code).toList()..sort(_byCode);
+    // ЗӨВХӨН мөрдөгчийн кодуудыг харьцуулна: нэг суудал хоёр дүртэй
+    // байж чадахгүй тул энд өөр код орж ирэхгүй, гэхдээ шүүлт нь
+    // шалгалтыг ирээдүйн дүрүүдээс хамгаална.
+    final List<MsgCode> gotCodes = got!
+        .map((Msg m) => m.code)
+        .where((MsgCode c) =>
+            c == MsgCode.traceFound || c == MsgCode.traceNotFound)
+        .toList()
+      ..sort(_byCode);
     final List<MsgCode> wantCodes = List<MsgCode>.of(e.value)..sort(_byCode);
     _require(
         gotCodes.length == wantCodes.length &&
@@ -368,8 +390,40 @@ void _checkN21(NightState s0, List<Intent> sealed, NightReport r) {
         'товших мөчийн хариу $wantCodes ≠ тайлангийн $gotCodes');
   }
 
+  // N25 — Ажиглагчийн хариу нь ТАЙЛАНГААС дахин тооцогдоно.
+  //
+  // Энэ нь зүгээр нэг давхардсан тооцоо биш: хариу нь `visits`-ээс
+  // гардаг гэдгийг батална. Хэрэв хэн нэгэн хожим `watchAnswer`-ыг
+  // дотоод төлөв уншдаг болговол (жишээ нь «хэн хэнийг эмчилсэн» гэдгийг
+  // шууд) тэр нь ТАЙЛАНД ГАРААГҮЙ мэдээллийг тоглогчид өгнө — тэгээд
+  // дахин тоглуулалт нь шалгах чадваргүй болно.
+  final List<Visit> frozen = r.visits
+      .where((Visit v) => bucketOf(v.ability) < 130)
+      .toList();
+  for (final Intent q in sealed) {
+    if (q.ability != Ability.watch) continue;
+    final List<Msg> want2 = watchAnswer(frozen, q);
+    final List<Msg> got = (r.privateMsgs[q.actor] ?? const <Msg>[])
+        .where((Msg m) =>
+            m.code == MsgCode.watchSaw || m.code == MsgCode.watchNobody)
+        .toList();
+    _require(got.length == want2.length, 'N25',
+        'Ажиглагч ${q.actor}: ${want2.length} мессеж хүлээсэн, ${got.length} ирлээ');
+    for (int i = 0; i < got.length; i++) {
+      _require(got[i].code == want2[i].code, 'N25',
+          'Ажиглагчийн $i дэх код зөрлөө');
+      _require(got[i].params['seat'] == want2[i].params['seat'], 'N25',
+          'Ажиглагчийн $i дэх суудал зөрлөө');
+    }
+  }
+
+  final Set<Seat> answered = <Seat>{
+    ...want.keys,
+    for (final Intent q in sealed)
+      if (q.ability == Ability.watch) q.actor,
+  };
   for (final Seat k in r.privateMsgs.keys) {
-    _require(want.containsKey(k), 'N21',
+    _require(answered.contains(k), 'N21',
         '$k шалгалт хийгээгүй атлаа тайланд хариутай');
   }
 }

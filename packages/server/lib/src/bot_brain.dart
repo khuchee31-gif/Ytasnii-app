@@ -43,6 +43,10 @@ class BotMemory {
 
   /// Мөрдөгч: сүүлд хэнийг асуусан (хариу ирэхээр нь бүртгэнэ).
   int? lastCheck;
+
+  /// Шивнээнд гарсан суудлууд. НИЙТИЙН мэдээлэл — `nightResult` нь
+  /// үүнийг бүх утас руу илгээдэг.
+  final Set<int> whispered = <int>{};
 }
 
 /// Бот юу ХАРАХ вэ.
@@ -165,9 +169,16 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
       return t == null ? null : BotNight(t);
 
     case NetPhase.nightDetective:
-      if (v.myRole != eng.Role.detective) return null;
-      final int? t = _detectivePick(v, rng);
-      return t == null ? null : BotNight(t);
+      // Мөрдөгч ба Ажиглагч НЭГ үе шатанд сэрнэ.
+      if (v.myRole == eng.Role.detective) {
+        final int? t = _detectivePick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
+      if (v.myRole == eng.Role.watcher) {
+        final int? t = _watcherPick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
+      return null;
 
     case NetPhase.vote:
       final int? t = _votePick(v, rng);
@@ -176,6 +187,25 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
     default:
       return null;
   }
+}
+
+/// Ажиглагч хэнийг ажиглах вэ.
+///
+/// Хамгийн олон анхаарал татсан суудлыг ажиглана: мафи тэр хүн рүү
+/// очих магадлал өндөр. Санах ойд юу ч байхгүй бол санамсаргүй.
+///
+/// ӨӨРИЙН ДҮРЭЭС өөр юу ч уншихгүй — `myAllies`, `allyPicks` хоёрт
+/// хүрэхгүй (Ажиглагч хэзээ ч мафи биш тул тэд хоосон боловч дүрмээ
+/// кодоор барих нь дээр).
+int? _watcherPick(BotView v, eng.Rng rng) {
+  final List<int> cands =
+      v.aliveSeats.where((int s) => s != v.mySeat).toList()..sort();
+  if (cands.isEmpty) return null;
+  // Өчигдөр шивнээнд гарсан хүн байвал түүнийг ажиглана.
+  final List<int> hot =
+      v.mem.whispered.where(cands.contains).toList()..sort();
+  if (hot.isNotEmpty) return hot[rng.below(hot.length)];
+  return cands[rng.below(cands.length)];
 }
 
 /// Бот ямар дохио гаргах вэ. Гаргахгүй бол `null`.

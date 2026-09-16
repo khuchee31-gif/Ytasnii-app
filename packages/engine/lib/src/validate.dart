@@ -70,7 +70,12 @@ RejectCode? validate(Intent i, NightState s) {
       if (mode == SelfHeal.once && (s.selfHealUsed[i.actor] ?? 0) >= 1) {
         return RejectCode.targetSelf;
       }
-    } else if (i.ability == Ability.investigate || i.ability == Ability.suspect) {
+    } else if (i.ability == Ability.investigate ||
+        i.ability == Ability.suspect ||
+        i.ability == Ability.watch) {
+      // Ажиглагч өөрийгөө ажиглаж БОЛОХГҮЙ: тэгвэл «хэн над руу очив»
+      // гэсэн үнэгүй хамгаалалт болж, эмч, мөрдөгчийн хоёуланг нь
+      // нэг шөнөд илчилнэ.
       return RejectCode.targetSelf;
     }
   }

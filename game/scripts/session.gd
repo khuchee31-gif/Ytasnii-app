@@ -26,7 +26,13 @@ const PHASE_NAME := {
 	"nightFalls": "ХОТ УНТЛАА",
 	"nightMafia": "АЛУУРЧИД СЭРЛЭЭ",
 	"nightDoctor": "ЭМЧ СЭРЛЭЭ",
-	"nightDetective": "МӨРДӨГЧ СЭРЛЭЭ",
+	# «Харагчид» гэдэг нь Мөрдөгч, Ажиглагч ХОЁУЛАНГ багтаана.
+	#
+	# Дүрээр нэрлэвэл шинэ дүр бүрд шинэ үе шат, шинэ нэр хэрэгтэй
+	# болно — тэгээд үе шатны жагсаалт өөрөө тоглоомд ямар дүрүүд байгаа
+	# гэдгийн ТООЛОЛ болно. Гэр бүлээр нь нэрлэх нь ёслолыг хадгалж,
+	# шөнийг уртасгахгүй.
+	"nightDetective": "ХАРАГЧИД СЭРЛЭЭ",
 	"dawn": "ҮҮР ЦАЙЛАА",
 	"day": "ӨДӨР",
 	"vote": "САНАЛ ХУРААЛТ",
@@ -40,6 +46,7 @@ const ACTS_IN := {
 	"boss": "nightMafia",
 	"doctor": "nightDoctor",
 	"detective": "nightDetective",
+	"watcher": "nightDetective",
 }
 
 ## Үйлдлийн товчны бичвэр.
@@ -48,6 +55,7 @@ const ACT_LABEL := {
 	"boss": "АЛАХ",
 	"doctor": "ЭМЧЛЭХ",
 	"detective": "ШАЛГАХ",
+	"watcher": "АЖИГЛАХ",
 }
 
 ## Тоглолт эхлэх доод хязгаар. СЕРВЕР шийднэ (`kMinPlayers`, `room.dart`)
@@ -87,6 +95,10 @@ var _phase := "lobby"
 var _ends_at_ms := 0
 var _my_seat := -1
 var _my_role := ""
+
+## Ажиглагчийн энэ шөнийн харсан суудлууд. Зочин бүрд нэг мессеж ирдэг
+## тул дараалуулж хуримтлуулна, эс бөгөөс сүүлчийнх нь л харагдана.
+var _watch_seen: Array = []
 var _players: Array = []                 # нийтийн мэдээлэл, ДҮРГҮЙ
 var _votes: Dictionary = {}
 var _can_speak := false
@@ -105,6 +117,9 @@ var _asked_name := ""
 ## Хөгжүүлэлтийн товчлол: өрөө үүсгээд, энэ тооны бот нэмээд, эхлүүлнэ.
 ## Утсан дээр хэрэглэгдэхгүй — тушаалын мөрөөр л өгөгдөнө.
 var solo_bots := 0
+
+## Ганцаараа туршихад Ажиглагчийг асаах уу (хөгжүүлэлтийн арг).
+var solo_watcher := false
 var _solo_done := false
 
 
@@ -170,6 +185,8 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 			net.list_rooms())
 	lobby.add_bots_pressed.connect(func(n: int) -> void: net.add_bots(n))
 	lobby.remove_bot_pressed.connect(func() -> void: net.remove_bot())
+	lobby.option_toggled.connect(func(k: String, v: bool) -> void:
+		net.set_option(k, v))
 	lobby.set_name_text(_remembered_name(name_v))
 	lobby.set_server_text(_remembered("server", url))
 	# Лобби нээлттэй үед тоглоомын дэлгэц харагдах ёсгүй — хоёр давхар
@@ -346,6 +363,8 @@ func _on_room_state(d: Dictionary) -> void:
 	# Ганцаараа туршилт: өрөө үүссэн даруйд бот нэмээд эхлүүлнэ.
 	if solo_bots > 0 and not _solo_done and _phase == "lobby":
 		if _players.size() <= 1:
+			if solo_watcher:
+				net.set_option("watcher", true)
 			net.add_bots(solo_bots)
 		elif _players.size() >= MIN_PLAYERS:
 			_solo_done = true
@@ -355,7 +374,8 @@ func _on_room_state(d: Dictionary) -> void:
 		if _phase == "lobby":
 			lobby.show_room(str(d.get("code", "")), _players,
 				str(d.get("hostId", "")) == net.player_id,
-				MIN_PLAYERS, MAX_PLAYERS)
+				MIN_PLAYERS, MAX_PLAYERS,
+				d.get("setupRoles", []) if d.get("setupRoles") is Array else [])
 		else:
 			lobby.hide_all()
 		if hud != null:
@@ -375,6 +395,8 @@ func _on_your_role(d: Dictionary) -> void:
 
 func _on_phase(d: Dictionary) -> void:
 	_phase = str(d.get("phase", _phase))
+	if _phase == "nightFalls":
+		_watch_seen.clear()
 	_ends_at_ms = Time.get_ticks_msec() + int(d.get("endsInMs", 0))
 	_submitted = false
 	_votes.clear()
@@ -399,10 +421,34 @@ func _on_night_result(d: Dictionary) -> void:
 		else "%s-р суудал алагдлаа." % str(dead[0]))
 
 
+## Шөнийн ХУВИЙН мэдээлэл. Мөрдөгч, Ажиглагч хоёулаа энэ сувгаар авна.
+##
+## Дэлгэцэнд гаргахаас өөр юу ч хийхгүй — хадгалбал бусад нь аппын
+## санах ойгоос уншиж болзошгүй.
 func _on_investigate(d: Dictionary) -> void:
-	# ЗӨВХӨН мөрдөгчид ирнэ. Дэлгэцэнд гаргахаас өөр юу ч хийхгүй —
-	# хадгалбал бусад нь аппын санах ойгоос уншиж болзошгүй.
-	_notify("Шалгалтын хариу: %s" % str(d.get("code", "?")))
+	var code := str(d.get("code", ""))
+	var params: Dictionary = d.get("params", {}) if d.get("params") is Dictionary else {}
+	var at := int(d.get("targetSeat", 0))
+	match code:
+		"traceFound":
+			_notify("%d-р суудал: МАФИЙН МӨР ОЛДЛОО." % at)
+		"traceNotFound":
+			_notify("%d-р суудал: мөр олдсонгүй." % at)
+		"watchSaw":
+			# Ажиглагчид зочин бүрээр нэг мессеж ирнэ. Дараалан
+			# гарахад сүүлчийнх нь л харагдана — тиймээс хуримтлуулна.
+			var seen := int(params.get("seat", 0))
+			if not _watch_seen.has(seen):
+				_watch_seen.append(seen)
+			var names: Array = []
+			for sseat in _watch_seen:
+				names.append("%d" % int(sseat))
+			_notify("%d-р суудал руу очсон: %s" % [at, ", ".join(names)])
+		"watchNobody":
+			_watch_seen.clear()
+			_notify("%d-р суудал руу хэн ч очсонгүй." % at)
+		_:
+			_notify("Хариу: %s" % code)
 
 
 func _on_game_over(d: Dictionary) -> void:

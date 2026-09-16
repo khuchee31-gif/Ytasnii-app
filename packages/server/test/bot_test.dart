@@ -255,10 +255,16 @@ void main() {
       for (final Envelope e in out) {
         // Тоглолт дуусахад дүр ил болох нь ЗӨВ — түүнийг алгасна.
         if (e.type == S2C.gameOver) continue;
-        b.write(e.encode());
+        // Үе шатны нэр ба БҮРЭЛДЭХҮҮНИЙ жагсаалт хоёр нь дүрийн үг
+        // агуулдаг ч ТОГЛОГЧИЙН дүрийг хэлдэггүй — тэднийг тусад нь
+        // шалгана (`room_test.dart`).
+        b.write(e
+            .encode()
+            .replaceAll(RegExp(r'"phase":"[A-Za-z]*"'), '"phase":"_"')
+            .replaceAll(RegExp(r'"setupRoles":\[[^\]]*\]'), '"setupRoles":[]'));
         b.write('\n');
       }
-      final String text = b.toString();
+      final String text = b.toString().toLowerCase();
       for (final eng.Role role in eng.Role.values) {
         expect(text.contains(role.name), isFalse,
             reason: 'нийтийн мессежид «${role.name}» гарчээ');
