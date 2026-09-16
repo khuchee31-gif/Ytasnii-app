@@ -109,6 +109,51 @@ void main() {
     });
   });
 
+  group('Тасарсан хүн', () {
+    test('тоглолт дундаа гарсан хүн лоббид ҮЛДЭХГҮЙ', () {
+      // Тоглолт явж байхад суудал нь үлддэг (эргэж орох эрх). Тоглолт
+      // дуусахад тэр эрх утгаа алдана.
+      //
+      // ЦЭВЭРЛЭХГҮЙ БОЛ: гарсан хүн бүр суудлыг ҮҮРД эзэлнэ. Хоёр-гурван
+      // тоглолтын дараа өрөө сүнсээр дүүрч, шинэ хүн орж чадахгүй
+      // болно. Энэ нь өрөө лоббид буцдаг болсноор Л боломжтой болсон.
+      final GameRoom r = GameRoom(code: 'R7', hostId: 'p1', seed: _seed(7));
+      r.join('p1', 'Хүн1', 'punk_01');
+      r.join('p2', 'Хүн2', 'punk_01');
+      r.addBots('p1', 6);
+      r.start('p1', 0);
+      expect(r.playerCount, 8);
+
+      // p2 тоглолт дундаа сүлжээнээс салав.
+      r.leave('p2');
+      expect(r.playerCount, 8, reason: 'тоглолт дундаа суудал ҮЛДЭНЭ');
+
+      final List<Outbound> out = <Outbound>[];
+      _play(r, out, 0);
+      expect(r.playerCount, 7, reason: 'лоббид буцахад сүнс арилна');
+      expect(r.players.any((PublicPlayer p) => p.id == 'p2'), isFalse);
+    });
+
+    test('ЭЗЭН гарсан бол лоббид шинэ эзэн ХҮН болно', () {
+      final GameRoom r = GameRoom(code: 'R8', hostId: 'p1', seed: _seed(8));
+      r.join('p1', 'Хүн1', 'punk_01');
+      r.join('p2', 'Хүн2', 'punk_01');
+      r.addBots('p1', 6);
+      r.start('p1', 0);
+      r.leave('p1');
+      final List<Outbound> out = <Outbound>[];
+      _play(r, out, 0);
+      expect(r.hostId, 'p2');
+      // ЭЗЭН ХЭЗЭЭ Ч БОТ БОЛОХГҮЙ: ботод сокет байхгүй тул `startGame`
+      // илгээхгүй, өрөө үүрд лоббид гацна.
+      expect(r.players
+          .firstWhere((PublicPlayer p) => p.id == r.hostId)
+          .isBot, isFalse);
+      expect(r.start('p2', 900000).any((Outbound o) => o.msg.type == S2C.error),
+          isFalse);
+    });
+  });
+
   group('Юу АЛДАГДАХГҮЙ вэ', () {
     test('лобби руу буцахад НИЙТИЙН мессежид дүр ГАРАХГҮЙ', () {
       final GameRoom r = _solo('R6', 6);

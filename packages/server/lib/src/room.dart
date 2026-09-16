@@ -990,6 +990,30 @@ class GameRoom {
     _orderPerm = const <int>[];
     _seq = 0;
     _fast = false;
+    // ТАСАРСАН ХҮМҮҮСИЙГ ГАРГАНА.
+    //
+    // Тоглолт явж байхад гарсан хүний суудал үлддэг (эргэж орох
+    // эрх — `leave`). Тоглолт дуусахад тэр эрх утгаа алдана: тэд
+    // дахин холбогдвол шинэ тоглогч шиг орно.
+    //
+    // ХЭРЭВ ЦЭВЭРЛЭХГҮЙ БОЛ: гарсан хүн бүр суудлыг ҮҮРД эзэлнэ.
+    // Хоёр-гурван тоглолтын дараа өрөө сүнсээр дүүрч, шинэ хүн орж
+    // чадахгүй болно (`kMaxPlayers`), тоглолт эхлэх ч боломжгүй.
+    // Энэ нь өрөө лоббид буцдаг болсноор Л боломжтой болсон алдаа.
+    for (final PlayerId id in _players.keys.toList()) {
+      if (!(_players[id]?.connected ?? false)) {
+        _players.remove(id);
+        _bots.remove(id);
+      }
+    }
+    if (!_players.containsKey(hostId)) {
+      for (final PublicPlayer p in _players.values) {
+        if (!p.isBot) {
+          hostId = p.id;
+          break;
+        }
+      }
+    }
     for (final PlayerId id in _players.keys.toList()) {
       // СУУДЛЫГ ЦЭВЭРЛЭНЭ: дараагийн тараалт орсон дарааллаар шинээр
       // өгнө. `copyWith` нь `seat`-ыг `null` болгож чадахгүй (өгөөгүй
