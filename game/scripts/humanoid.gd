@@ -328,6 +328,43 @@ static func pose_seated(sk: Skeleton3D, lean: float, turn: float, spread: float)
 			aim(sk, _fill(leg[i], side), _fill(leg[i + 1], side), want[i])
 
 
+## ҮХСЭН хүний байрлал.
+##
+## `pose_seated(1.7, …)` нь биеийг ширээн дээр бөхийлгөдөг ч толгой нь
+## ДООШОО харна: камерт зөвхөн үсний бөөгнөрөл харагдаж, «энэ юу вэ»
+## гэсэн асуулт төрүүлнэ (жинхэнэ тоглолтын зурган дээр хэмжсэн).
+##
+## Хацраараа тавихад нүүр нь харагдана. Гар нь ширээн дээгүүр сунана —
+## суусан хүний гар хэзээ ч тэгж хэвтдэггүй тул ялгаа нь ТЭР ДОР НЬ
+## уншигдана: тайлбар, тэмдэг, бичвэр хэрэггүй.
+static func pose_slumped(sk: Skeleton3D) -> void:
+	pose_seated(sk, 1.7, 0.0, -0.05)
+	var rig := rig_of(sk)
+	if rig.is_empty():
+		return
+	var ax := body_axes(sk, rig)
+	if ax.is_empty():
+		return
+	var up: Vector3 = ax["up"]
+	var left: Vector3 = ax["left"]
+	var fwd: Vector3 = ax["fwd"]
+
+	# Толгойг хажуу тийш — хацар ширээн дээр.
+	spin(sk, rig["head"], fwd, 1.15)
+
+	# Гар нь урагш, гадагш сунана.
+	var arm: Array = rig["arm"]
+	for s in range(2):
+		var side: String = rig["sides"][s]
+		var outward: Vector3 = left if s == 0 else -left
+		aim(sk, _fill(arm[0], side), _fill(arm[1], side),
+			(fwd * 0.62 + outward * 0.60 - up * 0.50).normalized())
+		aim(sk, _fill(arm[1], side), _fill(arm[2], side),
+			(fwd * 0.88 + outward * 0.46).normalized())
+		aim(sk, _fill(arm[2], side), _fill(arm[3], side),
+			(fwd * 0.94 + outward * 0.30).normalized())
+
+
 ## Хуруунуудыг ЖААХАН нугалана.
 ##
 ## T-байрлалын хуруу нь сарвуу мэт сунасан байдаг. Ширээн дээр тавьсан

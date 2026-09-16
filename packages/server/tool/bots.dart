@@ -15,9 +15,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:protocol/protocol.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const int kProtocolVersion = 1;
+// ХУВИЛБАРЫГ ЭНД БҮҮ БИЧ. Өмнө нь `const int kProtocolVersion = 1;` гэж
+// хуулбарласан байв. Сервер 2 болоход энэ хэрэгсэл чимээгүй хоцорч,
+// бүх бот `badVersion` авдаг болсон — `tools/play.sh` бүхэлдээ ажиллахаа
+// больсон ч тестүүд ногоон хэвээр байв (тэд протоколыг ЗӨВ импортолдог).
+
 
 class Bot {
   Bot(this.index, this.url, this.rng);
@@ -27,7 +32,10 @@ class Bot {
   final Random rng;
 
   late final WebSocketChannel ch;
-  final String id = 'bot-${DateTime.now().microsecondsSinceEpoch}-${_n++}';
+  // `bot-` УГТВАР БАЙЖ БОЛОХГҮЙ: сервер тэр угтвартай дугаарыг
+  // сокетоор хүлээж авахаа больсон (жинхэнэ ботын дүрийг хулгайлахаас
+  // сэргийлнэ). Эдгээр нь ХҮНИЙГ дүрдэг хэрэгслүүд, өрөөний ботууд биш.
+  final String id = 'sim-${DateTime.now().microsecondsSinceEpoch}-${_n++}';
   static int _n = 0;
 
   String name = '';

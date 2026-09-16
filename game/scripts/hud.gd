@@ -119,22 +119,26 @@ func _ready() -> void:
 	# Дохионы зурвасын ДЭЭР. Хөндлөн барихад зүүн эрхий нь доод зүүн
 	# буланд байх тул тэр газрыг ДАРДАГ зүйлд өгнө, зөвхөн харагддаг
 	# бичвэрт биш.
-	_band(_mic, Control.PRESET_BOTTOM_LEFT, PAD, -116, PAD + 700, -84)
+	_band(_mic, Control.PRESET_BOTTOM_LEFT, PAD, -142, PAD + 700, -110)
 	root.add_child(_mic)
 
 	# --- Доод зүүн: дохионы зурвас -------------------------------------------
-	_emote_bar.add_theme_constant_override("separation", 8)
-	_band(_emote_bar, Control.PRESET_BOTTOM_LEFT, PAD, -74, PAD + 760, -20)
+	_emote_bar.add_theme_constant_override("separation", 10)
+	# ӨНДӨР 80 ЦЭГ. 1600×720 дэлгэц дээр энэ нь ~7 мм — эрхий хуруугаар
+	# онох боломжтой хамгийн бага хэмжээ. Эхний хувилбар 54 цэг байсан
+	# (~5 мм): ангид хурдан товшиход хажуугийн товч дарагдана.
+	_band(_emote_bar, Control.PRESET_BOTTOM_LEFT, PAD, -104, PAD + 860, -24)
 	_emote_bar.visible = false
 	root.add_child(_emote_bar)
 	for e in EMOTES:
 		var b := Button.new()
 		b.text = str(e["text"])
-		b.add_theme_font_size_override("font_size", 20)
+		b.add_theme_font_size_override("font_size", 22)
 		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(0, 80)
 		var kind: String = str(e["kind"])
 		b.pressed.connect(func() -> void: _on_emote(kind))
-		_style(b, 8, 10)
+		_style(b, 18, 14)
 		_emote_bar.add_child(b)
 		_emote_btns.append(b)
 

@@ -4,6 +4,8 @@
 // зураг зөв, гараар товшиход эвгүй зүйл алга. Алдаа бүр нь ЗӨВХӨН
 // зориудаар халдсан үед л гарч ирдэг.
 
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:engine/engine.dart' as eng;
@@ -176,6 +178,26 @@ void main() {
     });
   });
 
+  group('Хэрэгслүүд протоколоос хоцрохгүй', () {
+    test('tool/bots.dart нь хувилбарыг ӨӨРӨӨ зарлахгүй', () async {
+      // ОЛДСОН АЛДАА: `tool/bots.dart` дотор `const int kProtocolVersion
+      // = 1;` гэж ХУУЛБАРЛАСАН байв. Сервер 2 болоход хэрэгсэл чимээгүй
+      // хоцорч, бүх бот `badVersion` авдаг болсон — `tools/play.sh`
+      // бүхэлдээ ажиллахаа больсон ч бүх тест НОГООН хэвээр байв.
+      final String src = await _toolSource('tool/bots.dart');
+      expect(src.contains('kProtocolVersion ='), isFalse,
+          reason: 'протоколын хувилбарыг ЗӨВХӨН protocol багц эзэмшинэ');
+      expect(src.contains("import 'package:protocol/protocol.dart'"), isTrue);
+    });
+
+    test('симуляцийн ботууд НӨӨЦЛӨГДСӨН угтвар хэрэглэхгүй', () async {
+      // Сервер `bot-` угтвартай дугаарыг сокетоор хүлээж авахаа больсон.
+      final String src = await _toolSource('tool/bots.dart');
+      expect(src.contains("'$kBotIdPrefix"), isFalse,
+          reason: 'эдгээр нь ХҮНИЙГ дүрдэг хэрэгслүүд, өрөөний ботууд биш');
+    });
+  });
+
   group('Мөрдөгчийн хариу', () {
     test('ХҮН мөрдөгч ХЭНИЙГ асуусныг буцааж авна', () {
       // ОЛДСОН АЛДАА: `targetSeat` нь ботын САНАХ ОЙгоос уншигддаг
@@ -219,4 +241,26 @@ void main() {
       expect(mine.single.data['targetSeat'], target);
     });
   });
+}
+
+/// Багцын дотор байгаа, гэхдээ `lib/`-д БИШ файлыг уншина.
+///
+/// Замыг ажлын хавтсаар БИШ, `package:` хаягаар олно: `dart test`-ийг
+/// репогийн язгуураас ажиллуулахад харьцангуй зам олдохгүй.
+Future<String> _toolSource(String rel) async {
+  final Uri? u =
+      await Isolate.resolvePackageUri(Uri.parse('package:server/server.dart'));
+  if (u == null) throw StateError('server багц олдсонгүй');
+  final Directory pkg = File.fromUri(u).parent.parent;
+  String src = File('${pkg.path}/$rel').readAsStringSync();
+  // ТАЙЛБАРГҮЙ. Эс бөгөөс «ингэж бичиж БОЛОХГҮЙ» гэсэн тайлбар өөрөө
+  // шалгалтыг унагана.
+  src = src.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+  return src
+      .split('\n')
+      .map((String l) {
+        final int i = l.indexOf('//');
+        return i < 0 ? l : l.substring(0, i);
+      })
+      .join('\n');
 }

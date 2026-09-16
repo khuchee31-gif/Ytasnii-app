@@ -560,6 +560,9 @@ func _am_alive() -> bool:
 ## сервер дээр.
 func _can_emote_now() -> bool:
 	if not _am_alive():
+		if verbose and _phase == "day":
+			print("HUD can_emote=false — амьд биш гэж үзэв, players=",
+				_players.size(), " id=", net.player_id)
 		return false
 	return _phase == "dawn" or _phase == "day" or _phase == "vote" \
 		or _phase == "elimination"
