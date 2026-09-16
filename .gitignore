@@ -1,0 +1,8 @@
+# Godot
+game/.godot/
+game/android/
+game/export_presets.cfg
+game/*.tmp
+
+# Түр зуурын дүрслэлийн гаралт
+game/shots/

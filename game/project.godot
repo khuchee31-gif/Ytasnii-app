@@ -1,0 +1,34 @@
+; «Хот унтлаа» — Godot төсөл.
+;
+; ЯАГААД GODOT: Flutter дээр 3D хийх оролдлого бүтсэнгүй. Тэнд байгаа нь
+; хавтгай зураг, шатлалт өнгө — жинхэнэ тор, текстур, сүүдэр, ясжуулсан дүр
+; байхгүй. Buckshot Roulette өөрөө Godot дээр хийгдсэн.
+;
+; ДҮРМИЙН ХӨДӨЛГҮҮР ЭНД БАЙХГҮЙ. Тэр нь `packages/engine` дотор, Dart дээр,
+; серверт ажиллана. Энэ төсөл бол ЗӨВХӨН ЦОНХ.
+
+config_version=5
+
+[application]
+config/name="Хот унтлаа"
+config/description="Ангийн мафи — онлайн"
+run/main_scene="res://scenes/table.tscn"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[display]
+window/size/viewport_width=720
+window/size/viewport_height=1600
+window/stretch/mode="canvas_items"
+window/handheld/orientation=1
+
+[rendering]
+; GL Compatibility — Redmi 9A (PowerVR GE8320, Vulkan БАЙХГҮЙ) дээр
+; ажиллах цорын ганц зам.
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=1
+
+[physics]
+common/physics_ticks_per_second=30
