@@ -294,7 +294,12 @@ func _ready() -> void:
 		_apply_mood(1.0)
 		if _hud != null and _arg("ann", 0.0) > 0.5:
 			_hud.ann_freeze = true
-			_hud.announce("ХОТ УНТЛАА", "Бүгд нүдээ ань")
+			# Бичвэрийг тушаалын мөрөөр өгч болно — үүр, хасалтын
+			# зарлалыг бүтэн тоглолт хүлээлгүй харах зам.
+			#   tools/render.sh -- demo=1 mood=dawn ann=1 \
+			#       annt="ҮҮР ЦАЙЛАА" anns="3. Бат алагдлаа"
+			_hud.announce(_arg_str("annt", "ХОТ УНТЛАА"),
+				_arg_str("anns", "Бүгд нүдээ ань"))
 	# Хөгжүүлэлтийн шалгалт: дүрийн хөзрийг харах.
 	var rc := _arg_str("card", "")
 	if not rc.is_empty() and _hud != null:

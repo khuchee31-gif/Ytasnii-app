@@ -208,12 +208,16 @@ func _ready() -> void:
 	_ann.visible = false
 	root.add_child(_ann)
 
-	_ann_sub.add_theme_font_size_override("font_size", 26)
+	# 34, 26 БИШ. Энэ мөр нь үе шатын хиймэл дагуул биш: үүр цайхад
+	# ХЭН АЛАГДСАН, хасалтад ХЭН ХАСАГДСАН гэдгийг ЭНД бичнэ. Тэр бол
+	# тоглоомын хамгийн чухал хоёр өгүүлбэр — гарчгийн доор бараг
+	# уншигдахгүй байж болохгүй.
+	_ann_sub.add_theme_font_size_override("font_size", 34)
 	_ann_sub.add_theme_color_override("font_color", AMBER)
 	_ann_sub.add_theme_constant_override("outline_size", 8)
 	_ann_sub.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	_ann_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_band(_ann_sub, Control.PRESET_CENTER, -600, 14, 600, 54)
+	_band(_ann_sub, Control.PRESET_CENTER, -600, 16, 600, 66)
 	_ann_sub.visible = false
 	root.add_child(_ann_sub)
 

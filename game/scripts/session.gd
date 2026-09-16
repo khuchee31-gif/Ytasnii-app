@@ -264,6 +264,11 @@ var solo_vigilante := false
 var solo_blocker := false
 var _solo_asked := false
 
+## Үүр ба хасалтын зарлалын дэд мөр. Мессеж ирэхэд бэлдэж, үе шат
+## солигдоход хэрэглэнэ.
+var _dawn_sub := ""
+var _elim_sub := ""
+
 ## Сүүлчийн шөнийн шивнээ. НИЙТИЙН мэдээлэл.
 var _whisper: Array = []
 
@@ -637,7 +642,19 @@ func _on_phase(d: Dictionary) -> void:
 	# ҮЕ ШАТЫГ ЗАРЛАНА. Лобби, хөзөр тараах хоёрыг алгасна — тэд
 	# өөрсдийн дэлгэцтэй.
 	if hud != null and _phase != "lobby" and _phase != "dealing":
-		hud.announce(str(PHASE_NAME.get(_phase, "")), PHASE_SUB.get(_phase, ""))
+		# ҮҮР БА ХАСАЛТ нь тоглоомын хамгийн чанга хоёр мөч. Ерөнхий
+		# бичвэр («Хот сэрлээ», «Шийдвэр») нь тэднийг бусад үе шаттай
+		# адилхан болгоно. Нэрийг гарчгийн дор тавибал зарлал нь
+		# ӨӨРӨӨ үйл явдал болно.
+		#
+		# Сервер `nightResult`/`eliminated`-ыг үе шатын мессежээс ӨМНӨ
+		# илгээдэг тул нэр энэ мөчид аль хэдийн бэлэн байна.
+		var sub: String = PHASE_SUB.get(_phase, "")
+		if _phase == "dawn" and not _dawn_sub.is_empty():
+			sub = _dawn_sub
+		elif _phase == "elimination" and not _elim_sub.is_empty():
+			sub = _elim_sub
+		hud.announce(str(PHASE_NAME.get(_phase, "")), sub)
 	_phase_sound()
 	# ЛОББИ РУУ БУЦЛАА — тоглолт дууссаны дараа өрөө өөрөө сэргэдэг.
 	# Хуучин тоглолтын БҮХ ул мөрийг цэвэрлэнэ, эс бөгөөс шинэ
@@ -662,6 +679,8 @@ func _on_phase(d: Dictionary) -> void:
 			table.set_votes({}, {})
 	if _phase == "nightFalls":
 		_watch_seen.clear()
+		_dawn_sub = ""
+		_elim_sub = ""
 		_whisper = []
 		if table != null:
 			table.set_whisper([])
@@ -709,6 +728,7 @@ func _on_night_result(d: Dictionary) -> void:
 	if sfx != null and not wh.is_empty():
 		sfx.play("whisper", -9.0)
 	if dead.is_empty():
+		_dawn_sub = "Хэн ч алагдсангүй"
 		_notify("Шөнө нам гүм өнгөрлөө.%s" % _whisper_text(wh))
 		return
 	if sfx != null:
@@ -725,6 +745,7 @@ func _on_night_result(d: Dictionary) -> void:
 	# НЭРЛЭНЭ, зөвхөн дугаарлахгүй. «5-р суудал алагдлаа» гэхэд ширээ
 	# толгойгоо өргөж хэн байсныг тоолох хэрэгтэй болно; «5. Бат»
 	# гэвэл шууд ойлгогдоно. Нэр нь НИЙТИЙН мэдээлэл.
+	_dawn_sub = "%s алагдлаа" % " ба ".join(names)
 	_notify("%s алагдлаа.%s" % [" ба ".join(names), _whisper_text(wh)])
 
 
@@ -864,10 +885,13 @@ func _on_eliminated(d: Dictionary) -> void:
 		if table != null:
 			table.set_candidates(revote)
 			table.select_seat(-1)
+		_elim_sub = "%s — дахин санал" % " ба ".join(names)
 		_notify("ТЭНЦЛЭЭ. %s хоёрын хооронд ДАХИН САНАЛ." % " ба ".join(names))
 	elif seat == null:
+		_elim_sub = "Хэн ч хасагдсангүй"
 		_notify("Санал дахин тэнцлээ. Хэн ч хасагдсангүй.")
 	else:
+		_elim_sub = _seat_label(int(seat))
 		_notify("%s хасагдлаа." % _seat_label(int(seat)))
 
 
