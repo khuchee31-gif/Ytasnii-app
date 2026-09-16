@@ -50,6 +50,15 @@ var _rule := ColorRect.new()
 ## харанхуйд найман суудлын аль нь гэрэлтэж байгааг ялгах нь хэцүү.
 var _talker := Label.new()
 
+## СҮЛЖЭЭ ТАСАРСАН гэсэн туузан. Ангийн Wi-Fi нэг мөчид тасарч болно;
+## тэр үед тоолуур хөлдөж, товч ажиллахаа больдог. Тайлбаргүй бол
+## тоглогч тоглоом эвдэрсэн гэж бодно.
+##
+## Мэдэгдэл (`_notify`) нь дөрвөн секундын дараа арилдаг тул үүнд
+## тохирохгүй: холболт хагас минут тасарч болно.
+var _offline := Label.new()
+var _offline_bg := ColorRect.new()
+
 ## Дууны систем. `table_scene.gd` өгнө; байхгүй ч HUD ажиллана
 ## (демо, зураг авах горим).
 var sfx: Node = null
@@ -257,6 +266,22 @@ func _ready() -> void:
 	_band(_talker, Control.PRESET_TOP_RIGHT, -700, 96, -PAD, 136)
 	_talker.visible = false
 	root.add_child(_talker)
+
+	# ХАРАНХУЙ ТАВЦАН. Тайзны дээр шууд бичвэр тавибал суудлын нэрийн
+	# шошготой давхцаж, хоёулаа уншигдахгүй болно (зураг авч олов).
+	_offline_bg.color = Color(0.10, 0.05, 0.02, 0.88)
+	_band(_offline_bg, Control.PRESET_CENTER_TOP, -430, 208, 430, 262)
+	_offline_bg.visible = false
+	root.add_child(_offline_bg)
+
+	_offline.add_theme_font_size_override("font_size", 26)
+	_offline.add_theme_color_override("font_color", Color(0.96, 0.62, 0.34))
+	_offline.add_theme_constant_override("outline_size", 8)
+	_offline.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_offline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_band(_offline, Control.PRESET_CENTER_TOP, -430, 216, 430, 258)
+	_offline.visible = false
+	root.add_child(_offline)
 
 	# --- Төгсгөлийн илчлэлт ---------------------------------------------------
 	_rev_scrim.color = Color(0.03, 0.02, 0.02, 0.96)
@@ -680,6 +705,13 @@ func show_tally(items: Array) -> void:
 ##
 ## `screen` нь `Camera3D.unproject_position`-оос ирнэ. Ард нь байвал
 ## `visible = false` болгож дуудна.
+## Сүлжээ тасарсан эсэх. Холбогдтол ХЭВЭЭР харагдана.
+func set_offline(off: bool) -> void:
+	_offline.text = "СҮЛЖЭЭ ТАСАРЛАА — дахин холбогдож байна…"
+	_offline.visible = off
+	_offline_bg.visible = off
+
+
 ## Ярьж байгаа хүний нэр. Хоосон бол мөр алга болно.
 func show_talker(text: String) -> void:
 	if reveal_open():

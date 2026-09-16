@@ -33,6 +33,10 @@ abstract final class PhaseMs {
   static const int day = 120000;
   static const int vote = 30000;
   static const int elimination = 5000;
+
+  /// Төгсгөлийн илчлэлтийг харах хугацаа. Дараа нь өрөө ЛОББИ руу
+  /// буцаж, тэр л кодоор дахин тоглож болно.
+  static const int gameOver = 25000;
 }
 
 const int kMinPlayers = 6;
@@ -649,9 +653,12 @@ class GameRoom {
 
   /// Цаг хэмжигч. Сервер үүнийг тогтмол дуудна.
   List<Outbound> tick(int nowMs) {
-    if (_phase == NetPhase.lobby || _phase == NetPhase.gameOver) {
-      return const <Outbound>[];
-    }
+    // ЛОББИД ЦАГ БАЙХГҮЙ — хүн хүлээж байх нь үе шат биш.
+    //
+    // `gameOver` нь ЭНД БАЙХГҮЙ: түүнд ХУГАЦАА байдаг (илчлэлтийг
+    // харах 25 секунд), дараа нь өрөө өөрөө лобби руу буцна. Өмнө нь
+    // энэ мөрөнд байсан тул өрөө `gameOver` дээр үүрд зогсдог байв.
+    if (_phase == NetPhase.lobby) return const <Outbound>[];
     // БОТУУД ЭХЛЭЭД — үе шат урагшлахаас ӨМНӨ. Эс бөгөөс сүүлийн tick
     // дээр ирсэн ботын үйлдэл аль хэдийн өөр үе шатанд буух тул
     // `notYourTurn` болно.
@@ -948,11 +955,68 @@ class GameRoom {
           _beginNight(nowMs, out);
         }
 
-      case NetPhase.lobby:
+      // ЛОББИ РУУ БУЦНА. Код нь ХЭВЭЭР — ангид дахин хэлэх шаардлагагүй.
       case NetPhase.gameOver:
+        _resetToLobby(out);
+
+      case NetPhase.lobby:
         break;
     }
     return out;
+  }
+
+  /// Тоглолтын дараа өрөөг ЦЭВЭРЛЭЖ лоббид буцаана.
+  ///
+  /// ДҮРИЙН БҮХ УЛ МӨРИЙГ УСТГАНА. Хэрэв `_secrets` үлдвэл дараагийн
+  /// тоглолтын `yourRole` илгээгдэхээс өмнө хуучин дүр нь `roomState`
+  /// дотор ямар нэг замаар гарч ирэх эрсдэлтэй.
+  void _resetToLobby(List<Outbound> out) {
+    _phase = NetPhase.lobby;
+    _phaseEndsAtMs = 0;
+    _secrets.clear();
+    _bySeat.clear();
+    _intents.clear();
+    _revealed.clear();
+    _revoteSeats = const <int>[];
+    _votes.clear();
+    _night = null;
+    _setup = null;
+    _nightNo = 0;
+    _win = eng.WinState.none;
+    _bullets = const <int, int>{};
+    _remorse = const <int>{};
+    _lastHeal = const <int, int>{};
+    _selfHealUsed = const <int, int>{};
+    _orderPerm = const <int>[];
+    _seq = 0;
+    _fast = false;
+    for (final PlayerId id in _players.keys.toList()) {
+      // СУУДЛЫГ ЦЭВЭРЛЭНЭ: дараагийн тараалт орсон дарааллаар шинээр
+      // өгнө. `copyWith` нь `seat`-ыг `null` болгож чадахгүй (өгөөгүй
+      // талбарыг хуучин утгаар нь үлдээдэг) тул шинээр байгуулна.
+      // Бэлэн байдлыг ч тэглэнэ — хүн бүр дахин тоглохоо зориуд
+      // хэлэх ёстой.
+      final PublicPlayer old = _players[id]!;
+      _players[id] = PublicPlayer(
+        id: old.id,
+        name: old.name,
+        avatarId: old.avatarId,
+        connected: old.connected,
+        isBot: old.isBot,
+      );
+    }
+    for (final BotSeat b in _bots.values) {
+      b.seat = -1;
+      // САНАХ ОЙГ ЦЭВЭРЛЭНЭ. Үлдээвэл бот өнгөрсөн тоглолтын
+      // «мөр олдлоо» гэсэн мэдээллээр шинэ тоглолтод сэжиглэнэ.
+      b.mem.reset();
+    }
+    out
+      ..add(Outbound.all(Envelope(S2C.phase, <String, Object?>{
+        'phase': NetPhase.lobby.name,
+        'endsInMs': 0,
+      })))
+      ..addAll(_stateForAll());
   }
 
   /// Хөдөлгүүрийн татгалзлыг протоколын кодод буулгана.
@@ -1197,7 +1261,13 @@ class GameRoom {
 
   void _finish(int nowMs, List<Outbound> out) {
     _phase = NetPhase.gameOver;
-    _phaseEndsAtMs = nowMs;
+    // ИЛЧЛЭЛТИЙГ ХАРАХ ХУГАЦАА, дараа нь ЛОББИ РУУ буцна.
+    //
+    // Өмнө нь өрөө `gameOver` дээр ҮҮРД зогсдог байв: дахин тоглохын
+    // тулд шинэ өрөө үүсгэж, шинэ кодыг ангид дахин хэлэх хэрэгтэй
+    // болдог. Хэдэн удаа тоглох ангид тэр нь тоглолт хоорондын
+    // хамгийн урт саатал.
+    _phaseEndsAtMs = nowMs + PhaseMs.gameOver;
     // ЭНД Л бүх дүр ил болно — тоглолт дууссаны дараа.
     out.add(Outbound.all(Envelope(S2C.gameOver, <String, Object?>{
       'winner': _win.name,

@@ -50,6 +50,23 @@ class BotMemory {
 
   /// Саатуулагч: сүүлд хэнийг барьсан. Дараалан давтахаас сэргийлнэ.
   int? lastBlock;
+
+  /// Шинэ тоглолт — БҮГДИЙГ мартана.
+  ///
+  /// Үлдээвэл бот өнгөрсөн тоглолтын «мөр олдлоо» гэсэн мэдээллээр
+  /// шинэ тоглолтод сэжиглэж, ширээнд тайлбарлах боломжгүй зан
+  /// гаргана.
+  void reset() {
+    lastDayVotes.clear();
+    nightVictims.clear();
+    checked.clear();
+    traceFound.clear();
+    traceNotFound.clear();
+    whispered.clear();
+    lastHeal = null;
+    lastCheck = null;
+    lastBlock = null;
+  }
 }
 
 /// Бот юу ХАРАХ вэ.

@@ -384,6 +384,8 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 # --- Серверээс ирэх ----------------------------------------------------------
 
 func _on_open() -> void:
+	if hud != null:
+		hud.set_offline(false)
 	# ДАХИН ХОЛБОГДОЛТ эхэлж шалгагдана. Аль хэдийн өрөөнд орсон бол
 	# тэр өрөө рүүгээ буцна — сервер биднийг «эргэж ирлээ» гэж таньж,
 	# суудал, дүрийг буцааж өгнө.
@@ -489,7 +491,13 @@ func _on_join(name_v: String, code: String) -> void:
 
 
 func _on_close(_code: int) -> void:
-	_notify("Холболт тасарлаа. Дахин холбогдож байна…")
+	# ТУУЗЫГ ХЭВЭЭР ҮЛДЭЭНЭ. `_notify` нь дөрвөн секундын дараа арилдаг
+	# бол холболт хагас минут тасарч болно — тэр хугацаанд тоглогч
+	# хөлдсөн тоолуур, ажиллахгүй товчийг тайлбаргүй хардаг байв.
+	if hud != null:
+		hud.set_offline(true)
+	if lobby != null and lobby.visible:
+		lobby.set_note("Сүлжээ тасарлаа. Дахин холбогдож байна…")
 
 
 func _on_room_list(d: Dictionary) -> void:
@@ -631,6 +639,27 @@ func _on_phase(d: Dictionary) -> void:
 	if hud != null and _phase != "lobby" and _phase != "dealing":
 		hud.announce(str(PHASE_NAME.get(_phase, "")), PHASE_SUB.get(_phase, ""))
 	_phase_sound()
+	# ЛОББИ РУУ БУЦЛАА — тоглолт дууссаны дараа өрөө өөрөө сэргэдэг.
+	# Хуучин тоглолтын БҮХ ул мөрийг цэвэрлэнэ, эс бөгөөс шинэ
+	# тоглолт эхлэхэд хуучин дүрийн хөзөр, илчлэлт дэлгэц дээр үлдэнэ.
+	if _phase == "lobby":
+		_my_role = ""
+		_my_seat = -1
+		_watch_seen.clear()
+		_whisper = []
+		_revealed = []
+		_candidates = []
+		_votes.clear()
+		if voice != null:
+			voice.my_seat = -1
+		if hud != null:
+			hud.hide_reveal()
+			hud.hide_role_card()
+		if table != null:
+			table.set_whisper([])
+			table.set_revealed([])
+			table.set_candidates([])
+			table.set_votes({}, {})
 	if _phase == "nightFalls":
 		_watch_seen.clear()
 		_whisper = []

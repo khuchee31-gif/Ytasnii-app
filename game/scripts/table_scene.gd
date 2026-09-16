@@ -304,6 +304,10 @@ func _ready() -> void:
 				"3-р суудал · %s" % str(c["sub"]),
 				"Хамтрагч: 7-р суудал" if rc == "killer" else "",
 				Color(c["tone"]))
+	# Хөгжүүлэлтийн шалгалт: сүлжээ тасарсан туузыг харах.
+	#   tools/render.sh -- demo=1 offline=1 hold=1 out=o.png
+	if _arg("offline", 0.0) > 0.5 and _hud != null:
+		_hud.set_offline(true)
 	# Хөгжүүлэлтийн шалгалт: дүрмийн хуудсыг харах.
 	#   tools/render.sh -- rules=1 hold=1 out=r.png
 	if _arg("rules", 0.0) > 0.5 and _sess != null and _sess.lobby != null:
