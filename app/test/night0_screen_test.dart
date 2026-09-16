@@ -12,14 +12,16 @@ import 'package:hotuntlaa/ui/tokens.dart';
 import 'deal_test_support.dart';
 
 void main() {
-  testWidgets('Дэлгэц 100 % хар, ямар ч текст, тоолуур, товч БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('Дэлгэц 100 % хар, ямар ч текст, тоолуур, товч БАЙХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
-    await pumpScreen(
-        tester, Night0Screen(controller: c, onDone: () {}));
+    await pumpScreen(tester, Night0Screen(controller: c, onDone: () {}));
 
-    expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-        kNight);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      kNight,
+    );
     expect(find.byType(Text), findsNothing);
 
     // Танилцах минутын дунд ч — тоолуур ГАРАХГҮЙ.
@@ -31,18 +33,15 @@ void main() {
     await tester.pump(const Duration(seconds: 25));
   });
 
-  testWidgets('4.0 сек → 60.0 сек → 1.2 сек, дараа нь шөнийн эргэлт рүү',
-      (WidgetTester tester) async {
+  testWidgets('4.0 сек → 60.0 сек → 1.2 сек, дараа нь шөнийн эргэлт рүү', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     final List<String> cues = <String>[];
     bool done = false;
     await pumpScreen(
       tester,
-      Night0Screen(
-        controller: c,
-        onDone: () => done = true,
-        onCue: cues.add,
-      ),
+      Night0Screen(controller: c, onDone: () => done = true, onCue: cues.add),
     );
 
     expect(cues, <String>['NIGHT_START']);
@@ -64,12 +63,15 @@ void main() {
     expect(c.meetCutShort, isFalse);
   });
 
-  testWidgets('Гурван товшилт — хөгжүүлэгчийн авралт, дэвтэрт тэмдэглэгдэнэ',
-      (WidgetTester tester) async {
+  testWidgets('Гурван товшилт — хөгжүүлэгчийн авралт, дэвтэрт тэмдэглэгдэнэ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     bool done = false;
     await pumpScreen(
-        tester, Night0Screen(controller: c, onDone: () => done = true));
+      tester,
+      Night0Screen(controller: c, onDone: () => done = true),
+    );
 
     // `nightStart`-ын дотор товшилт ҮЛ ХАМААРНА.
     await tester.tapAt(const Offset(180, 400));
@@ -104,8 +106,7 @@ void main() {
 
   testWidgets('Хоёр товшилт авралт гаргахгүй', (WidgetTester tester) async {
     final GameController c = dealtController();
-    await pumpScreen(
-        tester, Night0Screen(controller: c, onDone: () {}));
+    await pumpScreen(tester, Night0Screen(controller: c, onDone: () {}));
     await tester.pump(const Duration(seconds: 5));
 
     await tester.tapAt(const Offset(180, 400));
@@ -117,8 +118,9 @@ void main() {
     await tester.pump(const Duration(seconds: 62));
   });
 
-  testWidgets('320 логик px дээр авралтын мөр халихгүй',
-      (WidgetTester tester) async {
+  testWidgets('320 логик px дээр авралтын мөр халихгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     await pumpScreen(
       tester,

@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart' hide Intent;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotuntlaa/ui/glyphs.dart';
 import 'package:hotuntlaa/ui/tokens.dart';
 
 /// Зорилтот утас: 360 логик px.
@@ -16,14 +17,15 @@ Future<void> pumpNarrow(WidgetTester tester, Widget child) =>
     _pump(tester, child, const Size(640, 1400), 2.0);
 
 Future<void> _pump(
-    WidgetTester tester, Widget child, Size size, double dpr) async {
+  WidgetTester tester,
+  Widget child,
+  Size size,
+  double dpr,
+) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = dpr;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(
-    theme: buildTheme(),
-    home: child,
-  ));
+  await tester.pumpWidget(MaterialApp(theme: buildTheme(), home: child));
   await tester.pump();
 }
 
@@ -33,8 +35,19 @@ void expectNoOverflow(WidgetTester tester) {
 }
 
 /// Хүрэх талбай ХЭЗЭЭ Ч [kMinTouch]-ээс бага биш.
-void expectTouchTarget(WidgetTester tester, Finder f, {double min = kMinTouch}) {
+void expectTouchTarget(
+  WidgetTester tester,
+  Finder f, {
+  double min = kMinTouch,
+}) {
   final Size s = tester.getSize(f);
   expect(s.height, greaterThanOrEqualTo(min));
   expect(s.width, greaterThanOrEqualTo(min));
 }
+
+/// Зурагдсан тэмдгийг олно. Тэмдгүүд ТЕКСТ БИШ болсон тул (`ui/glyphs.dart`)
+/// `find.text('○')` ажиллахаа больсон — түүний оронд энэ.
+Finder findMark(MarkShape shape) => find.byWidgetPredicate(
+  (Widget w) => w is Mark && w.shape == shape,
+  description: 'Mark($shape)',
+);

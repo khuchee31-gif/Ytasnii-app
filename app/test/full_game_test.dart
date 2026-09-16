@@ -29,15 +29,21 @@ void main() {
     addTearDown(c.dispose);
 
     c.seatCount = 6;
-    expect(c.setupCheck.isReject, isFalse,
-        reason: '6 суудал хүчинтэй байх ёстой (kMinSeats)');
+    expect(
+      c.setupCheck.isReject,
+      isFalse,
+      reason: '6 суудал хүчинтэй байх ёстой (kMinSeats)',
+    );
 
     // FAIRNESS → DEAL. Seed тогтоосон тул тоглолт бүрэн давтагдана —
     // «заримдаа унадаг» тест бол тест биш.
     c.beginFairness(seed0: _fixedSeed(7));
     expect(c.phase, GamePhase.fairness);
-    expect(RegExp(r'^\d{3}-\d{3}$').hasMatch(c.previewCode), isTrue,
-        reason: 'шударгын код 3+3 аравтын хэлбэртэй байх ёстой');
+    expect(
+      RegExp(r'^\d{3}-\d{3}$').hasMatch(c.previewCode),
+      isTrue,
+      reason: 'шударгын код 3+3 аравтын хэлбэртэй байх ёстой',
+    );
 
     c.dealWithEntropy(Uint8List.fromList(<int>[1, 2, 3, 4]));
     expect(c.phase, GamePhase.deal);
@@ -56,8 +62,7 @@ void main() {
 
       // Суудал БҮР утсыг барина — хасагдсан ч. Жигд хуурмаг (GDD-10 §4).
       final int seatsThisNight = c.circuitSeats.length;
-      expect(seatsThisNight, 6,
-          reason: 'хасагдсан суудал ч эргэлтэд оролцоно');
+      expect(seatsThisNight, 6, reason: 'хасагдсан суудал ч эргэлтэд оролцоно');
 
       for (final int seat in c.circuitSeats) {
         final Role? role = c.roleOf(seat);
@@ -99,8 +104,11 @@ void main() {
       c.checkWin();
     }
 
-    expect(c.win, isNot(WinState.none),
-        reason: 'тоглолт 40 давталтын дотор дуусах ёстой');
+    expect(
+      c.win,
+      isNot(WinState.none),
+      reason: 'тоглолт 40 давталтын дотор дуусах ёстой',
+    );
     expect(c.phase, GamePhase.ceremony);
   });
 
@@ -119,19 +127,26 @@ void main() {
     c.resolveNightNow();
 
     // Хасагдсан суудал зочлол үүсгээгүй байх ёстой.
-    expect(c.report!.visits.any((Visit v) => v.from == 3), isFalse,
-        reason: 'хасагдсан суудлын үйлдэл хүчингүй болох ёстой');
+    expect(
+      c.report!.visits.any((Visit v) => v.from == 3),
+      isFalse,
+      reason: 'хасагдсан суудлын үйлдэл хүчингүй болох ёстой',
+    );
   });
 
-  testWidgets('Бүрхүүл нүүр дэлгэцээс эхэлж, шинэ тоглолт руу шилжинэ',
-      (WidgetTester tester) async {
+  testWidgets('Бүрхүүл нүүр дэлгэцээс эхэлж, шинэ тоглолт руу шилжинэ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = GameController();
     addTearDown(c.dispose);
 
     await pumpPhone(
-        tester, MaterialApp(home: GameShell(controller: c, skipSplash: true)));
+      tester,
+      MaterialApp(home: GameShell(controller: c, skipSplash: true)),
+    );
 
-    expect(find.text('ХОТ УНТЛАА'), findsOneWidget);
+    expect(find.text('ХОТ'), findsOneWidget);
+    expect(find.text('УНТЛАА'), findsNWidgets(3));
     expect(c.phase, GamePhase.appOpen);
   });
 }

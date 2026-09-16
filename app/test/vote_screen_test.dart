@@ -31,15 +31,16 @@ GameController voteController({
 /// хамгийн тодорхой зам.
 Future<void> setDial(WidgetTester tester, int n) async {
   for (int i = 0; i < n; i++) {
-    await tester.tap(find.text('+'));
+    await tester.tap(find.bySemanticsLabel('Нэмэх'));
     await tester.pump();
   }
 }
 
 /// 600 мс ДАРЖ-ДҮҮРГЭХ. Товшилт биш.
 Future<void> holdConfirm(WidgetTester tester) async {
-  final TestGesture g =
-      await tester.startGesture(tester.getCenter(find.byType(HoldToConfirm)));
+  final TestGesture g = await tester.startGesture(
+    tester.getCenter(find.byType(HoldToConfirm)),
+  );
   await tester.pump(const Duration(milliseconds: 900));
   await g.up();
   await tester.pump();
@@ -53,8 +54,9 @@ Future<void> countFor(WidgetTester tester, int hands) async {
 void main() {
   // --- S14 ------------------------------------------------------------------
 
-  testWidgets('S14 `empty`: «Хэнийг хотоос хөөх вэ?» + амьд суудлын тор',
-      (WidgetTester tester) async {
+  testWidgets('S14 `empty`: «Хэнийг хотоос хөөх вэ?» + амьд суудлын тор', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     await pumpScreen(
       tester,
@@ -63,22 +65,25 @@ void main() {
     expect(find.text('Хэнийг хотоос хөөх вэ?'), findsOneWidget);
     expect(find.text('Хэн ч биш'), findsOneWidget);
     expect(
-        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNull,
-        reason: 'нэр дэвшигчгүй бол «Санал хураая» унтарсан');
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+      reason: 'нэр дэвшигчгүй бол «Санал хураая» унтарсан',
+    );
   });
 
-  testWidgets('S14 `has`: дээд мөр дүүрч, NOM_ADDED + SEAT_nn дуудагдана',
-      (WidgetTester tester) async {
+  testWidgets('S14 `has`: дээд мөр дүүрч, NOM_ADDED + SEAT_nn дуудагдана', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     final List<String> cues = <String>[];
     await pumpScreen(
       tester,
       VoteScreen(
-          controller: c,
-          onExile: (_) {},
-          onNoExile: () {},
-          onCue: cues.add),
+        controller: c,
+        onExile: (_) {},
+        onNoExile: () {},
+        onCue: cues.add,
+      ),
     );
 
     await tester.tap(find.text('4'));
@@ -96,8 +101,9 @@ void main() {
     ]);
   });
 
-  testWidgets('S14 `full`: гурваас илүү болохгүй, дөрөв дэх нь дарагдахгүй',
-      (WidgetTester tester) async {
+  testWidgets('S14 `full`: гурваас илүү болохгүй, дөрөв дэх нь дарагдахгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     await pumpScreen(
       tester,
@@ -122,8 +128,9 @@ void main() {
     expect(find.text('Гурваас илүү болохгүй.'), findsNothing);
   });
 
-  testWidgets('S14 `skipAll`: «Хэн ч биш» → NOM_NONE, шөнө рүү',
-      (WidgetTester tester) async {
+  testWidgets('S14 `skipAll`: «Хэн ч биш» → NOM_NONE, шөнө рүү', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     final List<String> cues = <String>[];
     int night = 0;
@@ -143,14 +150,14 @@ void main() {
     expect(night, 1);
   });
 
-  testWidgets('Өдөр 1, нэр дэвшигч ЯГ НЭГ — санал хураахгүй (GDD-01 §1)',
-      (WidgetTester tester) async {
+  testWidgets('Өдөр 1, нэр дэвшигч ЯГ НЭГ — санал хураахгүй (GDD-01 §1)', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(day: 1);
     int night = 0;
     await pumpScreen(
       tester,
-      VoteScreen(
-          controller: c, onExile: (_) {}, onNoExile: () => night++),
+      VoteScreen(controller: c, onExile: (_) {}, onNoExile: () => night++),
     );
 
     await tester.tap(find.text('4'));
@@ -160,8 +167,9 @@ void main() {
     expect(night, 1);
   });
 
-  testWidgets('Өдөр 1 — өмгөөлөл БАЙХГҮЙ, шууд аркны дэлгэц',
-      (WidgetTester tester) async {
+  testWidgets('Өдөр 1 — өмгөөлөл БАЙХГҮЙ, шууд аркны дэлгэц', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(day: 1);
     await pumpScreen(
       tester,
@@ -182,8 +190,9 @@ void main() {
 
   // --- S15 ------------------------------------------------------------------
 
-  testWidgets('S15: 20 секунд, DEFENCE_OPEN → DEFENCE_NEXT + SEAT_nn',
-      (WidgetTester tester) async {
+  testWidgets('S15: 20 секунд, DEFENCE_OPEN → DEFENCE_NEXT + SEAT_nn', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -218,8 +227,9 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('S15 `skip`: хоёр хуруугаар шудрах → шууд S16',
-      (WidgetTester tester) async {
+  testWidgets('S15 `skip`: хоёр хуруугаар шудрах → шууд S16', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     await pumpScreen(
       tester,
@@ -248,8 +258,9 @@ void main() {
 
   // --- S16 ------------------------------------------------------------------
 
-  testWidgets('S16: SEAT_nn → 300 мс → VOTE_ASK, суудал сонгох гадаргуу БИШ',
-      (WidgetTester tester) async {
+  testWidgets('S16: SEAT_nn → 300 мс → VOTE_ASK, суудал сонгох гадаргуу БИШ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -272,8 +283,9 @@ void main() {
     expect(find.text('№4 — хэдэн гар?'), findsOneWidget);
   });
 
-  testWidgets('S16 `tooMany`: амьд − 1-ээс их бол улаан, батлагдахгүй',
-      (WidgetTester tester) async {
+  testWidgets('S16 `tooMany`: амьд − 1-ээс их бол улаан, батлагдахгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(alive: <Seat>{1, 2, 3, 4});
     await pumpScreen(
       tester,
@@ -291,14 +303,15 @@ void main() {
     await holdConfirm(tester);
     expect(c.hands, isEmpty);
 
-    await tester.tap(find.text('−'));
+    await tester.tap(find.bySemanticsLabel('Хасах'));
     await tester.pump();
     expect(find.text('Амьд хүнээс их байна.'), findsNothing);
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('S16 `confirming`: 600 мс дарж-дүүргэх, ТОВШИЛТ биш',
-      (WidgetTester tester) async {
+  testWidgets('S16 `confirming`: 600 мс дарж-дүүргэх, ТОВШИЛТ биш', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     List<Seat>? exiled;
     await pumpScreen(
@@ -320,8 +333,9 @@ void main() {
     expect(exiled, isNull);
 
     // Богино дарж тавив — «Товшилт биш — дарж барь.»
-    final TestGesture g = await tester
-        .startGesture(tester.getCenter(find.byType(HoldToConfirm)));
+    final TestGesture g = await tester.startGesture(
+      tester.getCenter(find.byType(HoldToConfirm)),
+    );
     await tester.pump(const Duration(milliseconds: 250));
     await g.up();
     await tester.pump();
@@ -334,8 +348,9 @@ void main() {
     expect(exiled, <Seat>[4]);
   });
 
-  testWidgets('Plurality — олонх шаардахгүй, хамгийн олон гар ялна',
-      (WidgetTester tester) async {
+  testWidgets('Plurality — олонх шаардахгүй, хамгийн олон гар ялна', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     List<Seat>? exiled;
     await pumpScreen(
@@ -359,8 +374,9 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('Нэг ч гар өргөгдөөгүй — хэн ч хөөгдөхгүй, VOTE_TIE',
-      (WidgetTester tester) async {
+  testWidgets('Нэг ч гар өргөгдөөгүй — хэн ч хөөгдөхгүй, VOTE_TIE', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     final List<String> cues = <String>[];
     int night = 0;
@@ -382,8 +398,9 @@ void main() {
 
   // --- Тэнцлийн гинж (GDD-03 §4.5) -----------------------------------------
 
-  testWidgets('Тэнцэл, ФСМ: VOTE_TIE_SPEECH → тэнцсэн бүрт 30 секунд',
-      (WidgetTester tester) async {
+  testWidgets('Тэнцэл, ФСМ: VOTE_TIE_SPEECH → тэнцсэн бүрт 30 секунд', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -415,8 +432,9 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('Дахиад тэнцвэл «бүгдийн хувь заяа», олонх дэмжвэл БҮГД гарна',
-      (WidgetTester tester) async {
+  testWidgets('Дахиад тэнцвэл «бүгдийн хувь заяа», олонх дэмжвэл БҮГД гарна', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(alive: <Seat>{1, 2, 3, 4, 5, 9});
     List<Seat>? exiled;
     await pumpScreen(
@@ -436,8 +454,9 @@ void main() {
     expect(exiled, <Seat>[4, 9]);
   });
 
-  testWidgets('«Бүгдийн хувь заяа» олонх бүрдээгүй — хэн ч хөөгдөхгүй',
-      (WidgetTester tester) async {
+  testWidgets('«Бүгдийн хувь заяа» олонх бүрдээгүй — хэн ч хөөгдөхгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(alive: <Seat>{1, 2, 3, 4, 5, 9});
     final List<String> cues = <String>[];
     int night = 0;
@@ -458,8 +477,9 @@ void main() {
     expect(night, 1);
   });
 
-  testWidgets('tieRule = «Хэн ч хөөгдөхгүй» — VOTE_TIE, нэмэлт үг БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('tieRule = «Хэн ч хөөгдөхгүй» — VOTE_TIE, нэмэлт үг БАЙХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(tie: TieRule.noElim);
     final List<String> cues = <String>[];
     int night = 0;
@@ -482,8 +502,9 @@ void main() {
     expect(night, 1);
   });
 
-  testWidgets('tieRule = «Санамсаргүй» — апп тэнцсэн хоёрын нэгийг сонгоно',
-      (WidgetTester tester) async {
+  testWidgets('tieRule = «Санамсаргүй» — апп тэнцсэн хоёрын нэгийг сонгоно', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(tie: TieRule.random);
     List<Seat>? exiled;
     await pumpScreen(
@@ -506,8 +527,9 @@ void main() {
 
   // --- Хэл ба дэлгэцийн хатуу дүрмүүд ---------------------------------------
 
-  testWidgets('«Цаазлах» гэсэн үг S14-т ХААНА Ч БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('«Цаазлах» гэсэн үг S14-т ХААНА Ч БАЙХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController();
     await pumpScreen(
       tester,
@@ -518,8 +540,9 @@ void main() {
     expect(find.text('Хэнийг хотоос хөөх вэ?'), findsOneWidget);
   });
 
-  testWidgets('Зүүн гар: арк доод ЗҮҮН булан болж эргэнэ',
-      (WidgetTester tester) async {
+  testWidgets('Зүүн гар: арк доод ЗҮҮН булан болж эргэнэ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = voteController(reduceMotion: false);
     c.settings.leftHanded = true;
     await pumpScreen(
@@ -537,13 +560,16 @@ void main() {
     // Арк дээр эрхийгээр татахад тоо өөрчлөгдөнө.
     final Rect box = tester.getRect(find.byType(VoteDial));
     final TestGesture g = await tester.startGesture(
-        Offset(box.left + 8, box.bottom - 8));
+      Offset(box.left + 8, box.bottom - 8),
+    );
     await g.moveTo(Offset(box.left + box.width * 0.5, box.center.dy));
     await tester.pump();
     await g.up();
     await tester.pump();
-    expect(tester.widget<VoteDial>(find.byType(VoteDial)).value,
-        greaterThan(0));
+    expect(
+      tester.widget<VoteDial>(find.byType(VoteDial)).value,
+      greaterThan(0),
+    );
     await tester.pump(const Duration(seconds: 1));
   });
 

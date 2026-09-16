@@ -251,9 +251,8 @@ class _DayScreenState extends State<DayScreen> {
     setState(_advance);
   }
 
-  Seat? get _speaker => _order.isEmpty
-      ? null
-      : _order[math.min(_index, _order.length - 1)];
+  Seat? get _speaker =>
+      _order.isEmpty ? null : _order[math.min(_index, _order.length - 1)];
 
   // --- 📌 -------------------------------------------------------------------
 
@@ -304,8 +303,7 @@ class _DayScreenState extends State<DayScreen> {
   double get _dimAlpha {
     if (c.settings.reduceMotion) return 0;
     final int steps = _dayElapsed ~/ kDimStep.inSeconds;
-    final double level =
-        math.max(kDimFloor, 1.0 - kDimPerStep * steps);
+    final double level = math.max(kDimFloor, 1.0 - kDimPerStep * steps);
     return 1.0 - level;
   }
 
@@ -329,9 +327,10 @@ class _DayScreenState extends State<DayScreen> {
                       _topRow(),
                       Expanded(child: _ring(reduce)),
                       SizedBox(
-                          key: const Key('pinZone'),
-                          height: pinHeight,
-                          child: _pinZone()),
+                        key: const Key('pinZone'),
+                        height: pinHeight,
+                        child: _pinZone(),
+                      ),
                     ],
                   );
                 },
@@ -374,17 +373,20 @@ class _DayScreenState extends State<DayScreen> {
                 child: Text(
                   'Нэг л буруу санал — ялагдал.',
                   style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      height: 1.45,
-                      color: kDanger),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.45,
+                    color: kDanger,
+                  ),
                 ),
               ),
             if (_hintShown)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(_budgetHintMn,
-                    style: kBody.copyWith(color: kTextMuted)),
+                child: Text(
+                  _budgetHintMn,
+                  style: kBody.copyWith(color: kTextMuted),
+                ),
               ),
           ],
         ),
@@ -420,7 +422,9 @@ class _DayScreenState extends State<DayScreen> {
                   // 200 sp бол зорилт; 360 (бүр 320) логик px дээр цагираг
                   // өөрөө хязгаар болно — тоо хэзээ ч мөрөө халихгүй.
                   final double d = math.max(
-                      48, math.min(box.maxWidth, box.maxHeight) - 8);
+                    48,
+                    math.min(box.maxWidth, box.maxHeight) - 8,
+                  );
                   return Center(
                     child: SizedBox(
                       width: d,
@@ -432,9 +436,7 @@ class _DayScreenState extends State<DayScreen> {
                                 progress: progress,
                                 color: warn ? kEmber : kTextMuted,
                               ),
-                        child: Center(
-                          child: _ringLabel(speaker, d, reduce),
-                        ),
+                        child: Center(child: _ringLabel(speaker, d, reduce)),
                       ),
                     ),
                   );
@@ -456,9 +458,11 @@ class _DayScreenState extends State<DayScreen> {
         label: 'Чөлөөт хэлэлцүүлэг',
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('Чөлөөт хэлэлцүүлэг',
-              textAlign: TextAlign.center,
-              style: kTitle.copyWith(color: kTextPrimary, height: 1.45)),
+          child: Text(
+            'Чөлөөт хэлэлцүүлэг',
+            textAlign: TextAlign.center,
+            style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
+          ),
         ),
       );
     }
@@ -472,17 +476,20 @@ class _DayScreenState extends State<DayScreen> {
               key: const Key('speakerNumber'),
               '${speaker ?? ''}',
               style: TextStyle(
-                  fontSize: math.min(200, d * 0.55),
-                  fontWeight: FontWeight.w700,
-                  height: 1.0,
-                  color: kTextPrimary),
+                fontSize: math.min(200, d * 0.55),
+                fontWeight: FontWeight.w700,
+                height: 1.0,
+                color: kTextPrimary,
+              ),
             ),
           ),
         ),
         // Хөдөлгөөн багасгах горимд цагираг нь «0:47» болно.
         if (reduce)
-          Text(mmss(math.max(0, _secondsLeft)),
-              style: kTitle.copyWith(color: kEmber, height: 1.45)),
+          Text(
+            mmss(math.max(0, _secondsLeft)),
+            style: kTitle.copyWith(color: kEmber, height: 1.45),
+          ),
       ],
     );
   }
@@ -504,10 +511,11 @@ class _DayScreenState extends State<DayScreen> {
               fontWeight: i == _index && _stage == DayStage.speaking
                   ? FontWeight.w700
                   : FontWeight.w400,
-              color: i < _index ? kTextMuted.withValues(alpha: 0.45) :
-                  (i == _index && _stage == DayStage.speaking
-                      ? kEmber
-                      : kTextMuted),
+              color: i < _index
+                  ? kTextMuted.withValues(alpha: 0.45)
+                  : (i == _index && _stage == DayStage.speaking
+                        ? kEmber
+                        : kTextMuted),
             ),
           ),
       ],
@@ -539,13 +547,14 @@ class _DayScreenState extends State<DayScreen> {
             // Ямар ч ripple, ямар ч масштаб — бичиг БҮТНЭЭРЭЭ солигдоно
             // (GDD-08 §5-ын «хэзээ ч анимац хийхгүй» жагсаалтын 5-р мөр).
             child: Text(
-              _pinFlash ?? '📌 Тэмдэглэ',
+              _pinFlash ?? 'Тэмдэглэ',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.45,
-                  color: kTextPrimary),
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                height: 1.45,
+                color: kTextPrimary,
+              ),
             ),
           ),
         ),
@@ -575,8 +584,13 @@ class _RingPainter extends CustomPainter {
       ..strokeWidth = 10
       ..strokeCap = StrokeCap.round
       ..color = color;
-    canvas.drawArc(Rect.fromCircle(center: centre, radius: r), -math.pi / 2,
-        2 * math.pi * progress, false, arc);
+    canvas.drawArc(
+      Rect.fromCircle(center: centre, radius: r),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      arc,
+    );
   }
 
   @override

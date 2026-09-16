@@ -129,10 +129,7 @@ class _DawnScreenState extends State<DawnScreen> {
       switch (cue) {
         case CueSilence(ms: final int ms):
           // Мөр 3 — **БОДИТ** 2500 мс. Энэ бол N14, алгасах зам байхгүй.
-          _script.add((
-            delay: Duration(milliseconds: ms),
-            run: () {},
-          ));
+          _script.add((delay: Duration(milliseconds: ms), run: () {}));
 
         case CueLine(clipId: final String id):
           // Мөр 6 — «Хот шивнэж байна.» нь `DAY_START`-аас 2.0 секундын дараа.
@@ -296,9 +293,11 @@ class _Ember extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: 1.0),
       duration: kDawnEmber,
-      builder: (BuildContext context, double t, Widget? child) =>
-          Align(alignment: Alignment.centerLeft, widthFactor: 1.0,
-              child: Opacity(opacity: t, child: child)),
+      builder: (BuildContext context, double t, Widget? child) => Align(
+        alignment: Alignment.centerLeft,
+        widthFactor: 1.0,
+        child: Opacity(opacity: t, child: child),
+      ),
       child: coal,
     );
   }

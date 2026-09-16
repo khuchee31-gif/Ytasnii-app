@@ -21,19 +21,19 @@ enum PresetId { songodog, angi, sport, shine }
 extension PresetIdX on PresetId {
   /// Картын гарчиг. Нэрэнд суудлын тоо ОРОХГҮЙ (GDD-06 S03).
   String get labelMn => switch (this) {
-        PresetId.songodog => 'Сонгодог',
-        PresetId.angi => 'Анги',
-        PresetId.sport => 'Спорт',
-        PresetId.shine => 'Шинэ тоглогч',
-      };
+    PresetId.songodog => 'Сонгодог',
+    PresetId.angi => 'Анги',
+    PresetId.sport => 'Спорт',
+    PresetId.shine => 'Шинэ тоглогч',
+  };
 
   /// Картын дэд мөр, GDD-03 §3-ын хүснэгтээс үг үсгээр.
   String get subtitleMn => switch (this) {
-        PresetId.songodog => 'Ангийнхаа дүрэм. Өөрчилбөл энд хадгалагдана.',
-        PresetId.angi => 'Хичээлийн цагт багтана. ~16 минут.',
-        PresetId.sport => 'ФСМ-ийн дүрэм. Дүр нээгдэхгүй, үг 60 секунд.',
-        PresetId.shine => 'Анх удаа тоглож байгаа ширээнд.',
-      };
+    PresetId.songodog => 'Ангийнхаа дүрэм. Өөрчилбөл энд хадгалагдана.',
+    PresetId.angi => 'Хичээлийн цагт багтана. ~16 минут.',
+    PresetId.sport => 'ФСМ-ийн дүрэм. Дүр нээгдэхгүй, үг 60 секунд.',
+    PresetId.shine => 'Анх удаа тоглож байгаа ширээнд.',
+  };
 
   /// Цорын ганц бичигдэх слот — «Сонгодог» (GDD-03 §3).
   bool get writable => this == PresetId.songodog;
@@ -44,33 +44,34 @@ enum TieRule { fsm, noElim, random }
 
 extension TieRuleX on TieRule {
   String get labelMn => switch (this) {
-        TieRule.fsm => 'Нэмэлт үг → дахин санал',
-        TieRule.noElim => 'Хэн ч хөөгдөхгүй',
-        TieRule.random => 'Санамсаргүй',
-      };
+    TieRule.fsm => 'Нэмэлт үг, дахин санал',
+    TieRule.noElim => 'Хэн ч хөөгдөхгүй',
+    TieRule.random => 'Санамсаргүй',
+  };
 
   String get consequenceMn => switch (this) {
-        TieRule.fsm => 'Тэнцсэн хүн бүр 30 секунд. Дараа нь дахин санал. '
-            'Дахиад тэнцвэл бүгдийг хасах ширээний санал.',
-        TieRule.noElim => 'Өдөр хохирогчгүй дуусна.',
-        TieRule.random => 'Апп сонгоно.',
-      };
+    TieRule.fsm =>
+      'Тэнцсэн хүн бүр 30 секунд. Дараа нь дахин санал. '
+          'Дахиад тэнцвэл бүгдийг хасах ширээний санал.',
+    TieRule.noElim => 'Өдөр хохирогчгүй дуусна.',
+    TieRule.random => 'Апп сонгоно.',
+  };
 }
 
 /// Эмч өөрийгөө аврах — GDD-03 §4.1. Гурван байрлал нь хөдөлгүүрийн
 /// `SelfHeal`-тэй яг нэг мөр.
 extension SelfHealX on SelfHeal {
   String get labelMn => switch (this) {
-        SelfHeal.unlimited => 'Хязгааргүй',
-        SelfHeal.once => 'Тоглоомд нэг удаа',
-        SelfHeal.never => 'Хэзээ ч үгүй',
-      };
+    SelfHeal.unlimited => 'Хязгааргүй',
+    SelfHeal.once => 'Тоглоомд нэг удаа',
+    SelfHeal.never => 'Хэзээ ч үгүй',
+  };
 
   String get consequenceMn => switch (this) {
-        SelfHeal.unlimited => 'Эмчийг алахад хэцүү болно.',
-        SelfHeal.once => 'Нэг л удаа. Дараа нь зөвхөн бусдыг.',
-        SelfHeal.never => 'Эмч эхний шөнө хохирч болно.',
-      };
+    SelfHeal.unlimited => 'Эмчийг алахад хэцүү болно.',
+    SelfHeal.once => 'Нэг л удаа. Дараа нь зөвхөн бусдыг.',
+    SelfHeal.never => 'Эмч эхний шөнө хохирч болно.',
+  };
 }
 
 /// Нэг preset-ийн бүтэн хуулбар. GDD-03 §3.1-ийн зөрүүний хүснэгт.

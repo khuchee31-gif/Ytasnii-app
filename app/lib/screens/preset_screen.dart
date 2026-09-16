@@ -13,6 +13,7 @@ import '../game/settings.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 import 'setup_parts.dart';
+import '../ui/glyphs.dart';
 
 class PresetScreen extends StatefulWidget {
   const PresetScreen({
@@ -54,12 +55,12 @@ class _PresetScreenState extends State<PresetScreen> {
   int get _b => b0(_n, _mafia);
 
   SetupCheck get _check => checkSetup(
-        n: _n,
-        mafia: _mafia,
-        boss: _boss,
-        doctor: _doctor,
-        detective: _detective,
-      );
+    n: _n,
+    mafia: _mafia,
+    boss: _boss,
+    doctor: _doctor,
+    detective: _detective,
+  );
 
   void _pickPreset(PresetId id) {
     final PresetSpec p = kPresets[id]!;
@@ -108,9 +109,10 @@ class _PresetScreenState extends State<PresetScreen> {
           if (s.copiedToSongodog)
             const Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text('Сонгодог болгож хадгаллаа.',
-                  style:
-                      TextStyle(fontSize: 14, height: 1.45, color: kTextMuted)),
+              child: Text(
+                'Сонгодог болгож хадгаллаа.',
+                style: TextStyle(fontSize: 14, height: 1.45, color: kTextMuted),
+              ),
             ),
           const SizedBox(height: 20),
 
@@ -119,11 +121,8 @@ class _PresetScreenState extends State<PresetScreen> {
             label: 'Суудал',
             value: '$_n',
             big: true,
-            onMinus: _n > kMinSeats
-                ? () => _edit(() => _n--)
-                : null,
-            onPlus:
-                _n < kMaxSeats ? () => _edit(() => _n++) : null,
+            onMinus: _n > kMinSeats ? () => _edit(() => _n--) : null,
+            onPlus: _n < kMaxSeats ? () => _edit(() => _n++) : null,
           ),
           const SizedBox(height: 8),
           Stepper48(
@@ -131,11 +130,8 @@ class _PresetScreenState extends State<PresetScreen> {
             note: _boss ? 'Ахлагч нэг суудлыг эзэлнэ' : null,
             value: '$_mafia',
             valueColor: _b < 0 ? kDanger : null,
-            onMinus:
-                _mafia > 0 ? () => _edit(() => _mafia--) : null,
-            onPlus: _mafia < _n - 1
-                ? () => _edit(() => _mafia++)
-                : null,
+            onMinus: _mafia > 0 ? () => _edit(() => _mafia--) : null,
+            onPlus: _mafia < _n - 1 ? () => _edit(() => _mafia++) : null,
           ),
           const SizedBox(height: 8),
           Stepper48(
@@ -148,61 +144,68 @@ class _PresetScreenState extends State<PresetScreen> {
           Stepper48(
             label: 'Мөрдөгч',
             value: _detective ? '1' : '0',
-            onMinus: _detective
-                ? () => _edit(() => _detective = false)
-                : null,
-            onPlus: _detective
-                ? null
-                : () => _edit(() => _detective = true),
+            onMinus: _detective ? () => _edit(() => _detective = false) : null,
+            onPlus: _detective ? null : () => _edit(() => _detective = true),
           ),
           const SizedBox(height: 8),
           // Иргэн нь ТООЦООЛОГДДОГ — гараар өөрчлөгдөхгүй тул `+`/`−` байхгүй.
           Row(
             children: <Widget>[
               Expanded(
-                child: Text('Иргэн',
-                    style: kBody.copyWith(color: kTextMuted)),
+                child: Text('Иргэн', style: kBody.copyWith(color: kTextMuted)),
               ),
               const SizedBox(width: kGap),
               Flexible(
-                child: Text('$_citizens',
-                    textAlign: TextAlign.right,
-                    style: kBody.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: _citizens < 0 ? kDanger : kTextPrimary)),
+                child: Text(
+                  '$_citizens',
+                  textAlign: TextAlign.right,
+                  style: kBody.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _citizens < 0 ? kDanger : kTextPrimary,
+                  ),
+                ),
               ),
             ],
           ),
 
           const SizedBox(height: 20),
           // --- Тооны самбар ---------------------------------------------
-          InfoCard(children: <Widget>[
-            _ScoreBoard(b: _b, reduceMotion: s.reduceMotion),
-            const SizedBox(height: 8),
-            Text(
-              check.messageMn,
-              style: TextStyle(
+          InfoCard(
+            children: <Widget>[
+              _ScoreBoard(b: _b, reduceMotion: s.reduceMotion),
+              const SizedBox(height: 8),
+              Text(
+                check.messageMn,
+                style: TextStyle(
                   fontSize: 15,
                   height: 1.45,
-                  fontWeight: check.isReject ? FontWeight.w700 : FontWeight.w400,
+                  fontWeight: check.isReject
+                      ? FontWeight.w700
+                      : FontWeight.w400,
                   color: switch (check.verdict) {
                     SetupVerdict.green => kOk,
                     SetupVerdict.warn => kEmber,
                     SetupVerdict.reject => kDanger,
-                  }),
-            ),
-          ]),
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: kGap),
 
           // --- Суудлын уншилт -------------------------------------------
-          InfoCard(children: <Widget>[
-            InfoRow('Суудал', '$_n'),
-            InfoRow('Мафи', '$_mafia${_boss ? " (Ахлагчтай)" : ""}'),
-            InfoRow('Эмч · Мөрдөгч',
-                '${_doctor ? "тийм" : "үгүй"} · ${_detective ? "тийм" : "үгүй"}'),
-            InfoRow('Иргэн', '$_citizens'),
-          ]),
+          InfoCard(
+            children: <Widget>[
+              InfoRow('Суудал', '$_n'),
+              InfoRow('Мафи', '$_mafia${_boss ? " (Ахлагчтай)" : ""}'),
+              InfoRow(
+                'Эмч · Мөрдөгч',
+                '${_doctor ? "тийм" : "үгүй"} · ${_detective ? "тийм" : "үгүй"}',
+              ),
+              InfoRow('Иргэн', '$_citizens'),
+            ],
+          ),
 
           // GDD-11 §8 — зөвхөн хамгийн анхны тоглолтод, блоклохгүй нэг мөр.
           if (widget.controller.gamesPlayed == 0) ...<Widget>[
@@ -210,17 +213,19 @@ class _PresetScreenState extends State<PresetScreen> {
             TextButton(
               onPressed: () => setState(() => s.hostMode = true),
               style: TextButton.styleFrom(
-                  alignment: Alignment.centerLeft,
-                  minimumSize: const Size.fromHeight(kMinTouch),
-                  foregroundColor: kTextMuted),
+                alignment: Alignment.centerLeft,
+                minimumSize: const Size.fromHeight(kMinTouch),
+                foregroundColor: kTextMuted,
+              ),
               child: Text(
                 s.hostMode
                     ? 'Хөтлөгчтэй горим асаалттай.'
-                    : 'Ангид мафи тоглож үзсэн хүн байна уу? → Тэр хөтөлж болно',
+                    : 'Ангид мафи тоглож үзсэн хүн байна уу? Тэр хөтөлж болно.',
                 style: TextStyle(
-                    fontSize: 14,
-                    height: 1.45,
-                    color: s.hostMode ? kEmber : kTextMuted),
+                  fontSize: 14,
+                  height: 1.45,
+                  color: s.hostMode ? kEmber : kTextMuted,
+                ),
               ),
             ),
           ],
@@ -247,19 +252,30 @@ class _ScoreBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color c = b >= 2 ? kOk : (b == 1 ? kEmber : kDanger);
     // Утга нь ӨНГӨ БА ХЭЛБЭР БА КИРИЛЛ ШОШГО-оор — хэзээ ч зөвхөн өнгөөр биш.
-    // Хөдөлгөөн багасгах горимд цэг нь ТОО болно (GDD-06 S03-ын хүртээмж).
-    final String mark = reduceMotion
-        ? '$b'
-        : switch (b) {
-            < 0 => '✕',
-            0 => '○',
-            _ => ('● ' * b).trimRight(),
-          };
-    final String tail = switch (b) {
-      0 => ' — дууслаа. Өнөөдөр онох ёстой.',
-      1 => ' — сүүлчийн нэг.',
-      _ => '',
-    };
+    //
+    // ДАВХАРДАЛГҮЙ: `PipStrip` нь «Алдаж болох санал» шошго БА тоог аль
+    // алиныг нь харуулдаг. Тиймээс доор нь ижил өгүүлбэр давтахгүй —
+    // зөвхөн `b = 1` үед НЭМЭЛТ сануулга гаргана.
+    //
+    // Хөдөлгөөн багасгах горимд цэг огт зурагдахгүй, ЦЭВЭР ТОО болно
+    // (GDD-06 S03-ын хүртээмж).
+    if (reduceMotion) {
+      final String text = switch (b) {
+        < 0 => 'Алдаж болох санал: боломжгүй',
+        0 => 'Алдаж болох санал: 0 — өнөөдөр онох ёстой.',
+        _ => 'Алдаж болох санал: $b',
+      };
+      return Text(
+        text,
+        style: TextStyle(
+          fontSize: 15,
+          height: 1.45,
+          fontWeight: FontWeight.w600,
+          color: c,
+        ),
+      );
+    }
+
     return Semantics(
       label: 'Алдаж болох санал: ${b < 0 ? "боломжгүй" : mnNumber(b)}',
       child: ExcludeSemantics(
@@ -267,21 +283,19 @@ class _ScoreBoard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             // Хуваалцсан виджет — өдрийн дээд мөртэй ИЖИЛ харагдана.
-            // Хөдөлгөөн багасгах горимд цэгэн зурвас ОГТ гарахгүй.
-            if (!reduceMotion) ...<Widget>[
-              PipStrip(b),
-              if (tail.isNotEmpty) const SizedBox(height: 6),
+            PipStrip(b),
+            if (b == 1) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(
+                'Сүүлчийн нэг.',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                  color: c,
+                ),
+              ),
             ],
-            // Текст мөрийг ЗӨВХӨН тайлбар нэмэх үед гаргана. `b >= 2` үед
-            // `tail` хоосон тул энэ мөр нь `PipStrip`-ийн яг ижил өгүүлбэрийг
-            // давтаж, дэлгэц дээр хоёр удаа гарч байв.
-            if (tail.isNotEmpty || reduceMotion)
-              Text('Алдаж болох санал: $mark$tail',
-                  style: TextStyle(
-                      fontSize: 15,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
-                      color: c)),
           ],
         ),
       ),

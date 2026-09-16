@@ -9,6 +9,7 @@ import 'package:hotuntlaa/screens/preset_screen.dart';
 import 'package:hotuntlaa/ui/widgets.dart';
 
 import 'phone_viewport.dart';
+import 'package:hotuntlaa/ui/glyphs.dart';
 
 void main() {
   late GameController c;
@@ -26,17 +27,22 @@ void main() {
     }
   }
 
-  Future<void> tapMafia(WidgetTester tester, int times,
-      {bool plus = true}) async {
+  Future<void> tapMafia(
+    WidgetTester tester,
+    int times, {
+    bool plus = true,
+  }) async {
     for (int i = 0; i < times; i++) {
-      await tester
-          .tap(find.bySemanticsLabel(plus ? 'Алуурчин — нэмэх' : 'Алуурчин — хасах'));
+      await tester.tap(
+        find.bySemanticsLabel(plus ? 'Алуурчин — нэмэх' : 'Алуурчин — хасах'),
+      );
       await tester.pump();
     }
   }
 
-  testWidgets('Дөрвөн багц, «Сонгодог» анхдагчаар сонгогдсон',
-      (WidgetTester tester) async {
+  testWidgets('Дөрвөн багц, «Сонгодог» анхдагчаар сонгогдсон', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
 
     for (final PresetId id in PresetId.values) {
@@ -44,14 +50,17 @@ void main() {
     }
     // Нэрэнд суудлын тоо ОРОХГҮЙ.
     expect(find.text('Сонгодог 10'), findsNothing);
-    expect(find.text('Ангийнхаа дүрэм. Өөрчилбөл энд хадгалагдана.'),
-        findsOneWidget);
+    expect(
+      find.text('Ангийнхаа дүрэм. Өөрчилбөл энд хадгалагдана.'),
+      findsOneWidget,
+    );
     expect(c.settings.basePreset, PresetId.songodog);
     expectNoOverflow(tester);
   });
 
-  testWidgets('12 суудал → b = 2, «Тараая» асаалттай',
-      (WidgetTester tester) async {
+  testWidgets('12 суудал → b = 2, «Тараая» асаалттай', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
 
     // `b >= 2` үед тайлбар нэмэх зүйлгүй тул зөвхөн PipStrip гарна
@@ -64,44 +73,63 @@ void main() {
     expect(b.onPressed, isNotNull);
   });
 
-  testWidgets('b = 1 — шаргал «сүүлчийн нэг» мөр',
-      (WidgetTester tester) async {
+  testWidgets('b = 1 — шаргал «сүүлчийн нэг» мөр', (WidgetTester tester) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester);
     // 12 → 3 мафи бол b = 2; нэг мафи нэмбэл b = 1.
     await tapMafia(tester, 1);
 
-    expect(find.text('Алдаж болох санал: ● — сүүлчийн нэг.'), findsOneWidget);
+    // `PipStrip` нь шошго БА нэг цэгийг харуулна, доор нь сануулга.
+    expect(find.byType(PipStrip), findsOneWidget);
+    expect(find.text('Сүүлчийн нэг.'), findsOneWidget);
+    // Нэг цэг = нэг алдаа. Тоо биш, ХАРАГДАХ хэмжээ.
+    expect(
+      find.descendant(
+        of: find.byType(PipStrip),
+        matching: findMark(MarkShape.discFilled),
+      ),
+      findsOneWidget,
+    );
     final FilledButton b = tester.widget(find.byType(FilledButton));
     expect(b.onPressed, isNotNull);
     h.dispose();
   });
 
-  testWidgets('b = 0 — улаан «дууслаа» мөр, гэхдээ товч асаалттай',
-      (WidgetTester tester) async {
+  testWidgets('b = 0 — улаан «дууслаа» мөр, гэхдээ товч асаалттай', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester);
     await tapMafia(tester, 2);
 
-    expect(find.text('Алдаж болох санал: ○ — дууслаа. Өнөөдөр онох ёстой.'),
-        findsOneWidget);
-    expect(find.text('Алдаж болох санал байхгүй. Эхний өдрөөс онох ёстой.'),
-        findsOneWidget);
+    // `b = 0` үед `PipStrip` өөрөө «ӨНӨӨДӨР ОНОХ ЁСТОЙ» гэж бичнэ —
+    // доор нь ижил өгүүлбэр ДАВТАГДАХГҮЙ.
+    expect(find.byType(PipStrip), findsOneWidget);
+    expect(find.text('ӨНӨӨДӨР ОНОХ ЁСТОЙ'), findsOneWidget);
+    expect(find.text('Сүүлчийн нэг.'), findsNothing);
+    expect(
+      find.text('Алдаж болох санал байхгүй. Эхний өдрөөс онох ёстой.'),
+      findsOneWidget,
+    );
     final FilledButton b = tester.widget(find.byType(FilledButton));
     expect(b.onPressed, isNotNull);
     h.dispose();
   });
 
-  testWidgets('b < 0 — ХАТУУ ТАТГАЛЗАЛ: товч түгжээтэй, гарц байхгүй',
-      (WidgetTester tester) async {
+  testWidgets('b < 0 — ХАТУУ ТАТГАЛЗАЛ: товч түгжээтэй, гарц байхгүй', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester);
     await tapMafia(tester, 3);
 
     expect(
-        find.text('Энэ бүрэлдэхүүнээр мафи эхний шөнөдөө яллаа. '
-            'Тоглогч нэм эсвэл мафи хас.'),
-        findsOneWidget);
+      find.text(
+        'Энэ бүрэлдэхүүнээр мафи эхний шөнөдөө яллаа. '
+        'Тоглогч нэм эсвэл мафи хас.',
+      ),
+      findsOneWidget,
+    );
     final FilledButton b = tester.widget(find.byType(FilledButton));
     expect(b.onPressed, isNull);
 
@@ -113,8 +141,9 @@ void main() {
     h.dispose();
   });
 
-  testWidgets('«Спорт» — 10 суудал, 2 мафи, Хотын шивнээ унтарна',
-      (WidgetTester tester) async {
+  testWidgets('«Спорт» — 10 суудал, 2 мафи, Хотын шивнээ унтарна', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
     await tester.tap(find.text('Спорт'));
     await tester.pump();
@@ -132,8 +161,9 @@ void main() {
     expect(c.roster.boss, isFalse);
   });
 
-  testWidgets('Зөвхөн уншигдах багц засагдвал «Сонгодог» руу хуулагдана',
-      (WidgetTester tester) async {
+  testWidgets('Зөвхөн уншигдах багц засагдвал «Сонгодог» руу хуулагдана', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester);
     await tester.tap(find.text('Анги'));
@@ -146,8 +176,9 @@ void main() {
     h.dispose();
   });
 
-  testWidgets('«Тараая» бүрэлдэхүүнийг хөдөлгүүрт бүртгэнэ',
-      (WidgetTester tester) async {
+  testWidgets('«Тараая» бүрэлдэхүүнийг хөдөлгүүрт бүртгэнэ', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester);
     await tapMafia(tester, 1, plus: false); // 3 → 2 мафи, Ахлагчгүй
@@ -163,19 +194,23 @@ void main() {
     h.dispose();
   });
 
-  testWidgets('Хөдөлгөөн багасгах горимд цэг нь тоо болно',
-      (WidgetTester tester) async {
+  testWidgets('Хөдөлгөөн багасгах горимд цэг нь тоо болно', (
+    WidgetTester tester,
+  ) async {
     c = GameController();
     addTearDown(c.dispose);
     c.settings.reduceMotion = true;
     await pumpPhone(tester, PresetScreen(controller: c, onDeal: () {}));
 
     expect(find.text('Алдаж болох санал: 2'), findsOneWidget);
-    expect(find.text('Алдаж болох санал: ● ●'), findsNothing);
+    // Хөдөлгөөн багасгах горимд цэг ОГТ зурагдахгүй.
+    expect(find.byType(PipStrip), findsNothing);
+    expect(findMark(MarkShape.discFilled), findsNothing);
   });
 
-  testWidgets('Чипийн товчнууд 48 dp, 320 px дээр халихгүй',
-      (WidgetTester tester) async {
+  testWidgets('Чипийн товчнууд 48 dp, 320 px дээр халихгүй', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester, narrow: true);
 

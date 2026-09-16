@@ -46,8 +46,9 @@ Future<void> _release(WidgetTester tester, List<TestGesture> g) async {
 }
 
 void main() {
-  testWidgets('Ёслол S05-ын хаалтаас эхэлж, дараа нь хөзрийн ар тал гарна',
-      (WidgetTester tester) async {
+  testWidgets('Ёслол S05-ын хаалтаас эхэлж, дараа нь хөзрийн ар тал гарна', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
 
@@ -71,32 +72,35 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('Хоёр эрхий + 220 мс + эргэлт → дүр, ажил, зөвлөгөө гурав гарна',
-      (WidgetTester tester) async {
-    final GameController c = dealtController();
-    await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
-    await _passHandoff(tester);
+  testWidgets(
+    'Хоёр эрхий + 220 мс + эргэлт → дүр, ажил, зөвлөгөө гурав гарна',
+    (WidgetTester tester) async {
+      final GameController c = dealtController();
+      await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
+      await _passHandoff(tester);
 
-    final RoleCardCopy copy = cardCopyFor(c.roleOf(1)!);
-    final List<TestGesture> g = await _twoThumbsDown(tester);
+      final RoleCardCopy copy = cardCopyFor(c.roleOf(1)!);
+      final List<TestGesture> g = await _twoThumbsDown(tester);
 
-    // 220 мс болтол ЮУ Ч өөрчлөгдөхгүй (`holdingIntent`).
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text(copy.theme), findsNothing);
+      // 220 мс болтол ЮУ Ч өөрчлөгдөхгүй (`holdingIntent`).
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text(copy.theme), findsNothing);
 
-    await tester.pump(const Duration(milliseconds: 40));
-    await tester.pump(kCardFlip);
-    expect(find.text(copy.theme), findsOneWidget);
-    expect(find.text(copy.mechanic), findsOneWidget);
-    expect(find.text(copy.job), findsOneWidget);
-    expect(find.text(copy.advice), findsOneWidget);
-    expect(c.seen.contains(1), isTrue);
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.pump(kCardFlip);
+      expect(find.text(copy.theme), findsOneWidget);
+      expect(find.text(copy.mechanic), findsOneWidget);
+      expect(find.text(copy.job), findsOneWidget);
+      expect(find.text(copy.advice), findsOneWidget);
+      expect(c.seen.contains(1), isTrue);
 
-    await _release(tester, g);
-  });
+      await _release(tester, g);
+    },
+  );
 
-  testWidgets('Эрхий тавихад хөзөр ТЭР ДОР НЬ алга болно',
-      (WidgetTester tester) async {
+  testWidgets('Эрхий тавихад хөзөр ТЭР ДОР НЬ алга болно', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
     await _passHandoff(tester);
@@ -114,8 +118,7 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('2.5 секундын дараа өөрөө нуугдана',
-      (WidgetTester tester) async {
+  testWidgets('2.5 секундын дараа өөрөө нуугдана', (WidgetTester tester) async {
     final GameController c = dealtController();
     await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
     await _passHandoff(tester);
@@ -132,8 +135,9 @@ void main() {
     await _release(tester, g);
   });
 
-  testWidgets('Эхний гурван тоглолтод авто-нуулт 4000 мс (GDD-11 §2)',
-      (WidgetTester tester) async {
+  testWidgets('Эхний гурван тоглолтод авто-нуулт 4000 мс (GDD-11 §2)', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(gamesPlayed: 0);
     await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
     await _passHandoff(tester);
@@ -150,8 +154,9 @@ void main() {
     await _release(tester, g);
   });
 
-  testWidgets('Дахин харалт ЗАРЛАГДАЖ, тоологдоно — дэвтэрт бичигдэхгүй',
-      (WidgetTester tester) async {
+  testWidgets('Дахин харалт ЗАРЛАГДАЖ, тоологдоно — дэвтэрт бичигдэхгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
     await _passHandoff(tester);
@@ -177,27 +182,33 @@ void main() {
     await _release(tester, g);
   });
 
-  testWidgets('`FLAG_SECURE` тараалтын route-ын турш асна',
-      (WidgetTester tester) async {
+  testWidgets('`FLAG_SECURE` тараалтын route-ын турш асна', (
+    WidgetTester tester,
+  ) async {
     final List<MethodCall> calls = captureGuardCalls();
     final GameController c = dealtController();
     await pumpScreen(tester, RevealScreen(controller: c, onAllSeen: () {}));
     await tester.pump();
 
     expect(
-      calls.any((MethodCall m) =>
-          m.method == 'setSecure' &&
-          (m.arguments as Map<Object?, Object?>)['on'] == true),
+      calls.any(
+        (MethodCall m) =>
+            m.method == 'setSecure' &&
+            (m.arguments as Map<Object?, Object?>)['on'] == true,
+      ),
       isTrue,
     );
   });
 
-  testWidgets('Бүх суудал харсны дараа «Бүгд харлаа.» → S07',
-      (WidgetTester tester) async {
+  testWidgets('Бүх суудал харсны дараа «Бүгд харлаа.» → S07', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(seats: 6);
     bool allSeen = false;
     await pumpScreen(
-        tester, RevealScreen(controller: c, onAllSeen: () => allSeen = true));
+      tester,
+      RevealScreen(controller: c, onAllSeen: () => allSeen = true),
+    );
 
     for (int seat = 1; seat <= 6; seat++) {
       await _passHandoff(tester);
@@ -218,8 +229,9 @@ void main() {
     expect(c.seen.length, 6);
   });
 
-  testWidgets('320 логик px дээр 12 хөзрийн аль нь ч мөр халиулахгүй',
-      (WidgetTester tester) async {
+  testWidgets('320 логик px дээр 12 хөзрийн аль нь ч мөр халиулахгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     await pumpScreen(
       tester,
@@ -234,8 +246,11 @@ void main() {
       // Хөзөр үнэхээр НЭЭГДСЭН эсэхийг шалгана — эс бөгөөс халилтын тест
       // хоосон дэлгэц харж «дажгүй» гэж хэлэх байсан.
       expect(find.text(cardCopyFor(c.roleOf(seat)!).theme), findsOneWidget);
-      expect(tester.takeException(), isNull,
-          reason: '№$seat-ийн хөзөр 320px дээр халилаа');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: '№$seat-ийн хөзөр 320px дээр халилаа',
+      );
       await _release(tester, g);
       if (seat < 12) {
         await tester.tap(find.text('Ширээн дээр тавь'));
@@ -253,12 +268,17 @@ void main() {
     expect(cardCopyFor(Role.doctor).theme, 'БАРИАЧ');
     expect(cardCopyFor(Role.killer).faction, 'Мафи');
     expect(cardCopyFor(Role.boss).mechanic, 'Ахлагч');
-    expect(cardCopyFor(Role.citizen).job, 'Шөнө сэжигтэй суудлаа товш. Өдөр ярь.');
+    expect(
+      cardCopyFor(Role.citizen).job,
+      'Шөнө сэжигтэй суудлаа товш. Өдөр ярь.',
+    );
     // Таван дүр тус бүр дөрвөн мөртэй, хоосон мөр БАЙХГҮЙ.
     for (final Role r in Role.values) {
       final RoleCardCopy c = cardCopyFor(r);
-      expect(c.theme.isNotEmpty && c.job.isNotEmpty && c.advice.isNotEmpty,
-          isTrue);
+      expect(
+        c.theme.isNotEmpty && c.job.isNotEmpty && c.advice.isNotEmpty,
+        isTrue,
+      );
     }
   });
 }

@@ -134,9 +134,7 @@ class _Night0ScreenState extends State<Night0Screen> {
           // Дэлгэц дээр текст БАЙХГҮЙ — энэ шошго зөвхөн дэлгэц уншигчид.
           label: 'Танилцах шөнө. Дэлгэц хар. Утсаа ширээн дээр тавь.',
           child: SafeArea(
-            child: _askRescue
-                ? _rescueSheet()
-                : const SizedBox.expand(),
+            child: _askRescue ? _rescueSheet() : const SizedBox.expand(),
           ),
         ),
       ),
@@ -145,33 +143,33 @@ class _Night0ScreenState extends State<Night0Screen> {
 
   /// Хөгжүүлэгчийн авралт. Хар дэлгэцэн дээр гарах ЦОРЫН ГАНЦ гадаргуу.
   Widget _rescueSheet() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(kGutter),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                'Танилцах шөнийг дуусгах уу?',
-                textAlign: TextAlign.center,
-                style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
-              ),
-              const SizedBox(height: kGutter),
-              FilledButton(
-                onPressed: () => _startSleep(cutShort: true),
-                child: const Text('Тийм — дуусга'),
-              ),
-              const SizedBox(height: kGap),
-              TextButton(
-                onPressed: () => setState(() => _askRescue = false),
-                style: TextButton.styleFrom(
-                  foregroundColor: kTextMuted,
-                  minimumSize: const Size.fromHeight(kMinTouch),
-                ),
-                child: const Text('Үгүй — үргэлжлүүл'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(kGutter),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'Танилцах шөнийг дуусгах уу?',
+            textAlign: TextAlign.center,
+            style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
           ),
-        ),
-      );
+          const SizedBox(height: kGutter),
+          FilledButton(
+            onPressed: () => _startSleep(cutShort: true),
+            child: const Text('Тийм — дуусга'),
+          ),
+          const SizedBox(height: kGap),
+          TextButton(
+            onPressed: () => setState(() => _askRescue = false),
+            style: TextButton.styleFrom(
+              foregroundColor: kTextMuted,
+              minimumSize: const Size.fromHeight(kMinTouch),
+            ),
+            child: const Text('Үгүй — үргэлжлүүл'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

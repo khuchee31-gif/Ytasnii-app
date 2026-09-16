@@ -29,9 +29,9 @@ Seat seatWithAbility(GameController c, Ability a) {
 
 /// Тухайн чадвартай БҮХ суудал.
 List<Seat> seatsWithAbility(GameController c, Ability a) => <Seat>[
-      for (int s = 1; s <= c.seatCount; s++)
-        if (c.roleOf(s) != null && abilityOf(c.roleOf(s)!) == a) s,
-    ];
+  for (int s = 1; s <= c.seatCount; s++)
+    if (c.roleOf(s) != null && abilityOf(c.roleOf(s)!) == a) s,
+];
 
 /// Эргэлтийг бүтнээр нь гүйцээж, шөнийг шийдвэрлэнэ.
 ///

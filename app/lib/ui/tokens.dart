@@ -70,32 +70,39 @@ const String kDisplayFont = 'Oswald';
 const String kBodyFont = 'Rubik';
 
 const TextStyle kDisplay = TextStyle(
-    fontFamily: kDisplayFont,
-    fontSize: 40,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 4,
-    height: 1.05);
+  fontFamily: kDisplayFont,
+  fontSize: 40,
+  fontWeight: FontWeight.w700,
+  letterSpacing: 4,
+  height: 1.05,
+);
 const TextStyle kTitle = TextStyle(
-    fontFamily: kDisplayFont,
-    fontSize: 26,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 1.6,
-    height: 1.2);
-const TextStyle kBody =
-    TextStyle(fontFamily: kBodyFont, fontSize: 16, height: 1.5);
+  fontFamily: kDisplayFont,
+  fontSize: 26,
+  fontWeight: FontWeight.w700,
+  letterSpacing: 1.6,
+  height: 1.2,
+);
+const TextStyle kBody = TextStyle(
+  fontFamily: kBodyFont,
+  fontSize: 16,
+  height: 1.5,
+);
 const TextStyle kLabel = TextStyle(
-    fontFamily: kDisplayFont,
-    fontSize: 13,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 2.4,
-    height: 1.4);
+  fontFamily: kDisplayFont,
+  fontSize: 13,
+  fontWeight: FontWeight.w500,
+  letterSpacing: 2.4,
+  height: 1.4,
+);
 
 /// Суудлын дугаар — ширээний нөгөө талаас уншигдах ёстой.
 const TextStyle kSeatNumber = TextStyle(
-    fontFamily: kDisplayFont,
-    fontSize: 72,
-    fontWeight: FontWeight.w700,
-    height: 1.0);
+  fontFamily: kDisplayFont,
+  fontSize: 72,
+  fontWeight: FontWeight.w700,
+  height: 1.0,
+);
 
 // ---------------------------------------------------------------------------
 // Хөдөлгөөн (GDD-08 §7.3)
@@ -170,10 +177,11 @@ ThemeData buildTheme() {
         foregroundColor: kSurface,
         minimumSize: const Size.fromHeight(kPrimaryButtonHeight),
         textStyle: const TextStyle(
-            fontFamily: kDisplayFont,
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2.2),
+          fontFamily: kDisplayFont,
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2.2,
+        ),
         // Дугуй биш. Дугуйлсан булан нь «апп», шулуун булан нь «эд зүйл».
         shape: const RoundedRectangleBorder(),
       ),

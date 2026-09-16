@@ -110,8 +110,9 @@ class _BestMoveScreenState extends State<BestMoveScreen> {
     setState(() {});
   }
 
-  int get _secondsLeft =>
-      ((kBestMoveWindow.inMilliseconds - _elapsedMs) / 1000).ceil().clamp(0, 20);
+  int get _secondsLeft => ((kBestMoveWindow.inMilliseconds - _elapsedMs) / 1000)
+      .ceil()
+      .clamp(0, 20);
 
   void _toggle(Seat s) {
     if (_stage != BestMoveStage.picking) return;
@@ -161,9 +162,8 @@ class _BestMoveScreenState extends State<BestMoveScreen> {
             child: reduce
                 ? BigCountdown(_secondsLeft)
                 : _BestMoveRing(
-                    progress:
-                        (_elapsedMs / kBestMoveWindow.inMilliseconds)
-                            .clamp(0.0, 1.0),
+                    progress: (_elapsedMs / kBestMoveWindow.inMilliseconds)
+                        .clamp(0.0, 1.0),
                     secondsLeft: _secondsLeft,
                   ),
           ),
@@ -244,23 +244,23 @@ class _BestMoveRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 120,
-        height: 120,
-        child: CustomPaint(
-          painter: _RingPainter(progress),
-          child: Center(
-            child: Text(
-              '$secondsLeft',
-              style: TextStyle(
-                fontSize: 44,
-                height: 1.0,
-                fontWeight: FontWeight.w700,
-                color: secondsLeft <= 5 ? kEmber : kTextPrimary,
-              ),
-            ),
+    width: 120,
+    height: 120,
+    child: CustomPaint(
+      painter: _RingPainter(progress),
+      child: Center(
+        child: Text(
+          '$secondsLeft',
+          style: TextStyle(
+            fontSize: 44,
+            height: 1.0,
+            fontWeight: FontWeight.w700,
+            color: secondsLeft <= 5 ? kEmber : kTextPrimary,
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _RingPainter extends CustomPainter {
@@ -282,7 +282,12 @@ class _RingPainter extends CustomPainter {
       ..color = kEmber;
     canvas.drawArc(r.deflate(stroke / 2), 0, 6.283185, false, track);
     canvas.drawArc(
-        r.deflate(stroke / 2), -1.570796, 6.283185 * progress, false, arc);
+      r.deflate(stroke / 2),
+      -1.570796,
+      6.283185 * progress,
+      false,
+      arc,
+    );
   }
 
   @override

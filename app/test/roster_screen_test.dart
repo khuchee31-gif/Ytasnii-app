@@ -12,12 +12,17 @@ String bigCount(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const ValueKey<String>('seat-count'))).data!;
 
 void main() {
-  Future<GameController> pump(WidgetTester tester,
-      {bool narrow = false, void Function()? onContinue}) async {
+  Future<GameController> pump(
+    WidgetTester tester, {
+    bool narrow = false,
+    void Function()? onContinue,
+  }) async {
     final GameController c = GameController();
     addTearDown(c.dispose);
-    final Widget w =
-        RosterScreen(controller: c, onContinue: onContinue ?? () {});
+    final Widget w = RosterScreen(
+      controller: c,
+      onContinue: onContinue ?? () {},
+    );
     if (narrow) {
       await pumpNarrow(tester, w);
     } else {
@@ -26,20 +31,24 @@ void main() {
     return c;
   }
 
-  testWidgets('empty — 10 суудал өөрөө үүсгэгдэнэ, нэр хоосон',
-      (WidgetTester tester) async {
+  testWidgets('empty — 10 суудал өөрөө үүсгэгдэнэ, нэр хоосон', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
 
     expect(find.text('Хэдүүлээ вэ?'), findsOneWidget);
     expect(bigCount(tester), '10');
     // Нэр заавал биш — сануулга мөр байна.
-    expect(find.text('Нэр заавал биш. Хоосон бол дугаараараа явна.'),
-        findsOneWidget);
+    expect(
+      find.text('Нэр заавал биш. Хоосон бол дугаараараа явна.'),
+      findsOneWidget,
+    );
     expectNoOverflow(tester);
   });
 
-  testWidgets('Сондгой тоо дээр сануулга гарна — ТАТГАЛЗАЛ БИШ',
-      (WidgetTester tester) async {
+  testWidgets('Сондгой тоо дээр сануулга гарна — ТАТГАЛЗАЛ БИШ', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle handle = tester.ensureSemantics();
     await pump(tester);
 
@@ -55,8 +64,9 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('tooFew — зургаагаас доош бол товч түгжигдэнэ',
-      (WidgetTester tester) async {
+  testWidgets('tooFew — зургаагаас доош бол товч түгжигдэнэ', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle handle = tester.ensureSemantics();
     await pump(tester);
 
@@ -69,15 +79,18 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Байхгүй хүн').first);
     await tester.pump();
     expect(bigCount(tester), '5');
-    expect(find.text('Зургаан хүнээс доош ширээнд мафи тоглоом болохгүй.'),
-        findsOneWidget);
+    expect(
+      find.text('Зургаан хүнээс доош ширээнд мафи тоглоом болохгүй.'),
+      findsOneWidget,
+    );
     final FilledButton b = tester.widget(find.byType(FilledButton));
     expect(b.onPressed, isNull, reason: 'N < 6 үед гарц байхгүй');
     handle.dispose();
   });
 
-  testWidgets('absent — «Байхгүй хүн» дарахад N автоматаар буурна',
-      (WidgetTester tester) async {
+  testWidgets('absent — «Байхгүй хүн» дарахад N автоматаар буурна', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle handle = tester.ensureSemantics();
     await pump(tester);
 
@@ -90,8 +103,9 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('Нэр хадгалагдана, хоосон нэр дугаараараа үлдэнэ',
-      (WidgetTester tester) async {
+  testWidgets('Нэр хадгалагдана, хоосон нэр дугаараараа үлдэнэ', (
+    WidgetTester tester,
+  ) async {
     bool went = false;
     final GameController c = await pump(tester, onContinue: () => went = true);
 
@@ -107,8 +121,9 @@ void main() {
     expect(c.hasSavedRoster, isTrue);
   });
 
-  testWidgets('Дараалал солих бариул 48 dp-ээс бага биш',
-      (WidgetTester tester) async {
+  testWidgets('Дараалал солих бариул 48 dp-ээс бага биш', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle handle = tester.ensureSemantics();
     await pump(tester);
     expectTouchTarget(tester, find.bySemanticsLabel('Дараалал солих').first);
@@ -116,8 +131,9 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('20 суудалтай, 320 px дээр нэг ч мөр халихгүй',
-      (WidgetTester tester) async {
+  testWidgets('20 суудалтай, 320 px дээр нэг ч мөр халихгүй', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle handle = tester.ensureSemantics();
     await pump(tester, narrow: true);
     for (int i = 0; i < 10; i++) {

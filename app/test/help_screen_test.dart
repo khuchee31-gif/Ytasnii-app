@@ -26,8 +26,9 @@ void main() {
     expectNoOverflow(tester);
   });
 
-  testWidgets('«Хэрхэн тоглох вэ» — арван мөр, дүрэм биш ДАРААЛАЛ',
-      (WidgetTester tester) async {
+  testWidgets('«Хэрхэн тоглох вэ» — арван мөр, дүрэм биш ДАРААЛАЛ', (
+    WidgetTester tester,
+  ) async {
     await pumpPhone(tester, HelpScreen(onClose: () {}));
     await open(tester, 'Хэрхэн тоглох вэ');
 
@@ -41,8 +42,9 @@ void main() {
     expectNoOverflow(tester);
   });
 
-  testWidgets('«Дүрүүд» — дөрвөн дүр ба Ахлагч, тус бүр нэг өгүүлбэр',
-      (WidgetTester tester) async {
+  testWidgets('«Дүрүүд» — дөрвөн дүр ба Ахлагч, тус бүр нэг өгүүлбэр', (
+    WidgetTester tester,
+  ) async {
     await pumpPhone(tester, HelpScreen(onClose: () {}));
     await open(tester, 'Дүрүүд');
 
@@ -95,12 +97,16 @@ void main() {
     expectNoOverflow(tester);
   });
 
-  testWidgets('Нугалаа бүрийн толгой 48 dp-ээс бага биш, 320-д халихгүй',
-      (WidgetTester tester) async {
+  testWidgets('Нугалаа бүрийн толгой 48 dp-ээс бага биш, 320-д халихгүй', (
+    WidgetTester tester,
+  ) async {
     await pumpNarrow(tester, HelpScreen(onClose: () {}));
     expectTouchTarget(
-        tester, find.ancestor(
-            of: find.text('Дүрүүд'), matching: find.byType(InkWell)).first);
+      tester,
+      find
+          .ancestor(of: find.text('Дүрүүд'), matching: find.byType(InkWell))
+          .first,
+    );
     await open(tester, 'Хөтлөгчийн дуу тасарч байна уу?');
     expectNoOverflow(tester);
   });

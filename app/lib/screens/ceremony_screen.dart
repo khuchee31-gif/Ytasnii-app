@@ -38,12 +38,12 @@ const Duration kRevealGap = Duration(milliseconds: 1200);
 
 /// Дүрийн клипийн ID — GDD-07 §2.10. Каталогт яг таван мөр.
 String revealClipFor(Role r) => switch (r) {
-      Role.citizen => 'REVEAL_ROLE_CITIZEN',
-      Role.killer => 'REVEAL_ROLE_KILLER',
-      Role.boss => 'REVEAL_ROLE_BOSS',
-      Role.doctor => 'REVEAL_ROLE_DOCTOR',
-      Role.detective => 'REVEAL_ROLE_DETECTIVE',
-    };
+  Role.citizen => 'REVEAL_ROLE_CITIZEN',
+  Role.killer => 'REVEAL_ROLE_KILLER',
+  Role.boss => 'REVEAL_ROLE_BOSS',
+  Role.doctor => 'REVEAL_ROLE_DOCTOR',
+  Role.detective => 'REVEAL_ROLE_DETECTIVE',
+};
 
 enum CeremonyStage {
   /// «Хотынхон ялалаа!» / «Мафи ялалаа!»
@@ -101,8 +101,7 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
   Timer? _seq;
 
   GameController get c => widget.controller;
-  List<Seat> get _seats =>
-      List<Seat>.generate(c.seatCount, (int i) => i + 1);
+  List<Seat> get _seats => List<Seat>.generate(c.seatCount, (int i) => i + 1);
 
   @override
   void initState() {
@@ -127,8 +126,7 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
     super.dispose();
   }
 
-  String get _winClip =>
-      c.win == WinState.mafi ? 'WIN_MAFIA' : 'WIN_TOWN';
+  String get _winClip => c.win == WinState.mafi ? 'WIN_MAFIA' : 'WIN_TOWN';
 
   String get _winLineMn =>
       c.win == WinState.mafi ? 'Мафи ялалаа!' : 'Хотынхон ялалаа!';
@@ -202,8 +200,10 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
       return;
     }
     // Үргэлжлүүлэх: хаана зогссоноо мэдэж, тэндээс нь эхэлнэ.
-    _seq = Timer(_roleShown ? kRevealGap : kRevealFlip,
-        _roleShown ? _nextSeat : _flipRole);
+    _seq = Timer(
+      _roleShown ? kRevealGap : kRevealFlip,
+      _roleShown ? _nextSeat : _flipRole,
+    );
   }
 
   /// Алгасах ТОВЧ байхгүй — хоёр хуруугаар шудрах нь дараагийн суудал.
@@ -221,37 +221,39 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: kSurface,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(kGutter),
-            child: switch (_stage) {
-              CeremonyStage.winLine => _winView(),
-              CeremonyStage.horse => _horseView(),
-              CeremonyStage.reveal => _revealView(),
-              CeremonyStage.done => _doneView(),
-            },
-          ),
-        ),
-      );
+    backgroundColor: kSurface,
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(kGutter),
+        child: switch (_stage) {
+          CeremonyStage.winLine => _winView(),
+          CeremonyStage.horse => _horseView(),
+          CeremonyStage.reveal => _revealView(),
+          CeremonyStage.done => _doneView(),
+        },
+      ),
+    ),
+  );
 
   Widget _winView() => Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(_winLineMn,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 44,
-                  fontWeight: FontWeight.w700,
-                  height: 1.45,
-                  color: kEmber)),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        _winLineMn,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 44,
+          fontWeight: FontWeight.w700,
+          height: 1.45,
+          color: kEmber,
         ),
-      );
+      ),
+    ),
+  );
 
   // S18. «ялагдал» гэсэн үг энэ мод дотор БАЙХГҮЙ.
   Widget _horseView() {
-    final String seats =
-        c.firstOutSeats.map((Seat s) => '№$s').join(' · ');
+    final String seats = c.firstOutSeats.map((Seat s) => '№$s').join(' · ');
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _horseArmed ? () => setState(_enterReveal) : null,
@@ -263,13 +265,14 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
               'Бүжигт хүлэг — ирэх удаа түрүүлээрэй.',
               textAlign: TextAlign.center,
               style: kTitle.copyWith(
-                  fontSize: 28, color: kTextPrimary, height: 1.45),
+                fontSize: 28,
+                color: kTextPrimary,
+                height: 1.45,
+              ),
             ),
             const SizedBox(height: kGap),
             Text(
-              c.firstOutWhenMn.isEmpty
-                  ? seats
-                  : '$seats · ${c.firstOutWhenMn}',
+              c.firstOutWhenMn.isEmpty ? seats : '$seats · ${c.firstOutWhenMn}',
               textAlign: TextAlign.center,
               style: kBody.copyWith(color: kTextMuted),
             ),
@@ -302,18 +305,23 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Хөзрөө нээе',
-                textAlign: TextAlign.center,
-                style: kLabel.copyWith(color: kTextMuted)),
+            Text(
+              'Хөзрөө нээе',
+              textAlign: TextAlign.center,
+              style: kLabel.copyWith(color: kTextMuted),
+            ),
             const SizedBox(height: kGutter),
             // Суудлын дугаар 48 sp.
-            Text('№$s',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                    color: kTextMuted)),
+            Text(
+              '№$s',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+                color: kTextMuted,
+              ),
+            ),
             const SizedBox(height: kGap),
             // Дүрийн нэр 96 sp — нарийн дэлгэц дээр өөрөө багасна.
             SizedBox(
@@ -325,10 +333,11 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
                     _roleShown && r != null ? cardCopyFor(r).mechanic : '—',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 96,
-                        fontWeight: FontWeight.w700,
-                        height: 1.0,
-                        color: _roleShown ? kEmber : kSurfaceHigh),
+                      fontSize: 96,
+                      fontWeight: FontWeight.w700,
+                      height: 1.0,
+                      color: _roleShown ? kEmber : kSurfaceHigh,
+                    ),
                   ),
                 ),
               ),
@@ -341,8 +350,8 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
                   _paused
                       ? 'Түр зогсоов — товшиж үргэлжлүүл'
                       : (_roleShown && c.alive.contains(s)
-                          ? 'амьд гарлаа'
-                          : ''),
+                            ? 'амьд гарлаа'
+                            : ''),
                   style: kBody.copyWith(color: kTextMuted),
                 ),
               ),
@@ -360,26 +369,28 @@ class _CeremonyScreenState extends State<CeremonyScreen> {
   }
 
   Widget _doneView() => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const Spacer(),
-          Text('Хөзөр бүгд нээгдлээ.',
-              textAlign: TextAlign.center,
-              style: kTitle.copyWith(color: kTextPrimary, height: 1.45)),
-          const Spacer(),
-          FilledButton(
-            onPressed: widget.onAgain,
-            child: const Text('Дахин — ижил суудлаар'),
-          ),
-          const SizedBox(height: kGap),
-          TextButton(
-            onPressed: widget.onLedger,
-            style: TextButton.styleFrom(
-              foregroundColor: kEmber,
-              minimumSize: const Size.fromHeight(kMinTouch),
-            ),
-            child: const Text('Өнөөдрийн тэмдэглэл'),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      const Spacer(),
+      Text(
+        'Хөзөр бүгд нээгдлээ.',
+        textAlign: TextAlign.center,
+        style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
+      ),
+      const Spacer(),
+      FilledButton(
+        onPressed: widget.onAgain,
+        child: const Text('Дахин — ижил суудлаар'),
+      ),
+      const SizedBox(height: kGap),
+      TextButton(
+        onPressed: widget.onLedger,
+        style: TextButton.styleFrom(
+          foregroundColor: kEmber,
+          minimumSize: const Size.fromHeight(kMinTouch),
+        ),
+        child: const Text('Өнөөдрийн тэмдэглэл'),
+      ),
+    ],
+  );
 }

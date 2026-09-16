@@ -4,7 +4,6 @@
 // dpr 2, өөрөөр хэлбэл 360 × 800 логик px. Доод талын товч, хоёр эрхийн
 // товгор хоёулаа тэр өндөрт л шалгагдана.
 
-
 import 'package:flutter/material.dart' hide Intent;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,11 +23,13 @@ Future<void> pumpScreen(
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(
-    theme: buildTheme(),
-    debugShowCheckedModeBanner: false,
-    home: child,
-  ));
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildTheme(),
+      debugShowCheckedModeBanner: false,
+      home: child,
+    ),
+  );
   await tester.pump();
 }
 
@@ -57,17 +58,18 @@ List<MethodCall> captureGuardCalls() {
   PlatformGuard.resetForTest();
   final List<MethodCall> calls = <MethodCall>[];
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-    const MethodChannel('mn.hotuntlaa/guard'),
-    (MethodCall call) async {
-      calls.add(call);
-      return null;
-    },
-  );
+      .setMockMethodCallHandler(const MethodChannel('mn.hotuntlaa/guard'), (
+        MethodCall call,
+      ) async {
+        calls.add(call);
+        return null;
+      });
   addTearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-            const MethodChannel('mn.hotuntlaa/guard'), null);
+          const MethodChannel('mn.hotuntlaa/guard'),
+          null,
+        );
     PlatformGuard.resetForTest();
   });
   return calls;

@@ -8,18 +8,16 @@ import 'package:hotuntlaa/ui/tokens.dart';
 import 'deal_test_support.dart';
 
 void main() {
-  testWidgets('Мөр нь яг «Ширээн дээр тавь. Дараах — №7»',
-      (WidgetTester tester) async {
-    await pumpScreen(
-        tester, HandoffGate(nextSeat: 7, onLift: () {}));
+  testWidgets('Мөр нь яг «Ширээн дээр тавь. Дараах — №7»', (
+    WidgetTester tester,
+  ) async {
+    await pumpScreen(tester, HandoffGate(nextSeat: 7, onLift: () {}));
     expect(find.text('Ширээн дээр тавь. Дараах — №7'), findsOneWidget);
   });
 
-  testWidgets('600 мс дотор товшилт ҮЛ ХАМААРНА',
-      (WidgetTester tester) async {
+  testWidgets('600 мс дотор товшилт ҮЛ ХАМААРНА', (WidgetTester tester) async {
     int lifts = 0;
-    await pumpScreen(
-        tester, HandoffGate(nextSeat: 7, onLift: () => lifts++));
+    await pumpScreen(tester, HandoffGate(nextSeat: 7, onLift: () => lifts++));
 
     await tester.tapAt(const Offset(180, 400));
     await tester.pump(const Duration(milliseconds: 300));
@@ -36,11 +34,11 @@ void main() {
     expect(lifts, 1);
   });
 
-  testWidgets('Гурван секундын дараа «Товшиж нээ» товч гарна',
-      (WidgetTester tester) async {
+  testWidgets('Гурван секундын дараа «Товшиж нээ» товч гарна', (
+    WidgetTester tester,
+  ) async {
     int lifts = 0;
-    await pumpScreen(
-        tester, HandoffGate(nextSeat: 7, onLift: () => lifts++));
+    await pumpScreen(tester, HandoffGate(nextSeat: 7, onLift: () => lifts++));
 
     await tester.pump(kHandoffLock + const Duration(milliseconds: 50));
     expect(find.text('Товшиж нээ'), findsNothing);
@@ -52,8 +50,9 @@ void main() {
     expect(lifts, 1);
   });
 
-  testWidgets('Хасагдсан суудал алгасагдана: «№7 байхгүй. Дараах — №8»',
-      (WidgetTester tester) async {
+  testWidgets('Хасагдсан суудал алгасагдана: «№7 байхгүй. Дараах — №8»', (
+    WidgetTester tester,
+  ) async {
     await pumpScreen(
       tester,
       HandoffGate(nextSeat: 8, skippedSeat: 7, onLift: () {}),
@@ -68,16 +67,15 @@ void main() {
     expect(find.text('№8 — утсаа өргө'), findsOneWidget);
   });
 
-  testWidgets('Дэлгэц бүрэн хар — цагаан суурь ХАААНА Ч БАЙХГҮЙ',
-      (WidgetTester tester) async {
-    await pumpScreen(
-        tester, HandoffGate(nextSeat: 7, onLift: () {}));
+  testWidgets('Дэлгэц бүрэн хар — цагаан суурь ХАААНА Ч БАЙХГҮЙ', (
+    WidgetTester tester,
+  ) async {
+    await pumpScreen(tester, HandoffGate(nextSeat: 7, onLift: () {}));
     final Scaffold s = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(s.backgroundColor, kNight);
   });
 
-  testWidgets('320 логик px дээр мөр халихгүй',
-      (WidgetTester tester) async {
+  testWidgets('320 логик px дээр мөр халихгүй', (WidgetTester tester) async {
     await pumpScreen(
       tester,
       HandoffGate(nextSeat: 20, onLift: () {}),

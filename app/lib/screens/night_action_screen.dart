@@ -36,6 +36,7 @@ import 'package:flutter/material.dart' hide Intent;
 import '../game/game_controller.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
+import '../ui/glyphs.dart';
 
 // ---------------------------------------------------------------------------
 // Хугацааны тогтмолууд — GDD-06 S09 / S10, GDD-10 §5
@@ -60,12 +61,12 @@ const Duration kNightTick = Duration(milliseconds: 50);
 
 /// Дүр бүрийн асуулт. **Дэлгэцийн ЦОРЫН ГАНЦ дүрээс хамаарах зүйл.**
 String nightQuestionFor(Ability a) => switch (a) {
-      Ability.mafiaKill => 'Хэнийг хохироох вэ?',
-      Ability.heal => 'Хэнийг аврах вэ?',
-      Ability.investigate => 'Хэнийг шалгах вэ?',
-      Ability.suspect => 'Хэн сэжигтэй вэ?',
-      Ability.noAction => 'Хэн сэжигтэй вэ?',
-    };
+  Ability.mafiaKill => 'Хэнийг хохироох вэ?',
+  Ability.heal => 'Хэнийг аврах вэ?',
+  Ability.investigate => 'Хэнийг шалгах вэ?',
+  Ability.suspect => 'Хэн сэжигтэй вэ?',
+  Ability.noAction => 'Хэн сэжигтэй вэ?',
+};
 
 /// S10-ын хоёр мөр. «Сэжигтэй / Сэжиггүй» БИШ — GDD-00 §6.
 /// Дүрийн нарийн нэр ХЭЗЭЭ Ч гарахгүй.
@@ -132,8 +133,9 @@ class _NightActionScreenState extends State<NightActionScreen> {
   late final int _windowMs = _c.settings.nightSeatSeconds * 1000;
 
   /// Тухайн суудлын чадвар. Дүр нь ЭНД л уншигдана.
-  late final Ability _ability =
-      abilityOf(_c.roleOf(widget.seat) ?? Role.citizen);
+  late final Ability _ability = abilityOf(
+    _c.roleOf(widget.seat) ?? Role.citizen,
+  );
 
   @override
   void initState() {
@@ -286,14 +288,14 @@ class _NightActionScreenState extends State<NightActionScreen> {
   }
 
   Widget _blackScreen({required Widget child}) => Scaffold(
-        backgroundColor: kNight,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(kGutter),
-            child: Center(child: child),
-          ),
-        ),
-      );
+    backgroundColor: kNight,
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(kGutter),
+        child: Center(child: child),
+      ),
+    ),
+  );
 
   /// S10 — өнгө БА хэлбэр БА кирилл үг. Гурвуулаа, хэзээ ч зөвхөн өнгө биш.
   Widget _traceScreen() {
@@ -308,11 +310,13 @@ class _NightActionScreenState extends State<NightActionScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(
-                found ? '✕' : '○',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 96, height: 1.0, color: c, fontWeight: FontWeight.w700),
+              Center(
+                child: Mark(
+                  found ? MarkShape.cross : MarkShape.discHollow,
+                  size: 96,
+                  color: c,
+                  weight: 7,
+                ),
               ),
               const SizedBox(height: kGap),
               FittedBox(
@@ -321,10 +325,11 @@ class _NightActionScreenState extends State<NightActionScreen> {
                   traceTextFor(_trace!),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 34,
-                      height: 1.45,
-                      fontWeight: FontWeight.w700,
-                      color: c),
+                    fontSize: 34,
+                    height: 1.45,
+                    fontWeight: FontWeight.w700,
+                    color: c,
+                  ),
                 ),
               ),
             ],
@@ -336,8 +341,10 @@ class _NightActionScreenState extends State<NightActionScreen> {
 
   Widget _chooseScreen() {
     final bool reduce = _c.settings.reduceMotion;
-    final List<Seat> seats =
-        List<Seat>.generate(_c.seatCount, (int i) => i + 1);
+    final List<Seat> seats = List<Seat>.generate(
+      _c.seatCount,
+      (int i) => i + 1,
+    );
 
     return PhoneScaffold(
       background: kNight,
@@ -345,13 +352,15 @@ class _NightActionScreenState extends State<NightActionScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           // --- Дээд хэсэг: ЗӨВХӨН асуулт. Товч энд БАЙХГҮЙ. ---------------
-          Text('№${widget.seat}',
-              style: kLabel.copyWith(color: kTextMuted)),
+          Text('№${widget.seat}', style: kLabel.copyWith(color: kTextMuted)),
           const SizedBox(height: 6),
           Text(
             nightQuestionFor(_ability),
             style: kTitle.copyWith(
-                color: kTextPrimary, fontSize: 26, height: 1.45),
+              color: kTextPrimary,
+              fontSize: 26,
+              height: 1.45,
+            ),
           ),
           const SizedBox(height: kGap),
           _WindowBar(
@@ -376,8 +385,7 @@ class _NightActionScreenState extends State<NightActionScreen> {
           Align(
             alignment: Alignment.center,
             child: TextButton(
-              onPressed:
-                  _stage == NightActionStage.choosing ? _goBlind : null,
+              onPressed: _stage == NightActionStage.choosing ? _goBlind : null,
               style: TextButton.styleFrom(
                 foregroundColor: kTextMuted,
                 minimumSize: const Size(kMinTouch * 3, kMinTouch),
@@ -392,8 +400,8 @@ class _NightActionScreenState extends State<NightActionScreen> {
         label: _target == null
             ? 'Суудал сонго'
             : (_stage == NightActionStage.choosing
-                ? '№$_target — дарж батал'
-                : '№$_target — батлагдлаа'),
+                  ? '№$_target — дарж батал'
+                  : '№$_target — батлагдлаа'),
         progress: _holdMs / kConfirmHold.inMilliseconds,
         armed: _stage == NightActionStage.choosing && _target != null,
         reduceMotion: reduce,
@@ -420,8 +428,7 @@ class _WindowBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (reduceMotion) {
-      return Text('$secondsLeft сек',
-          style: kBody.copyWith(color: kTextMuted));
+      return Text('$secondsLeft сек', style: kBody.copyWith(color: kTextMuted));
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(3),
@@ -499,7 +506,9 @@ class _ConfirmStrip extends StatelessWidget {
                       reduceMotion ? '$label — 600 мс дар' : label,
                       textAlign: TextAlign.center,
                       style: kBody.copyWith(
-                          color: fg, fontWeight: FontWeight.w700),
+                        color: fg,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

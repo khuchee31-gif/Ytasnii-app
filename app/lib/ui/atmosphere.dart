@@ -87,10 +87,7 @@ class _AtmosphereState extends State<Atmosphere>
   @override
   void initState() {
     super.initState();
-    _t = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
+    _t = AnimationController(vsync: this, duration: const Duration(seconds: 1));
     _GrainTexture.ensure().then((_) {
       if (mounted) setState(() => _ready = true);
     });
@@ -159,7 +156,11 @@ class _AtmospherePainter extends CustomPainter {
       final Matrix4 m = Matrix4.identity()..translateByDouble(-dx, -dy, 0, 1);
       final Paint p = Paint()
         ..shader = ImageShader(
-            tex, TileMode.repeated, TileMode.repeated, m.storage)
+          tex,
+          TileMode.repeated,
+          TileMode.repeated,
+          m.storage,
+        )
         ..blendMode = BlendMode.overlay
         ..color = Colors.white.withValues(alpha: grain);
       canvas.drawRect(r, p);
@@ -176,19 +177,45 @@ class _AtmospherePainter extends CustomPainter {
     }
 
     // --- Хар хүрээ ---------------------------------------------------------
+    // ХЭМЖҮҮР: хүрээ нь АГУУЛГЫГ БҮДГЭРҮҮЛЭХГҮЙ. Эхний хувилбарт радиус
+    // хэтэрхий жижиг байсан тул дэлгэцийн голд байсан гарчиг саарал болж,
+    // доод талын үндсэн товч хагас унтарсан харагдаж байв. Одоо:
+    //   • гол 58% бүрэн цэвэр,
+    //   • зөвхөн ирмэг рүү гүнзгийрнэ,
+    //   • ҮЙЛДЛИЙН ТУУЗ (доод 20%) нь нэмэлт багасгалтай.
     if (vignette > 0) {
-      final Paint v = Paint()
-        ..shader = RadialGradient(
-          center: Alignment.center,
-          radius: 0.95,
-          colors: <Color>[
-            Colors.transparent,
-            Colors.black.withValues(alpha: vignette * 0.35),
-            Colors.black.withValues(alpha: vignette),
-          ],
-          stops: const <double>[0.45, 0.78, 1.0],
-        ).createShader(r);
-      canvas.drawRect(r, v);
+      canvas.saveLayer(r, Paint());
+      canvas.drawRect(
+        r,
+        Paint()
+          ..shader = RadialGradient(
+            center: Alignment.center,
+            radius: 1.05,
+            colors: <Color>[
+              Colors.transparent,
+              Colors.black.withValues(alpha: vignette * 0.20),
+              Colors.black.withValues(alpha: vignette * 0.70),
+            ],
+            stops: const <double>[0.58, 0.84, 1.0],
+          ).createShader(r),
+      );
+      // Доод тууз руу бүдгэрүүлэх маск — эрхий хүрэх товч бүрэн тод үлдэнэ.
+      canvas.drawRect(
+        r,
+        Paint()
+          ..blendMode = BlendMode.dstIn
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const <Color>[
+              Colors.black,
+              Colors.black,
+              Color(0x26000000),
+            ],
+            stops: const <double>[0.0, 0.80, 1.0],
+          ).createShader(r),
+      );
+      canvas.restore();
     }
   }
 
@@ -208,6 +235,7 @@ class ChromaticTitle extends StatelessWidget {
     this.style,
     this.offset = 1.6,
     this.textAlign = TextAlign.center,
+    this.semantics,
   });
 
   final String text;
@@ -215,26 +243,42 @@ class ChromaticTitle extends StatelessWidget {
   final double offset;
   final TextAlign textAlign;
 
+  /// Дэлгэц уншигчид хэлэх бүтэн өгүүлбэр. `null` бол `text` өөрөө.
+  final String? semantics;
+
   @override
   Widget build(BuildContext context) {
     final TextStyle base = (style ?? kDisplay).copyWith(color: kBone);
-    return Stack(
-      alignment: Alignment.center,
-      children: <Widget>[
-        Transform.translate(
-          offset: Offset(-offset, 0),
-          child: Text(text,
-              textAlign: textAlign,
-              style: base.copyWith(color: kRust.withValues(alpha: 0.85))),
+    // ХҮРТЭЭМЖ: гурван хуулбар давхарлаж байгаа тул дэлгэц уншигч үгийг
+    // ГУРВАН УДАА уншиж болзошгүй. Бүгдийг нь хаагаад НЭГ шошго өгнө.
+    // `semantics` нь бүтэн гарчгийг («Хот унтлаа») дамжуулна.
+    return Semantics(
+      label: semantics ?? text,
+      header: true,
+      child: ExcludeSemantics(
+        child: Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            Transform.translate(
+              offset: Offset(-offset, 0),
+              child: Text(
+                text,
+                textAlign: textAlign,
+                style: base.copyWith(color: kRust.withValues(alpha: 0.85)),
+              ),
+            ),
+            Transform.translate(
+              offset: Offset(offset, 0),
+              child: Text(
+                text,
+                textAlign: textAlign,
+                style: base.copyWith(color: kCold.withValues(alpha: 0.65)),
+              ),
+            ),
+            Text(text, textAlign: textAlign, style: base),
+          ],
         ),
-        Transform.translate(
-          offset: Offset(offset, 0),
-          child: Text(text,
-              textAlign: textAlign,
-              style: base.copyWith(color: kCold.withValues(alpha: 0.65))),
-        ),
-        Text(text, textAlign: textAlign, style: base),
-      ],
+      ),
     );
   }
 }
@@ -254,9 +298,9 @@ class InkFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => CustomPaint(
-        painter: _InkFramePainter(color: color, thickness: thickness),
-        child: Padding(padding: const EdgeInsets.all(14), child: child),
-      );
+    painter: _InkFramePainter(color: color, thickness: thickness),
+    child: Padding(padding: const EdgeInsets.all(14), child: child),
+  );
 }
 
 class _InkFramePainter extends CustomPainter {
@@ -290,8 +334,10 @@ class _InkFramePainter extends CustomPainter {
         final double t = s / seg;
         final double jx = (rnd.nextDouble() - 0.5) * 2.2;
         final double jy = (rnd.nextDouble() - 0.5) * 2.2;
-        path.lineTo(a.dx + (b.dx - a.dx) * t + jx,
-            a.dy + (b.dy - a.dy) * t + jy);
+        path.lineTo(
+          a.dx + (b.dx - a.dx) * t + jx,
+          a.dy + (b.dy - a.dy) * t + jy,
+        );
       }
       canvas.drawPath(path, p);
     }

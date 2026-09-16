@@ -14,6 +14,7 @@ import '../game/game_controller.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 import 'setup_parts.dart';
+import '../ui/glyphs.dart';
 
 class RosterScreen extends StatefulWidget {
   const RosterScreen({
@@ -46,11 +47,15 @@ class _RosterScreenState extends State<RosterScreen> {
     super.initState();
     // `empty` — 10 суудал өөрөө үүсгэгдэнэ, нэр хоосон.
     // `restored` — сүүлийн суудлын жагсаалт.
-    final int start =
-        widget.controller.hasSavedRoster ? widget.controller.seatCount : 10;
+    final int start = widget.controller.hasSavedRoster
+        ? widget.controller.seatCount
+        : 10;
     for (int i = 1; i <= start; i++) {
-      _rows.add(_SeatRow(
-          TextEditingController(text: widget.controller.seatNames[i] ?? '')));
+      _rows.add(
+        _SeatRow(
+          TextEditingController(text: widget.controller.seatNames[i] ?? ''),
+        ),
+      );
     }
   }
 
@@ -113,7 +118,12 @@ class _RosterScreenState extends State<RosterScreen> {
     final bool even = n.isEven;
     // n < 6 үед `rosterFor` шиднэ — тиймээс шалгагчийг ШУУД дуудна.
     final SetupCheck check = checkSetup(
-        n: n, mafia: 1, boss: false, doctor: true, detective: true);
+      n: n,
+      mafia: 1,
+      boss: false,
+      doctor: true,
+      detective: true,
+    );
     final bool tooFew = n < kMinSeats;
 
     return PhoneScaffold(
@@ -127,32 +137,42 @@ class _RosterScreenState extends State<RosterScreen> {
             label: '${mnNumber(n)} тоглогч',
             child: ExcludeSemantics(
               child: Center(
-                child: Text('$n',
-                    key: const ValueKey<String>('seat-count'),
-                    style: kSeatNumber.copyWith(
-                        color: tooFew
-                            ? kDanger
-                            : (even ? kTextPrimary : kTextMuted))),
+                child: Text(
+                  '$n',
+                  key: const ValueKey<String>('seat-count'),
+                  style: kSeatNumber.copyWith(
+                    color: tooFew
+                        ? kDanger
+                        : (even ? kTextPrimary : kTextMuted),
+                  ),
+                ),
               ),
             ),
           ),
           const SizedBox(height: 4),
           if (!even && !tooFew)
             // Сануулга, ТАТГАЛЗАЛ БИШ (GDD-06 S02).
-            const Text('Сондгой тоо мафид ашигтай.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, height: 1.45, color: kEmber)),
+            const Text(
+              'Сондгой тоо мафид ашигтай.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.45, color: kEmber),
+            ),
           if (tooFew)
-            Text(check.messageMn,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.45,
-                    fontWeight: FontWeight.w700,
-                    color: kDanger)),
+            Text(
+              check.messageMn,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.45,
+                fontWeight: FontWeight.w700,
+                color: kDanger,
+              ),
+            ),
           const SizedBox(height: kGap),
-          const Text('Нэр заавал биш. Хоосон бол дугаараараа явна.',
-              style: TextStyle(fontSize: 14, height: 1.45, color: kTextMuted)),
+          const Text(
+            'Нэр заавал биш. Хоосон бол дугаараараа явна.',
+            style: TextStyle(fontSize: 14, height: 1.45, color: kTextMuted),
+          ),
           const SizedBox(height: 8),
           ReorderableListView.builder(
             shrinkWrap: true,
@@ -179,14 +199,16 @@ class _RosterScreenState extends State<RosterScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: <Widget>[
               _BigStep(
-                  glyph: '−',
-                  semantic: 'Суудал хасах',
-                  onTap: _present > kMinSeats ? _remove : null),
+                shape: MarkShape.minus,
+                semantic: 'Суудал хасах',
+                onTap: _present > kMinSeats ? _remove : null,
+              ),
               const SizedBox(width: kGap),
               _BigStep(
-                  glyph: '+',
-                  semantic: 'Суудал нэмэх',
-                  onTap: _present < kMaxSeats ? _add : null),
+                shape: MarkShape.plus,
+                semantic: 'Суудал нэмэх',
+                onTap: _present < kMaxSeats ? _add : null,
+              ),
             ],
           ),
           const SizedBox(height: kGap),
@@ -233,10 +255,13 @@ class _SeatLine extends StatelessWidget {
         children: <Widget>[
           SizedBox(
             width: 30,
-            child: Text(absent ? '—' : '${seatNumber ?? ''}',
-                style: kBody.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: absent ? kTextMuted : kEmber)),
+            child: Text(
+              absent ? '—' : '${seatNumber ?? ''}',
+              style: kBody.copyWith(
+                fontWeight: FontWeight.w700,
+                color: absent ? kTextMuted : kEmber,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           // Уян хатан — урт нэр мөрийг халихгүй.
@@ -245,9 +270,11 @@ class _SeatLine extends StatelessWidget {
               controller: row.name,
               enabled: !absent,
               style: kBody.copyWith(
-                  color: absent ? kTextMuted : kTextPrimary,
-                  decoration:
-                      absent ? TextDecoration.lineThrough : TextDecoration.none),
+                color: absent ? kTextMuted : kTextPrimary,
+                decoration: absent
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
+              ),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: seatNumber == null
@@ -270,11 +297,11 @@ class _SeatLine extends StatelessWidget {
                 height: kMinTouch,
                 child: Center(
                   child: ExcludeSemantics(
-                    child: Text(absent ? '↺' : '⊘',
-                        style: TextStyle(
-                            fontSize: 20,
-                            height: 1.0,
-                            color: absent ? kEmber : kTextMuted)),
+                    child: Mark(
+                      absent ? MarkShape.undo : MarkShape.block,
+                      size: 20,
+                      color: absent ? kEmber : kTextMuted,
+                    ),
                   ),
                 ),
               ),
@@ -290,9 +317,7 @@ class _SeatLine extends StatelessWidget {
                 height: kMinTouch,
                 child: Center(
                   child: ExcludeSemantics(
-                    child: Text('≡',
-                        style: TextStyle(
-                            fontSize: 20, height: 1.0, color: kTextMuted)),
+                    child: Mark(MarkShape.bars, size: 20, color: kTextMuted),
                   ),
                 ),
               ),
@@ -305,10 +330,13 @@ class _SeatLine extends StatelessWidget {
 }
 
 class _BigStep extends StatelessWidget {
-  const _BigStep(
-      {required this.glyph, required this.semantic, required this.onTap});
+  const _BigStep({
+    required this.shape,
+    required this.semantic,
+    required this.onTap,
+  });
 
-  final String glyph;
+  final MarkShape shape;
   final String semantic;
   final VoidCallback? onTap;
 
@@ -330,12 +358,12 @@ class _BigStep extends StatelessWidget {
             height: 56,
             child: Center(
               child: ExcludeSemantics(
-                child: Text(glyph,
-                    style: TextStyle(
-                        fontSize: 28,
-                        height: 1.0,
-                        fontWeight: FontWeight.w700,
-                        color: on ? kTextPrimary : kTextMuted)),
+                child: Mark(
+                  shape,
+                  size: 28,
+                  weight: 2.8,
+                  color: on ? kTextPrimary : kTextMuted,
+                ),
               ),
             ),
           ),

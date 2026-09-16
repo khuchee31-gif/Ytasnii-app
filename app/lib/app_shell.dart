@@ -40,11 +40,11 @@ class HotUntlaaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Хот унтлаа',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: GameShell(controller: controller),
-      );
+    title: 'Хот унтлаа',
+    debugShowCheckedModeBanner: false,
+    theme: buildTheme(),
+    home: GameShell(controller: controller),
+  );
 }
 
 /// Хажуугийн дэлгэцүүд — үе шатаас гадуур, түр нээгддэг.
@@ -90,13 +90,12 @@ class _GameShellState extends State<GameShell> {
   }
 
   static bool _inMatch(GamePhase p) => switch (p) {
-        GamePhase.appOpen ||
-        GamePhase.roster ||
-        GamePhase.preset ||
-        GamePhase.ledger =>
-          false,
-        _ => true,
-      };
+    GamePhase.appOpen ||
+    GamePhase.roster ||
+    GamePhase.preset ||
+    GamePhase.ledger => false,
+    _ => true,
+  };
 
   void _closeOverlay() => setState(() => _overlay = _Overlay.none);
 
@@ -112,8 +111,10 @@ class _GameShellState extends State<GameShell> {
       vignette: table ? 0.95 : 0.8,
       grain: table ? 0.07 : 0.05,
       child: switch (_overlay) {
-        _Overlay.settings =>
-          SettingsScreen(controller: _c, onClose: _closeOverlay),
+        _Overlay.settings => SettingsScreen(
+          controller: _c,
+          onClose: _closeOverlay,
+        ),
         _Overlay.help => HelpScreen(onClose: _closeOverlay),
         _Overlay.none => _phaseScreen(),
       },
@@ -134,16 +135,16 @@ class _GameShellState extends State<GameShell> {
 
       case GamePhase.roster:
         return RosterScreen(
-            controller: _c, onContinue: () => _c.go(GamePhase.preset));
+          controller: _c,
+          onContinue: () => _c.go(GamePhase.preset),
+        );
 
       case GamePhase.preset:
-        return PresetScreen(
-            controller: _c, onDeal: () => _c.beginFairness());
+        return PresetScreen(controller: _c, onDeal: () => _c.beginFairness());
 
       // VALIDATE нь дэлгэцгүй: S03 өөрөө `checkSetup`-ыг уншаад товчоо түгжинэ.
       case GamePhase.validate:
-        return PresetScreen(
-            controller: _c, onDeal: () => _c.beginFairness());
+        return PresetScreen(controller: _c, onDeal: () => _c.beginFairness());
 
       case GamePhase.fairness:
         return FairnessScreen(controller: _c, onSealed: () {});
@@ -158,8 +159,7 @@ class _GameShellState extends State<GameShell> {
         return Night0Screen(controller: _c, onDone: _c.beginNight);
 
       case GamePhase.nightCircuit:
-        return NightCircuitScreen(
-            controller: _c, onDone: _c.resolveNightNow);
+        return NightCircuitScreen(controller: _c, onDone: _c.resolveNightNow);
 
       case GamePhase.dawn:
         return DawnScreen(
@@ -184,7 +184,9 @@ class _GameShellState extends State<GameShell> {
       case GamePhase.speechRound:
       case GamePhase.freeTalk:
         return DayScreen(
-            controller: _c, onVote: () => _c.go(GamePhase.nomination));
+          controller: _c,
+          onVote: () => _c.go(GamePhase.nomination),
+        );
 
       case GamePhase.nomination:
       case GamePhase.defence:
@@ -244,26 +246,27 @@ class _NotYet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: kSurface,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(kGutter),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text('Ангийн дэвтэр',
-                    style: kTitle.copyWith(color: kTextPrimary)),
-                const SizedBox(height: 8),
-                Text('Энэ хэсэг дараагийн хувилбарт нэмэгдэнэ.',
-                    textAlign: TextAlign.center,
-                    style: kBody.copyWith(color: kTextMuted)),
-                const SizedBox(height: 28),
-                FilledButton(onPressed: onBack, child: const Text('Нүүр рүү')),
-              ],
+    backgroundColor: kSurface,
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(kGutter),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text('Ангийн дэвтэр', style: kTitle.copyWith(color: kTextPrimary)),
+            const SizedBox(height: 8),
+            Text(
+              'Энэ хэсэг дараагийн хувилбарт нэмэгдэнэ.',
+              textAlign: TextAlign.center,
+              style: kBody.copyWith(color: kTextMuted),
             ),
-          ),
+            const SizedBox(height: 28),
+            FilledButton(onPressed: onBack, child: const Text('Нүүр рүү')),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _PausedScreen extends StatelessWidget {
@@ -279,34 +282,42 @@ class _PausedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: kNight,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(kGutter),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text('Түр зогслоо',
-                    textAlign: TextAlign.center,
-                    style: kTitle.copyWith(color: kTextPrimary)),
-                const SizedBox(height: 8),
-                Text('Дэлгэц нуугдсан. Тоглоом хэвээрээ хүлээж байна.',
-                    textAlign: TextAlign.center,
-                    style: kBody.copyWith(color: kTextMuted)),
-                const SizedBox(height: 32),
-                FilledButton(
-                    onPressed: onResume, child: const Text('Үргэлжлүүлэх')),
-                const SizedBox(height: kGap),
-                TextButton(onPressed: onHelp, child: const Text('Дүрэм')),
-                TextButton(
-                  onPressed: onQuit,
-                  child: Text('Тоглолтыг цуцлах',
-                      style: kBody.copyWith(color: kDanger)),
-                ),
-              ],
+    backgroundColor: kNight,
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(kGutter),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              'Түр зогслоо',
+              textAlign: TextAlign.center,
+              style: kTitle.copyWith(color: kTextPrimary),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              'Дэлгэц нуугдсан. Тоглоом хэвээрээ хүлээж байна.',
+              textAlign: TextAlign.center,
+              style: kBody.copyWith(color: kTextMuted),
+            ),
+            const SizedBox(height: 32),
+            FilledButton(
+              onPressed: onResume,
+              child: const Text('Үргэлжлүүлэх'),
+            ),
+            const SizedBox(height: kGap),
+            TextButton(onPressed: onHelp, child: const Text('Дүрэм')),
+            TextButton(
+              onPressed: onQuit,
+              child: Text(
+                'Тоглолтыг цуцлах',
+                style: kBody.copyWith(color: kDanger),
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

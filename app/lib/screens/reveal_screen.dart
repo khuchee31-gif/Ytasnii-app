@@ -33,6 +33,7 @@ import '../game/game_controller.dart';
 import '../ui/platform_guard.dart';
 import '../ui/tokens.dart';
 import 'handoff_screen.dart';
+import '../ui/glyphs.dart';
 
 // ---------------------------------------------------------------------------
 // Хөзрийн хуулбар — GDD-02 §5. ШИНЭ ТЕКСТ БИЧИХ ХОРИОТОЙ.
@@ -65,44 +66,46 @@ class RoleCardCopy {
 /// GDD-02 §5-ын хүснэгт, үг үсгээр. Сэдэвчилсэн нэрс нь 13 §4.1-ийн
 /// «ШӨНИЙН ЧОНО» арьснаас.
 RoleCardCopy cardCopyFor(Role r) => switch (r) {
-      Role.citizen => const RoleCardCopy(
-          theme: 'МАЛЧИН',
-          mechanic: 'Иргэн',
-          faction: 'Хотынхон',
-          job: 'Шөнө сэжигтэй суудлаа товш. Өдөр ярь.',
-          advice: 'Чамд чадвар байхгүй — чиний зэвсэг бол үг.',
-        ),
-      Role.doctor => const RoleCardCopy(
-          theme: 'БАРИАЧ',
-          mechanic: 'Эмч',
-          faction: 'Хотынхон',
-          job: 'Шөнө бүр нэг хүнийг алалтаас авар.',
-          advice: 'Дүрээ зарласан Мөрдөгчийг хамгаал. '
-              'Нэг хүнийг хоёр шөнө дараалж аврахгүй.',
-        ),
-      Role.detective => const RoleCardCopy(
-          theme: 'МӨРЧИН',
-          mechanic: 'Мөрдөгч',
-          faction: 'Хотынхон',
-          job: 'Шөнө бүр нэг суудлыг шалга. Хариу нь тэр дороо гарна.',
-          advice: 'Хэзээ дүрээ зарлах нь чиний хамгийн том шийдвэр.',
-        ),
-      Role.killer => const RoleCardCopy(
-          theme: 'ЧОНО',
-          mechanic: 'Алуурчин',
-          faction: 'Мафи',
-          job: 'Шөнө хохирогчоо сонго. Хамтрагчид чинь ширээн дээр байна.',
-          advice: 'Эхний өдөр хамгийн эрт хэн нэгнийг заасан хүн '
-              'үргэлж сэжигтэй.',
-        ),
-      Role.boss => const RoleCardCopy(
-          theme: 'ЦӨВҮҮН ЧОНО',
-          mechanic: 'Ахлагч',
-          faction: 'Мафи',
-          job: 'Санал зөрвөл чиний сонголт хүчинтэй.',
-          advice: 'Хамтрагчид чинь чамайг мэдэхгүй. Тэр нь чиний давуу тал.',
-        ),
-    };
+  Role.citizen => const RoleCardCopy(
+    theme: 'МАЛЧИН',
+    mechanic: 'Иргэн',
+    faction: 'Хотынхон',
+    job: 'Шөнө сэжигтэй суудлаа товш. Өдөр ярь.',
+    advice: 'Чамд чадвар байхгүй — чиний зэвсэг бол үг.',
+  ),
+  Role.doctor => const RoleCardCopy(
+    theme: 'БАРИАЧ',
+    mechanic: 'Эмч',
+    faction: 'Хотынхон',
+    job: 'Шөнө бүр нэг хүнийг алалтаас авар.',
+    advice:
+        'Дүрээ зарласан Мөрдөгчийг хамгаал. '
+        'Нэг хүнийг хоёр шөнө дараалж аврахгүй.',
+  ),
+  Role.detective => const RoleCardCopy(
+    theme: 'МӨРЧИН',
+    mechanic: 'Мөрдөгч',
+    faction: 'Хотынхон',
+    job: 'Шөнө бүр нэг суудлыг шалга. Хариу нь тэр дороо гарна.',
+    advice: 'Хэзээ дүрээ зарлах нь чиний хамгийн том шийдвэр.',
+  ),
+  Role.killer => const RoleCardCopy(
+    theme: 'ЧОНО',
+    mechanic: 'Алуурчин',
+    faction: 'Мафи',
+    job: 'Шөнө хохирогчоо сонго. Хамтрагчид чинь ширээн дээр байна.',
+    advice:
+        'Эхний өдөр хамгийн эрт хэн нэгнийг заасан хүн '
+        'үргэлж сэжигтэй.',
+  ),
+  Role.boss => const RoleCardCopy(
+    theme: 'ЦӨВҮҮН ЧОНО',
+    mechanic: 'Ахлагч',
+    faction: 'Мафи',
+    job: 'Санал зөрвөл чиний сонголт хүчинтэй.',
+    advice: 'Хамтрагчид чинь чамайг мэдэхгүй. Тэр нь чиний давуу тал.',
+  ),
+};
 
 /// Эхний гурван тоглолтод авто-нуулт 4000 мс (GDD-11 §2-ын тодорхой
 /// үл хамаарах зүйл — анх уншиж байгаа хүүхдийн хугацаа шагайлтаас үнэтэй).
@@ -231,8 +234,7 @@ class _RevealScreenState extends State<RevealScreen>
     if (_engaged) {
       if (_stage == RevealStage.back || _stage == RevealStage.hidden) {
         _holdTimer?.cancel();
-        _holdTimer =
-            Timer(widget.controller.settings.holdDuration, _afterHold);
+        _holdTimer = Timer(widget.controller.settings.holdDuration, _afterHold);
       }
     } else {
       _holdTimer?.cancel();
@@ -326,8 +328,10 @@ class _RevealScreenState extends State<RevealScreen>
         backgroundColor: kNight,
         body: SafeArea(
           child: Center(
-            child: Text('Бүгд харлаа.',
-                style: kDisplay.copyWith(color: kEmber, height: 1.2)),
+            child: Text(
+              'Бүгд харлаа.',
+              style: kDisplay.copyWith(color: kEmber, height: 1.2),
+            ),
           ),
         ),
       );
@@ -411,35 +415,37 @@ class _RevealScreenState extends State<RevealScreen>
   /// Хөзрийн ар тал — улзий хүрээтэй. ХАС ХЭЗЭЭ Ч БИШ (13 §4.1-ийн
   /// мэдрэг зүйлсийн анхааруулга 2).
   Widget _cardBack() => Container(
-        decoration: BoxDecoration(
-          color: kSurfaceRaised,
-          borderRadius: BorderRadius.circular(kRadius),
-          border: Border.all(color: kEmber.withValues(alpha: 0.45), width: 2),
-        ),
-        child: CustomPaint(
-          painter: _UlziiPainter(color: kEmber.withValues(alpha: 0.35)),
-          child: _stage == RevealStage.announce
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(kGutter),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: kSurface,
-                        borderRadius: BorderRadius.circular(kRadius),
-                      ),
-                      child: Text(
-                        _banner,
-                        textAlign: TextAlign.center,
-                        style: kTitle.copyWith(color: kEmber, height: 1.45),
-                      ),
-                    ),
+    decoration: BoxDecoration(
+      color: kSurfaceRaised,
+      borderRadius: BorderRadius.circular(kRadius),
+      border: Border.all(color: kEmber.withValues(alpha: 0.45), width: 2),
+    ),
+    child: CustomPaint(
+      painter: _UlziiPainter(color: kEmber.withValues(alpha: 0.35)),
+      child: _stage == RevealStage.announce
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(kGutter),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                )
-              : const SizedBox.expand(),
-        ),
-      );
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(kRadius),
+                  ),
+                  child: Text(
+                    _banner,
+                    textAlign: TextAlign.center,
+                    style: kTitle.copyWith(color: kEmber, height: 1.45),
+                  ),
+                ),
+              ),
+            )
+          : const SizedBox.expand(),
+    ),
+  );
 
   /// Хөзрийн нүүр — дөрвөн мөр, өөр юу ч биш (GDD-02 §5).
   Widget _cardFace() {
@@ -472,30 +478,42 @@ class _RevealScreenState extends State<RevealScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(copy.theme,
-                        style: kDisplay.copyWith(color: kTextPrimary)),
+                    Text(
+                      copy.theme,
+                      style: kDisplay.copyWith(color: kTextPrimary),
+                    ),
                     const SizedBox(height: 2),
-                    Text(copy.mechanic,
-                        style: kBody.copyWith(color: kTextMuted)),
+                    Text(
+                      copy.mechanic,
+                      style: kBody.copyWith(color: kTextMuted),
+                    ),
                     const SizedBox(height: 8),
                     // Утга нь ӨНГӨ БА ХЭЛБЭР БА КИРИЛЛ ШОШГО.
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Text(mafi ? '▲' : '●',
-                            style: TextStyle(fontSize: 14, color: accent)),
+                        Mark(
+                          mafi ? MarkShape.triangle : MarkShape.discFilled,
+                          size: 13,
+                          color: accent,
+                        ),
                         const SizedBox(width: 6),
-                        Text(copy.faction,
-                            style: kLabel.copyWith(color: accent)),
+                        Text(
+                          copy.faction,
+                          style: kLabel.copyWith(color: accent),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text(copy.job,
-                        style: kBody.copyWith(
-                            color: kTextPrimary, fontWeight: FontWeight.w600)),
+                    Text(
+                      copy.job,
+                      style: kBody.copyWith(
+                        color: kTextPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text(copy.advice,
-                        style: kBody.copyWith(color: kTextMuted)),
+                    Text(copy.advice, style: kBody.copyWith(color: kTextMuted)),
                   ],
                 ),
               ),
@@ -520,8 +538,10 @@ class _RevealScreenState extends State<RevealScreen>
                   ((1 - _ring.value) * _autoHide.inMilliseconds / 1000)
                       .ceil()
                       .clamp(0, 9);
-              return Text('$left',
-                  style: kTitle.copyWith(color: kTextMuted, height: 1.2));
+              return Text(
+                '$left',
+                style: kTitle.copyWith(color: kTextMuted, height: 1.2),
+              );
             },
           ),
         ),
@@ -551,7 +571,8 @@ class _RevealScreenState extends State<RevealScreen>
             text,
             textAlign: TextAlign.center,
             style: kBody.copyWith(
-                color: _stage == RevealStage.announce ? kEmber : kTextPrimary),
+              color: _stage == RevealStage.announce ? kEmber : kTextPrimary,
+            ),
           ),
         ),
       ),
@@ -562,31 +583,31 @@ class _RevealScreenState extends State<RevealScreen>
   /// ≥ 40 % зай (GDD-06 S06 / GDD-10 §6). 320px дээр зай нь багасна ч
   /// товгорууд ХЭЗЭЭ Ч жижгэрэхгүй — халилт гарахгүй.
   Widget _thumbRow() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            _ThumbPad(
-              key: const ValueKey<String>('thumbLeft'),
-              label: 'Зүүн эрхий',
-              active: _leftDown,
-              onChanged: (bool down) {
-                _leftDown = down;
-                _padChanged();
-              },
-            ),
-            _ThumbPad(
-              key: const ValueKey<String>('thumbRight'),
-              label: 'Баруун эрхий',
-              active: _rightDown,
-              onChanged: (bool down) {
-                _rightDown = down;
-                _padChanged();
-              },
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        _ThumbPad(
+          key: const ValueKey<String>('thumbLeft'),
+          label: 'Зүүн эрхий',
+          active: _leftDown,
+          onChanged: (bool down) {
+            _leftDown = down;
+            _padChanged();
+          },
         ),
-      );
+        _ThumbPad(
+          key: const ValueKey<String>('thumbRight'),
+          label: 'Баруун эрхий',
+          active: _rightDown,
+          onChanged: (bool down) {
+            _rightDown = down;
+            _padChanged();
+          },
+        ),
+      ],
+    ),
+  );
 }
 
 /// 96 × 96 dp эрхийн товгор. `Listener` ашиглана — хоёр хуруу ЗЭРЭГ дарагдсан
@@ -674,10 +695,12 @@ class _RingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (t <= 0) return;
     final Path path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Offset.zero & size,
-        const Radius.circular(kRadius),
-      ));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          const Radius.circular(kRadius),
+        ),
+      );
     final Paint p = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4

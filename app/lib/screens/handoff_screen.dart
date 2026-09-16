@@ -141,7 +141,9 @@ class _HandoffGateState extends State<HandoffGate> {
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: kGutter, vertical: kGutter),
+                horizontal: kGutter,
+                vertical: kGutter,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -161,7 +163,9 @@ class _HandoffGateState extends State<HandoffGate> {
                       height: 56,
                       child: Center(
                         child: Text(
-                          _stage == HandoffStage.armed ? '№$n — утсаа өргө' : '',
+                          _stage == HandoffStage.armed
+                              ? '№$n — утсаа өргө'
+                              : '',
                           style: kBody.copyWith(color: kTextMuted),
                           textAlign: TextAlign.center,
                         ),
@@ -175,8 +179,10 @@ class _HandoffGateState extends State<HandoffGate> {
                                 onPressed: _lift,
                                 style: TextButton.styleFrom(
                                   foregroundColor: kEmber,
-                                  minimumSize: const Size(kMinTouch * 3,
-                                      kPrimaryButtonHeight),
+                                  minimumSize: const Size(
+                                    kMinTouch * 3,
+                                    kPrimaryButtonHeight,
+                                  ),
                                 ),
                                 child: const Text('Товшиж нээ'),
                               ),
@@ -209,9 +215,6 @@ class HandoffScreen extends StatelessWidget {
   final VoidCallback onLift;
 
   @override
-  Widget build(BuildContext context) => HandoffGate(
-        nextSeat: nextSeat,
-        skippedSeat: skippedSeat,
-        onLift: onLift,
-      );
+  Widget build(BuildContext context) =>
+      HandoffGate(nextSeat: nextSeat, skippedSeat: skippedSeat, onLift: onLift);
 }

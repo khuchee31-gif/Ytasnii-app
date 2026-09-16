@@ -12,17 +12,23 @@ void main() {
   group('S00 — Splash', () {
     testWidgets('Лого гарна, тоолуур БАЙХГҮЙ', (WidgetTester tester) async {
       await pumpPhone(
-          tester, SplashScreen(onReady: () {}, hold: const Duration(seconds: 1)));
+        tester,
+        SplashScreen(onReady: () {}, hold: const Duration(seconds: 1)),
+      );
 
-      expect(find.text('ХОТ УНТЛАА'), findsOneWidget);
+      // Гарчиг хоёр мөр болсон: «ХОТ» дээр, «УНТЛАА» доор. Сүүлийнх нь
+      // өнгө хуваасан тул ГУРВАН хуулбартай — уншигчид нэг л шошго хүрнэ.
+      expect(find.text('ХОТ'), findsOneWidget);
+      expect(find.text('УНТЛАА'), findsNWidgets(3));
       // Ямар ч тоо, ямар ч товч байхгүй.
       expect(find.byType(FilledButton), findsNothing);
       expectNoOverflow(tester);
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('Нэг секундын дараа S01 руу шилжинэ',
-        (WidgetTester tester) async {
+    testWidgets('Нэг секундын дараа S01 руу шилжинэ', (
+      WidgetTester tester,
+    ) async {
       bool ready = false;
       await pumpPhone(tester, SplashScreen(onReady: () => ready = true));
       expect(ready, isFalse);
@@ -32,11 +38,15 @@ void main() {
 
     testWidgets('assetFail — дуугүй үргэлжлүүлнэ', (WidgetTester tester) async {
       bool ready = false;
-      await pumpPhone(tester,
-          SplashScreen(onReady: () => ready = true, audioFailed: true));
+      await pumpPhone(
+        tester,
+        SplashScreen(onReady: () => ready = true, audioFailed: true),
+      );
 
-      expect(find.text('Дуу ачаалагдсангүй. Тоглоом дуугүй ажиллана.'),
-          findsOneWidget);
+      expect(
+        find.text('Дуу ачаалагдсангүй. Тоглоом дуугүй ажиллана.'),
+        findsOneWidget,
+      );
       await tester.pump(const Duration(seconds: 3));
       expect(ready, isFalse, reason: 'assetFail өөрөө шилжихгүй');
       await tester.tap(find.text('Үргэлжлүүлэх'));
@@ -45,8 +55,12 @@ void main() {
   });
 
   group('S01 — Нүүр', () {
-    Widget home(GameController c,
-        {VoidCallback? onResume, bool bituun = false, VoidCallback? onNew}) {
+    Widget home(
+      GameController c, {
+      VoidCallback? onResume,
+      bool bituun = false,
+      VoidCallback? onNew,
+    }) {
       return HomeScreen(
         controller: c,
         onNewGame: onNew ?? () {},
@@ -58,13 +72,17 @@ void main() {
       );
     }
 
-    testWidgets('firstRun — НЭГ товч, нэр, өөр юу ч биш',
-        (WidgetTester tester) async {
+    testWidgets('firstRun — НЭГ товч, нэр, өөр юу ч биш', (
+      WidgetTester tester,
+    ) async {
       final GameController c = GameController();
       addTearDown(c.dispose);
       await pumpPhone(tester, home(c));
 
-      expect(find.text('ХОТ УНТЛАА'), findsOneWidget);
+      // Гарчиг хоёр мөр болсон: «ХОТ» дээр, «УНТЛАА» доор. Сүүлийнх нь
+      // өнгө хуваасан тул ГУРВАН хуулбартай — уншигчид нэг л шошго хүрнэ.
+      expect(find.text('ХОТ'), findsOneWidget);
+      expect(find.text('УНТЛАА'), findsNWidgets(3));
       expect(find.text('Нэг утсаар тоглох'), findsOneWidget);
       // Үндсэн товч ГАНЦ. «Шинэ бүрэлдэхүүн» энэ төлөвт байхгүй.
       expect(find.byType(FilledButton), findsOneWidget);
@@ -72,8 +90,9 @@ void main() {
       expectNoOverflow(tester);
     });
 
-    testWidgets('Үндсэн товч 88 dp, доод гуравны нэгд',
-        (WidgetTester tester) async {
+    testWidgets('Үндсэн товч 88 dp, доод гуравны нэгд', (
+      WidgetTester tester,
+    ) async {
       final GameController c = GameController();
       addTearDown(c.dispose);
       await pumpPhone(tester, home(c));
@@ -84,8 +103,9 @@ void main() {
       expect(tester.getTopLeft(btn).dy, greaterThan(800 / 3 * 2));
     });
 
-    testWidgets('hasRoster — «Дахин — ижил суудлаар» ба жижиг хоёр дахь мөр',
-        (WidgetTester tester) async {
+    testWidgets('hasRoster — «Дахин — ижил суудлаар» ба жижиг хоёр дахь мөр', (
+      WidgetTester tester,
+    ) async {
       final GameController c = GameController()..hasSavedRoster = true;
       addTearDown(c.dispose);
       await pumpPhone(tester, home(c));
@@ -94,8 +114,9 @@ void main() {
       expect(find.text('Шинэ бүрэлдэхүүн'), findsOneWidget);
     });
 
-    testWidgets('TalkBack: «Дахин тоглох, ижил суудлаар, арван хоёр тоглогч»',
-        (WidgetTester tester) async {
+    testWidgets('TalkBack: «Дахин тоглох, ижил суудлаар, арван хоёр тоглогч»', (
+      WidgetTester tester,
+    ) async {
       final SemanticsHandle handle = tester.ensureSemantics();
       final GameController c = GameController()
         ..hasSavedRoster = true
@@ -104,13 +125,17 @@ void main() {
       await pumpPhone(tester, home(c));
 
       expect(
-          find.bySemanticsLabel('Дахин тоглох, ижил суудлаар, арван хоёр тоглогч'),
-          findsOneWidget);
+        find.bySemanticsLabel(
+          'Дахин тоглох, ижил суудлаар, арван хоёр тоглогч',
+        ),
+        findsOneWidget,
+      );
       handle.dispose();
     });
 
-    testWidgets('midGame — «Үргэлжлүүлэх — Шөнө N»',
-        (WidgetTester tester) async {
+    testWidgets('midGame — «Үргэлжлүүлэх — Шөнө N»', (
+      WidgetTester tester,
+    ) async {
       final GameController c = GameController();
       addTearDown(c.dispose);
       c.go(GamePhase.nightCircuit);
@@ -119,8 +144,9 @@ void main() {
       expect(find.textContaining('Үргэлжлүүлэх — Шөнө'), findsOneWidget);
     });
 
-    testWidgets('bituun — «Золгоё», цагаан-мөнгөлөг',
-        (WidgetTester tester) async {
+    testWidgets('bituun — «Золгоё», цагаан-мөнгөлөг', (
+      WidgetTester tester,
+    ) async {
       final GameController c = GameController();
       addTearDown(c.dispose);
       await pumpPhone(tester, home(c, bituun: true));

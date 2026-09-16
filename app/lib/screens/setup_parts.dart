@@ -10,24 +10,39 @@ import 'package:flutter/material.dart' hide Intent;
 
 import '../game/settings.dart';
 import '../ui/tokens.dart';
+import '../ui/glyphs.dart';
 
 /// TalkBack-ийн тоо — «арван хоёр тоглогч» (GDD-06 S01). 0..20 хангалттай:
 /// ширээ 20 суудлаар тагласан (`kMaxSeats`).
 const List<String> _kWords = <String>[
-  'тэг', 'нэг', 'хоёр', 'гурав', 'дөрөв', 'тав', 'зургаа', 'долоо', 'найм',
-  'ес', 'арав', 'арван нэг', 'арван хоёр', 'арван гурав', 'арван дөрөв',
-  'арван тав', 'арван зургаа', 'арван долоо', 'арван найм', 'арван ес', 'хорь',
+  'тэг',
+  'нэг',
+  'хоёр',
+  'гурав',
+  'дөрөв',
+  'тав',
+  'зургаа',
+  'долоо',
+  'найм',
+  'ес',
+  'арав',
+  'арван нэг',
+  'арван хоёр',
+  'арван гурав',
+  'арван дөрөв',
+  'арван тав',
+  'арван зургаа',
+  'арван долоо',
+  'арван найм',
+  'арван ес',
+  'хорь',
 ];
 
 String mnNumber(int n) => (n >= 0 && n < _kWords.length) ? _kWords[n] : '$n';
 
 /// Дөрвөн preset карт, хоёр хоёроор, хэвтээ гулсалтгүй (GDD-03 §3).
 class PresetCards extends StatelessWidget {
-  const PresetCards({
-    super.key,
-    required this.selected,
-    required this.onPick,
-  });
+  const PresetCards({super.key, required this.selected, required this.onPick});
 
   final PresetId selected;
   final ValueChanged<PresetId> onPick;
@@ -45,16 +60,18 @@ class PresetCards extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: _PresetCard(
-                      id: ids[row * 2],
-                      selected: ids[row * 2] == selected,
-                      onTap: () => onPick(ids[row * 2])),
+                    id: ids[row * 2],
+                    selected: ids[row * 2] == selected,
+                    onTap: () => onPick(ids[row * 2]),
+                  ),
                 ),
                 const SizedBox(width: kGap),
                 Expanded(
                   child: _PresetCard(
-                      id: ids[row * 2 + 1],
-                      selected: ids[row * 2 + 1] == selected,
-                      onTap: () => onPick(ids[row * 2 + 1])),
+                    id: ids[row * 2 + 1],
+                    selected: ids[row * 2 + 1] == selected,
+                    onTap: () => onPick(ids[row * 2 + 1]),
+                  ),
                 ),
               ],
             ),
@@ -66,8 +83,11 @@ class PresetCards extends StatelessWidget {
 }
 
 class _PresetCard extends StatelessWidget {
-  const _PresetCard(
-      {required this.id, required this.selected, required this.onTap});
+  const _PresetCard({
+    required this.id,
+    required this.selected,
+    required this.onTap,
+  });
 
   final PresetId id;
   final bool selected;
@@ -90,8 +110,9 @@ class _PresetCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(kRadius),
               border: Border.all(
-                  color: selected ? kEmber : kHairline,
-                  width: selected ? 2 : 1),
+                color: selected ? kEmber : kHairline,
+                width: selected ? 2 : 1,
+              ),
             ),
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -102,25 +123,36 @@ class _PresetCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     // Утга нь өнгө БА хэлбэр БА кирилл шошгоор (GDD-06 §0).
-                    Text(selected ? '◉' : '○',
-                        style: TextStyle(
-                            fontSize: 16,
-                            color: selected ? kEmber : kTextMuted)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Mark(
+                        selected ? MarkShape.discTarget : MarkShape.discHollow,
+                        size: 16,
+                        weight: 1.8,
+                        color: selected ? kEmber : kTextMuted,
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(id.labelMn,
-                          style: kBody.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: kTextPrimary)),
+                      child: Text(
+                        id.labelMn,
+                        style: kBody.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: kTextPrimary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(id.subtitleMn,
-                    style: kLabel.copyWith(
-                        color: kTextMuted,
-                        letterSpacing: 0,
-                        fontWeight: FontWeight.w400)),
+                Text(
+                  id.subtitleMn,
+                  style: kLabel.copyWith(
+                    color: kTextMuted,
+                    letterSpacing: 0,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
               ],
             ),
           ),
@@ -171,39 +203,53 @@ class Stepper48 extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     ExcludeSemantics(
-                      child: Text(label,
-                          style: kBody.copyWith(color: kTextPrimary)),
+                      child: Text(
+                        label,
+                        style: kBody.copyWith(color: kTextPrimary),
+                      ),
                     ),
                     if (note != null)
                       ExcludeSemantics(
-                        child: Text(note!,
-                            style: kLabel.copyWith(
-                                color: kTextMuted,
-                                letterSpacing: 0,
-                                fontWeight: FontWeight.w400)),
+                        child: Text(
+                          note!,
+                          style: kLabel.copyWith(
+                            color: kTextMuted,
+                            letterSpacing: 0,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
                       ),
                   ],
                 ),
               ),
               const SizedBox(width: kGap),
               _SquareButton(
-                  glyph: '−', onTap: onMinus, semantic: '$label — хасах'),
+                shape: MarkShape.minus,
+                onTap: onMinus,
+                semantic: '$label — хасах',
+              ),
               const SizedBox(width: 8),
               ExcludeSemantics(
                 child: SizedBox(
                   width: valueWidth ?? (big ? 64 : 44),
-                  child: Text(value,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: big ? 30 : 20,
-                          height: 1.2,
-                          fontWeight: FontWeight.w700,
-                          color: valueColor ?? kTextPrimary)),
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: big ? 30 : 20,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                      color: valueColor ?? kTextPrimary,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               _SquareButton(
-                  glyph: '+', onTap: onPlus, semantic: '$label — нэмэх'),
+                shape: MarkShape.plus,
+                onTap: onPlus,
+                semantic: '$label — нэмэх',
+              ),
             ],
           ),
         ],
@@ -213,10 +259,13 @@ class Stepper48 extends StatelessWidget {
 }
 
 class _SquareButton extends StatelessWidget {
-  const _SquareButton(
-      {required this.glyph, required this.onTap, required this.semantic});
+  const _SquareButton({
+    required this.shape,
+    required this.onTap,
+    required this.semantic,
+  });
 
-  final String glyph;
+  final MarkShape shape;
   final VoidCallback? onTap;
   final String semantic;
 
@@ -238,12 +287,12 @@ class _SquareButton extends StatelessWidget {
             height: kMinTouch,
             child: Center(
               child: ExcludeSemantics(
-                child: Text(glyph,
-                    style: TextStyle(
-                        fontSize: 24,
-                        height: 1.0,
-                        fontWeight: FontWeight.w700,
-                        color: on ? kTextPrimary : kTextMuted)),
+                child: Mark(
+                  shape,
+                  size: 24,
+                  weight: 2.6,
+                  color: on ? kTextPrimary : kTextMuted,
+                ),
               ),
             ),
           ),
@@ -286,11 +335,14 @@ class ToggleRow extends StatelessWidget {
                   children: <Widget>[
                     Text(label, style: kBody.copyWith(color: kTextPrimary)),
                     if (hint != null)
-                      Text(hint!,
-                          style: kLabel.copyWith(
-                              color: kTextMuted,
-                              letterSpacing: 0,
-                              fontWeight: FontWeight.w400)),
+                      Text(
+                        hint!,
+                        style: kLabel.copyWith(
+                          color: kTextMuted,
+                          letterSpacing: 0,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -306,11 +358,14 @@ class ToggleRow extends StatelessWidget {
           if (consequence != null)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(consequence!,
-                  style: kLabel.copyWith(
-                      color: kEmber,
-                      letterSpacing: 0,
-                      fontWeight: FontWeight.w400)),
+              child: Text(
+                consequence!,
+                style: kLabel.copyWith(
+                  color: kEmber,
+                  letterSpacing: 0,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
             ),
         ],
       ),
@@ -349,11 +404,14 @@ class ChoiceRow<T> extends StatelessWidget {
         children: <Widget>[
           Text(label, style: kBody.copyWith(color: kTextPrimary)),
           if (hint != null)
-            Text(hint!,
-                style: kLabel.copyWith(
-                    color: kTextMuted,
-                    letterSpacing: 0,
-                    fontWeight: FontWeight.w400)),
+            Text(
+              hint!,
+              style: kLabel.copyWith(
+                color: kTextMuted,
+                letterSpacing: 0,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
           const SizedBox(height: 6),
           for (final T o in options)
             _ChoiceTile(
@@ -401,11 +459,15 @@ class _ChoiceTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 ExcludeSemantics(
-                  child: Text(selected ? '◉' : '○',
-                      style: TextStyle(
-                          fontSize: 16,
-                          height: 1.45,
-                          color: selected ? kEmber : kTextMuted)),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Mark(
+                      selected ? MarkShape.discTarget : MarkShape.discHollow,
+                      size: 16,
+                      weight: 1.8,
+                      color: selected ? kEmber : kTextMuted,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -413,18 +475,24 @@ class _ChoiceTile extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(text,
-                            style: kBody.copyWith(
-                                color: kTextPrimary,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w400)),
+                        Text(
+                          text,
+                          style: kBody.copyWith(
+                            color: kTextPrimary,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                          ),
+                        ),
                         if (selected)
-                          Text(consequence,
-                              style: kLabel.copyWith(
-                                  color: kEmber,
-                                  letterSpacing: 0,
-                                  fontWeight: FontWeight.w400)),
+                          Text(
+                            consequence,
+                            style: kLabel.copyWith(
+                              color: kEmber,
+                              letterSpacing: 0,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -474,21 +542,28 @@ class _FoldSectionState extends State<FoldSection> {
               onTap: () => setState(() => _open = !_open),
               child: Container(
                 constraints: const BoxConstraints(minHeight: kMinTouch + 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: <Widget>[
                     Expanded(
-                      child: Text(widget.title,
-                          style: kBody.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: kTextPrimary)),
+                      child: Text(
+                        widget.title,
+                        style: kBody.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: kTextPrimary,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: kGap),
                     ExcludeSemantics(
-                      child: Text(_open ? '▾' : '▸',
-                          style: const TextStyle(
-                              fontSize: 18, color: kTextMuted)),
+                      child: Mark(
+                        _open ? MarkShape.caretDown : MarkShape.caretRight,
+                        size: 18,
+                        color: kTextMuted,
+                      ),
                     ),
                   ],
                 ),

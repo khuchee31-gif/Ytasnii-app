@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 
 import 'tokens.dart';
+import 'glyphs.dart';
 
 /// Бүх дэлгэцийн суурь. Агуулга дээр, үйлдэл доор.
 class PhoneScaffold extends StatelessWidget {
@@ -47,8 +48,7 @@ class PhoneScaffold extends StatelessWidget {
                       Text(title!, style: kTitle.copyWith(color: kTextPrimary)),
                     if (subtitle != null) ...<Widget>[
                       const SizedBox(height: 4),
-                      Text(subtitle!,
-                          style: kBody.copyWith(color: kTextMuted)),
+                      Text(subtitle!, style: kBody.copyWith(color: kTextMuted)),
                     ],
                   ],
                 ),
@@ -81,14 +81,17 @@ class InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            color: color ?? kSurfaceRaised,
-            borderRadius: BorderRadius.circular(kRadius)),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: children),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: color ?? kSurfaceRaised,
+      borderRadius: BorderRadius.circular(kRadius),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
 }
 
 class InfoRow extends StatelessWidget {
@@ -99,27 +102,29 @@ class InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(
-              flex: 5,
-              child:
-                  Text(label, style: kBody.copyWith(color: kTextMuted)),
-            ),
-            const SizedBox(width: kGap),
-            Expanded(
-              flex: 6,
-              child: Text(value,
-                  textAlign: TextAlign.right,
-                  style: kBody.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: valueColor ?? kTextPrimary)),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          flex: 5,
+          child: Text(label, style: kBody.copyWith(color: kTextMuted)),
         ),
-      );
+        const SizedBox(width: kGap),
+        Expanded(
+          flex: 6,
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: kBody.copyWith(
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? kTextPrimary,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// «Алдаж болох санал» (GDD-04 §3, GDD-05 §9.4).
@@ -134,8 +139,10 @@ class PipStrip extends StatelessWidget {
     return Row(
       children: <Widget>[
         Expanded(
-          child: Text('Алдаж болох санал',
-              style: kBody.copyWith(color: kTextMuted)),
+          child: Text(
+            'Алдаж болох санал',
+            style: kBody.copyWith(color: kTextMuted),
+          ),
         ),
         const SizedBox(width: kGap),
         if (pips <= 0)
@@ -144,11 +151,14 @@ class PipStrip extends StatelessWidget {
               pips == 0 ? 'ӨНӨӨДӨР ОНОХ ЁСТОЙ' : 'боломжгүй',
               textAlign: TextAlign.right,
               style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w700, color: c),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: c,
+              ),
             ),
           )
         else
-          Text('●' * pips, style: TextStyle(fontSize: 20, color: c)),
+          MarkPips(count: pips, color: c, size: 13, gap: 7),
       ],
     );
   }
@@ -226,30 +236,40 @@ class _SeatTile extends StatelessWidget {
       child: Material(
         color: selected
             ? kEmber
-            : (enabled ? kSurfaceRaised : kSurfaceRaised.withValues(alpha: 0.4)),
+            : (enabled
+                  ? kSurfaceRaised
+                  : kSurfaceRaised.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(kRadius),
         child: InkWell(
           borderRadius: BorderRadius.circular(kRadius),
           onTap: enabled ? onTap : null,
           child: Container(
             constraints: const BoxConstraints(
-                minWidth: kMinTouch, minHeight: kMinTouch),
+              minWidth: kMinTouch,
+              minHeight: kMinTouch,
+            ),
             alignment: Alignment.center,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Text('$seat',
-                    style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        color: selected
-                            ? kSurface
-                            : (enabled ? kTextPrimary : kTextMuted))),
+                Text(
+                  '$seat',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? kSurface
+                        : (enabled ? kTextPrimary : kTextMuted),
+                  ),
+                ),
                 if (badge != null)
-                  Text(badge!,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: selected ? kSurface : kTextMuted)),
+                  Text(
+                    badge!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: selected ? kSurface : kTextMuted,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -271,10 +291,11 @@ class BigCountdown extends StatelessWidget {
     return Text(
       '$seconds',
       style: TextStyle(
-          fontSize: 88,
-          fontWeight: FontWeight.w700,
-          height: 1.0,
-          color: warn ? kEmber : kTextPrimary),
+        fontSize: 88,
+        fontWeight: FontWeight.w700,
+        height: 1.0,
+        color: warn ? kEmber : kTextPrimary,
+      ),
     );
   }
 }

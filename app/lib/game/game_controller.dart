@@ -23,8 +23,7 @@ import 'settings.dart';
 typedef TickerFactory = Timer Function(Duration, void Function(Timer));
 
 class GameController extends ChangeNotifier {
-  GameController({TickerFactory? ticker})
-      : _ticker = ticker ?? _defaultTicker;
+  GameController({TickerFactory? ticker}) : _ticker = ticker ?? _defaultTicker;
 
   static Timer _defaultTicker(Duration d, void Function(Timer) cb) =>
       Timer.periodic(d, cb);
@@ -78,13 +77,14 @@ class GameController extends ChangeNotifier {
     _customRoster = null;
     notifyListeners();
   }
+
   SetupCheck get setupCheck => checkSetup(
-        n: roster.n,
-        mafia: roster.mafia,
-        boss: roster.boss,
-        doctor: roster.doctor,
-        detective: roster.detective,
-      );
+    n: roster.n,
+    mafia: roster.mafia,
+    boss: roster.boss,
+    doctor: roster.doctor,
+    detective: roster.detective,
+  );
 
   // --- Хуваарилалт ---------------------------------------------------------
   DealResult? _deal;
@@ -114,9 +114,8 @@ class GameController extends ChangeNotifier {
 
   List<Seat> get circuitSeats =>
       List<Seat>.generate(seatCount, (int i) => i + 1);
-  Seat? get currentSeat => _circuitIndex < circuitSeats.length
-      ? circuitSeats[_circuitIndex]
-      : null;
+  Seat? get currentSeat =>
+      _circuitIndex < circuitSeats.length ? circuitSeats[_circuitIndex] : null;
   bool get circuitDone => _circuitIndex >= circuitSeats.length;
 
   NightReport? _report;
@@ -220,7 +219,8 @@ class GameController extends ChangeNotifier {
   /// давтагдахуйц болгоно (GDD-10 §10-ын golden вектортой ижил зарчим).
   void beginFairness({Seat holderSeat = 1, Uint8List? seed0}) {
     final Random rnd = Random.secure();
-    _pendingSeed0 = seed0 ??
+    _pendingSeed0 =
+        seed0 ??
         Uint8List.fromList(List<int>.generate(32, (_) => rnd.nextInt(256)));
     _pendingHolder = holderSeat;
     // Код нь `seed0`-оос л гарна, сэгсрэлтээс хамаарахгүй — тиймээс ЭНД мэдэгдэнэ.
@@ -276,8 +276,9 @@ class GameController extends ChangeNotifier {
     _setup = Setup(
       n: r.n,
       roleBySeat: d.roleBySeat,
-      factionRule:
-          r.boss ? FactionRule.designatedKiller : FactionRule.mafiaMajority,
+      factionRule: r.boss
+          ? FactionRule.designatedKiller
+          : FactionRule.mafiaMajority,
     );
     alive = <Seat>{for (int i = 1; i <= r.n; i++) i};
     seen.clear();
@@ -369,16 +370,16 @@ class GameController extends ChangeNotifier {
 
   /// Хууль ёсны бай мөн эсэх — дэлгэц үүнийг л асууна.
   RejectCode? checkTarget(Seat actor, Ability ability, Seat target) => validate(
-        Intent(
-          intentId: 'probe',
-          night: _night!.night,
-          actor: actor,
-          ability: ability,
-          target: target,
-          clientSeq: 1,
-        ),
-        _night!,
-      );
+    Intent(
+      intentId: 'probe',
+      night: _night!.night,
+      actor: actor,
+      ability: ability,
+      target: target,
+      clientSeq: 1,
+    ),
+    _night!,
+  );
 
   void resolveNightNow() {
     final NightState s = _night!;

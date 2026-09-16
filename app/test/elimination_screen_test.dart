@@ -21,15 +21,19 @@ GameController elimController({int seats = 12, int day = 2}) {
 /// Дэлгэц дээр дүрийн нэр НЭГ Ч удаа гарахгүй.
 void expectNoRoleWords(WidgetTester tester) {
   for (final Role r in Role.values) {
-    expect(find.textContaining(cardCopyFor(r).mechanic), findsNothing,
-        reason: '«${cardCopyFor(r).mechanic}» хасалтад нээгдэж болохгүй');
+    expect(
+      find.textContaining(cardCopyFor(r).mechanic),
+      findsNothing,
+      reason: '«${cardCopyFor(r).mechanic}» хасалтад нээгдэж болохгүй',
+    );
     expect(find.textContaining(cardCopyFor(r).theme), findsNothing);
   }
 }
 
 void main() {
-  testWidgets('ELIM_A → 2,000 мс ЧИМЭЭГҮЙ → SEAT_04 → 120 мс → ELIM_B',
-      (WidgetTester tester) async {
+  testWidgets('ELIM_A → 2,000 мс ЧИМЭЭГҮЙ → SEAT_04 → 120 мс → ELIM_B', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -63,14 +67,14 @@ void main() {
     await tester.pump(const Duration(seconds: 40));
   });
 
-  testWidgets('Дүр ХЭЗЭЭ Ч нээгдэхгүй — анхдагч тохиргоо',
-      (WidgetTester tester) async {
+  testWidgets('Дүр ХЭЗЭЭ Ч нээгдэхгүй — анхдагч тохиргоо', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController();
     expect(c.settings.revealRoleOnDeath, isFalse);
     await pumpScreen(
       tester,
-      EliminationScreen(
-          controller: c, seats: const <Seat>[4], onDone: () {}),
+      EliminationScreen(controller: c, seats: const <Seat>[4], onDone: () {}),
     );
 
     await tester.pump(const Duration(seconds: 3));
@@ -79,8 +83,9 @@ void main() {
     await tester.pump(const Duration(seconds: 40));
   });
 
-  testWidgets('ELIM_NO_REVEAL — зөвхөн эхний гурван тоглолтод',
-      (WidgetTester tester) async {
+  testWidgets('ELIM_NO_REVEAL — зөвхөн эхний гурван тоглолтод', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController()..gamesPlayed = 0;
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -112,8 +117,9 @@ void main() {
     await tester.pump(const Duration(seconds: 40));
   });
 
-  testWidgets('`revealOn`: «Тэрээр {ДҮР} байлаа.» — АУДИО БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('`revealOn`: «Тэрээр {ДҮР} байлаа.» — АУДИО БАЙХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController();
     c.settings.revealRoleOnDeath = true;
     final List<String> cues = <String>[];
@@ -135,8 +141,9 @@ void main() {
     await tester.pump(const Duration(seconds: 40));
   });
 
-  testWidgets('Сүүлчийн үг: ELIM_LASTWORD, `lastWordsSeconds` тоологдоно',
-      (WidgetTester tester) async {
+  testWidgets('Сүүлчийн үг: ELIM_LASTWORD, `lastWordsSeconds` тоологдоно', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController();
     final List<String> cues = <String>[];
     bool done = false;
@@ -163,14 +170,18 @@ void main() {
     expect(done, isTrue);
   });
 
-  testWidgets('«Дуусгах» дарвал сүүлчийн үг тэр дор нь дуусна',
-      (WidgetTester tester) async {
+  testWidgets('«Дуусгах» дарвал сүүлчийн үг тэр дор нь дуусна', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController();
     bool done = false;
     await pumpScreen(
       tester,
       EliminationScreen(
-          controller: c, seats: const <Seat>[4], onDone: () => done = true),
+        controller: c,
+        seats: const <Seat>[4],
+        onDone: () => done = true,
+      ),
     );
 
     await tester.pump(const Duration(seconds: 4));
@@ -179,8 +190,9 @@ void main() {
     expect(done, isTrue);
   });
 
-  testWidgets('«Бүгдийн хувь заяа» — хоёр суудал зэрэг хөөгдөнө',
-      (WidgetTester tester) async {
+  testWidgets('«Бүгдийн хувь заяа» — хоёр суудал зэрэг хөөгдөнө', (
+    WidgetTester tester,
+  ) async {
     final GameController c = elimController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -205,13 +217,11 @@ void main() {
     await tester.pump(const Duration(seconds: 40));
   });
 
-  testWidgets('«ялагдал» гэсэн үг S17-д БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('«ялагдал» гэсэн үг S17-д БАЙХГҮЙ', (WidgetTester tester) async {
     final GameController c = elimController();
     await pumpScreen(
       tester,
-      EliminationScreen(
-          controller: c, seats: const <Seat>[4], onDone: () {}),
+      EliminationScreen(controller: c, seats: const <Seat>[4], onDone: () {}),
     );
     await tester.pump(const Duration(seconds: 4));
     expect(find.textContaining('ялагд'), findsNothing);
@@ -225,7 +235,10 @@ void main() {
     await pumpScreen(
       tester,
       EliminationScreen(
-          controller: c, seats: const <Seat>[18, 19, 20], onDone: () {}),
+        controller: c,
+        seats: const <Seat>[18, 19, 20],
+        onDone: () {},
+      ),
       size: kPhoneNarrow,
     );
     await tester.pump(const Duration(seconds: 5));

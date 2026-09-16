@@ -54,8 +54,9 @@ Future<void> _loadFont() async {
     for (final String path in e.value) {
       final File f = File(path);
       if (f.existsSync()) {
-        loader.addFont(Future<ByteData>.value(
-            ByteData.view(f.readAsBytesSync().buffer)));
+        loader.addFont(
+          Future<ByteData>.value(ByteData.view(f.readAsBytesSync().buffer)),
+        );
       }
     }
     await loader.load();
@@ -72,15 +73,19 @@ Future<void> _shot(
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(MaterialApp(
-    debugShowCheckedModeBanner: false,
-    theme: buildTheme(),
-    // Жинхэнэ аппын нэгэн адил уур амьсгалыг дээр нь тавина.
-    home: Atmosphere(animate: false, child: screen),
-  ));
+  await tester.pumpWidget(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(),
+      // Жинхэнэ аппын нэгэн адил уур амьсгалыг дээр нь тавина.
+      home: Atmosphere(animate: false, child: screen),
+    ),
+  );
   await tester.pump(settle);
   await expectLater(
-      find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+    find.byType(MaterialApp),
+    matchesGoldenFile('goldens/$name.png'),
+  );
 }
 
 GameController _dealt({int seats = 12, int seedN = 7}) {
@@ -97,13 +102,17 @@ void main() {
   testWidgets('01 нүүр', (WidgetTester t) async {
     final GameController c = GameController();
     addTearDown(c.dispose);
-    await _shot(t, '01_home', HomeScreen(
-      controller: c,
-      onNewGame: () {},
-      onSameSeats: () {},
-      onSettings: () {},
-      onHelp: () {},
-    ));
+    await _shot(
+      t,
+      '01_home',
+      HomeScreen(
+        controller: c,
+        onNewGame: () {},
+        onSameSeats: () {},
+        onSettings: () {},
+        onHelp: () {},
+      ),
+    );
   });
 
   testWidgets('02 суудал', (WidgetTester t) async {
@@ -124,13 +133,15 @@ void main() {
     addTearDown(c.dispose);
     c.seatCount = 12;
     c.beginFairness(seed0: _seed(7));
-    await _shot(t, '04_fairness',
-        FairnessScreen(controller: c, onSealed: () {}));
+    await _shot(
+      t,
+      '04_fairness',
+      FairnessScreen(controller: c, onSealed: () {}),
+    );
   });
 
   testWidgets('05 дамжуулах', (WidgetTester t) async {
-    await _shot(t, '05_handoff',
-        HandoffScreen(nextSeat: 7, onLift: () {}));
+    await _shot(t, '05_handoff', HandoffScreen(nextSeat: 7, onLift: () {}));
   });
 
   testWidgets('06 хөзөр харах', (WidgetTester t) async {
@@ -155,9 +166,12 @@ void main() {
       c.markSeen(s);
     }
     c.beginNight();
-    await _shot(t, '09_night_circuit',
-        NightCircuitScreen(controller: c, onDone: () {}),
-        settle: const Duration(seconds: 1));
+    await _shot(
+      t,
+      '09_night_circuit',
+      NightCircuitScreen(controller: c, onDone: () {}),
+      settle: const Duration(seconds: 1),
+    );
   });
 
   testWidgets('11 үүр', (WidgetTester t) async {
@@ -179,8 +193,12 @@ void main() {
       c.submitIntent(seat, a, target);
     }
     c.resolveNightNow();
-    await _shot(t, '11_dawn', DawnScreen(controller: c, onDone: () {}),
-        settle: const Duration(seconds: 2));
+    await _shot(
+      t,
+      '11_dawn',
+      DawnScreen(controller: c, onDone: () {}),
+      settle: const Duration(seconds: 2),
+    );
   });
 
   testWidgets('13 өдөр', (WidgetTester t) async {
@@ -188,8 +206,12 @@ void main() {
     addTearDown(c.dispose);
     c.dayNo = 1;
     c.go(GamePhase.speechRound);
-    await _shot(t, '13_day', DayScreen(controller: c, onVote: () {}),
-        settle: const Duration(seconds: 1));
+    await _shot(
+      t,
+      '13_day',
+      DayScreen(controller: c, onVote: () {}),
+      settle: const Duration(seconds: 1),
+    );
   });
 
   testWidgets('16 санал хураалт', (WidgetTester t) async {
@@ -199,25 +221,34 @@ void main() {
     c.nominate(3);
     c.nominate(8);
     c.go(GamePhase.nomination);
-    await _shot(t, '16_vote',
-        VoteScreen(controller: c, onExile: (List<Seat> _) {}, onNoExile: () {}),
-        settle: const Duration(seconds: 1));
+    await _shot(
+      t,
+      '16_vote',
+      VoteScreen(controller: c, onExile: (List<Seat> _) {}, onNoExile: () {}),
+      settle: const Duration(seconds: 1),
+    );
   });
 
   testWidgets('19 хөзрөө нээе', (WidgetTester t) async {
     final GameController c = _dealt();
     addTearDown(c.dispose);
     c.alive.removeWhere((Seat s) => s > 3);
-    await _shot(t, '19_ceremony',
-        CeremonyScreen(controller: c, onAgain: () {}, onLedger: () {}),
-        settle: const Duration(seconds: 2));
+    await _shot(
+      t,
+      '19_ceremony',
+      CeremonyScreen(controller: c, onAgain: () {}, onLedger: () {}),
+      settle: const Duration(seconds: 2),
+    );
   });
 
   testWidgets('21 тохиргоо', (WidgetTester t) async {
     final GameController c = GameController();
     addTearDown(c.dispose);
-    await _shot(t, '21_settings',
-        SettingsScreen(controller: c, onClose: () {}));
+    await _shot(
+      t,
+      '21_settings',
+      SettingsScreen(controller: c, onClose: () {}),
+    );
   });
 
   testWidgets('22 тусламж', (WidgetTester t) async {

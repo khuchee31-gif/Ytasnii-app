@@ -13,6 +13,7 @@ import '../game/phase.dart';
 import '../ui/atmosphere.dart';
 import '../ui/tokens.dart';
 import 'setup_parts.dart';
+import '../ui/glyphs.dart';
 
 // ---------------------------------------------------------------------------
 // S00 — Splash. Route БИШ: `main()`-ий барьдаг виджет.
@@ -66,20 +67,35 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             children: <Widget>[
               const Spacer(),
-              const Text('ХОТ УНТЛАА',
+              // Лого нь нүүр дэлгэцийнхтэй ЯГ ИЖИЛ — хоёр мөр, доод мөр нь
+              // өнгө хуваасан. Эхний нэг секунд ч гэсэн тоглоомын нүүр.
+              ExcludeSemantics(
+                child: Text(
+                  'ХОТ',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 3,
-                      height: 1.45,
-                      color: kTextPrimary)),
+                  style: kDisplay.copyWith(
+                    fontSize: 46,
+                    color: kTextPrimary,
+                    letterSpacing: 8,
+                  ),
+                ),
+              ),
+              ChromaticTitle(
+                'УНТЛАА',
+                semantics: 'Хот унтлаа',
+                style: kDisplay.copyWith(fontSize: 46, letterSpacing: 8),
+              ),
               const Spacer(),
               if (widget.audioFailed) ...<Widget>[
-                const Text('Дуу ачаалагдсангүй. Тоглоом дуугүй ажиллана.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 16, height: 1.45, color: kTextMuted)),
+                const Text(
+                  'Дуу ачаалагдсангүй. Тоглоом дуугүй ажиллана.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.45,
+                    color: kTextMuted,
+                  ),
+                ),
                 const SizedBox(height: kGap),
                 FilledButton(
                   onPressed: widget.onReady,
@@ -136,7 +152,8 @@ class HomeScreen extends StatelessWidget {
 
   HomeState get state {
     if (bituun) return HomeState.bituun;
-    final bool midGame = onResume != null &&
+    final bool midGame =
+        onResume != null &&
         controller.phase != GamePhase.appOpen &&
         controller.phase != GamePhase.roster &&
         controller.phase != GamePhase.preset;
@@ -152,27 +169,28 @@ class HomeScreen extends StatelessWidget {
   Color get _accent => bituun ? const Color(0xFF7E8EA3) : kEmber;
 
   String get _primaryLabel => switch (state) {
-        HomeState.firstRun => 'Нэг утсаар тоглох',
-        HomeState.hasRoster => 'Дахин — ижил суудлаар',
-        HomeState.midGame => 'Үргэлжлүүлэх — Шөнө ${controller.nightNo}',
-        HomeState.bituun => 'Золгоё',
-      };
+    HomeState.firstRun => 'Нэг утсаар тоглох',
+    HomeState.hasRoster => 'Дахин — ижил суудлаар',
+    HomeState.midGame => 'Үргэлжлүүлэх — Шөнө ${controller.nightNo}',
+    HomeState.bituun => 'Золгоё',
+  };
 
   /// TalkBack: «Дахин тоглох, ижил суудлаар, арван хоёр тоглогч» (GDD-06 S01).
   String get _primarySemantics => switch (state) {
-        HomeState.hasRoster => 'Дахин тоглох, ижил суудлаар, '
-            '${mnNumber(controller.seatCount)} тоглогч',
-        HomeState.midGame =>
-          'Үргэлжлүүлэх, ${mnNumber(controller.nightNo)} дүгээр шөнө',
-        _ => _primaryLabel,
-      };
+    HomeState.hasRoster =>
+      'Дахин тоглох, ижил суудлаар, '
+          '${mnNumber(controller.seatCount)} тоглогч',
+    HomeState.midGame =>
+      'Үргэлжлүүлэх, ${mnNumber(controller.nightNo)} дүгээр шөнө',
+    _ => _primaryLabel,
+  };
 
   VoidCallback get _primaryAction => switch (state) {
-        HomeState.firstRun => onNewGame,
-        HomeState.hasRoster => onSameSeats,
-        HomeState.midGame => onResume ?? onNewGame,
-        HomeState.bituun => onSameSeats,
-      };
+    HomeState.firstRun => onNewGame,
+    HomeState.hasRoster => onSameSeats,
+    HomeState.midGame => onResume ?? onNewGame,
+    HomeState.bituun => onSameSeats,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -194,14 +212,25 @@ class HomeScreen extends StatelessWidget {
                     children: <Widget>[
                       // Гарчиг нь хоёр мөр, тус бүр өөрийн жинтэй — нэг эгнээ
                       // том үсэг бол «апп», эвдэрсэн хэмнэл бол «зурагт хуудас».
-                      Text('ХОТ',
+                      ExcludeSemantics(
+                        child: Text(
+                          'ХОТ',
                           textAlign: TextAlign.center,
                           style: kDisplay.copyWith(
-                              fontSize: 64, color: _fg, letterSpacing: 10)),
+                            fontSize: 64,
+                            color: _fg,
+                            letterSpacing: 10,
+                          ),
+                        ),
+                      ),
                       ChromaticTitle(
                         'УНТЛАА',
+                        // Хоёр мөрийг уншигчид НЭГ нэр болгож хэлнэ.
+                        semantics: 'Хот унтлаа',
                         style: kDisplay.copyWith(
-                            fontSize: 64, letterSpacing: 10),
+                          fontSize: 64,
+                          letterSpacing: 10,
+                        ),
                       ),
                       const SizedBox(height: 18),
                       // Нимгэн зураас — хэвлэмэл хуудасны зүсэлт.
@@ -210,9 +239,11 @@ class HomeScreen extends StatelessWidget {
                         child: Divider(color: _muted, thickness: 1, height: 1),
                       ),
                       const SizedBox(height: 14),
-                      Text('АНГИЙН МАФИ · НЭГ УТСААР',
-                          textAlign: TextAlign.center,
-                          style: kLabel.copyWith(color: _muted)),
+                      Text(
+                        'АНГИЙН МАФИ · НЭГ УТСААР',
+                        textAlign: TextAlign.center,
+                        style: kLabel.copyWith(color: _muted),
+                      ),
                     ],
                   ),
                 ),
@@ -232,10 +263,18 @@ class HomeScreen extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: _accent,
                         foregroundColor: bituun ? Colors.white : kSurface,
+                        // ФОНТЫГ ЗААВАЛ БИЧНЭ: `styleFrom(textStyle:)` нь
+                        // сэдвийн `fontFamily`-г бүхлээр нь СОЛИНО. Үлдээвэл
+                        // Oswald унаад Ү, Ө үсэг хоосон дөрвөлжин болж байв.
                         textStyle: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w700),
+                          fontFamily: kDisplayFont,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.8,
+                        ),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(kRadius)),
+                          borderRadius: BorderRadius.circular(kRadius),
+                        ),
                       ),
                       child: Text(_primaryLabel, textAlign: TextAlign.center),
                     ),
@@ -250,10 +289,13 @@ class HomeScreen extends StatelessWidget {
                 child: TextButton(
                   onPressed: onNewGame,
                   style: TextButton.styleFrom(
-                      minimumSize: const Size.fromHeight(kMinTouch),
-                      foregroundColor: _muted),
-                  child: const Text('Шинэ бүрэлдэхүүн',
-                      style: TextStyle(fontSize: 16, height: 1.45)),
+                    minimumSize: const Size.fromHeight(kMinTouch),
+                    foregroundColor: _muted,
+                  ),
+                  child: const Text(
+                    'Шинэ бүрэлдэхүүн',
+                    style: TextStyle(fontSize: 16, height: 1.45),
+                  ),
                 ),
               ),
             // Доод зах — хоёр жижиг дүрс.
@@ -262,17 +304,19 @@ class HomeScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  _GlyphButton(
-                      glyph: '⚙',
-                      semantic: 'Тохиргоо',
-                      color: _muted,
-                      onTap: onSettings),
+                  MarkButton(
+                    shape: MarkShape.gear,
+                    semantic: 'Тохиргоо',
+                    color: _muted,
+                    onTap: onSettings,
+                  ),
                   const SizedBox(width: 24),
-                  _GlyphButton(
-                      glyph: '?',
-                      semantic: 'Тусламж',
-                      color: _muted,
-                      onTap: onHelp),
+                  MarkButton(
+                    shape: MarkShape.question,
+                    semantic: 'Тусламж',
+                    color: _muted,
+                    onTap: onHelp,
+                  ),
                 ],
               ),
             ),
@@ -299,51 +343,19 @@ class _LedgerLink extends StatelessWidget {
             onTap!();
           } else {
             // Дэвтэр хоосон — S20-ын `emptyPins` мөр.
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Өнөөдөр тэмдэглэл байхгүй.')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Өнөөдөр тэмдэглэл байхгүй.')),
+            );
           }
         },
         style: TextButton.styleFrom(
-            minimumSize: const Size(kMinTouch, kMinTouch),
-            padding: const EdgeInsets.symmetric(horizontal: kGutter),
-            foregroundColor: color),
-        child: const Text('Ангийн дэвтэр',
-            style: TextStyle(fontSize: 16, height: 1.45)),
-      ),
-    );
-  }
-}
-
-class _GlyphButton extends StatelessWidget {
-  const _GlyphButton({
-    required this.glyph,
-    required this.semantic,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String glyph;
-  final String semantic;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: semantic,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(kRadius),
-        onTap: onTap,
-        child: SizedBox(
-          width: kMinTouch + 8,
-          height: kMinTouch + 8,
-          child: Center(
-            child: ExcludeSemantics(
-              child: Text(glyph,
-                  style: TextStyle(fontSize: 22, height: 1.0, color: color)),
-            ),
-          ),
+          minimumSize: const Size(kMinTouch, kMinTouch),
+          padding: const EdgeInsets.symmetric(horizontal: kGutter),
+          foregroundColor: color,
+        ),
+        child: const Text(
+          'Ангийн дэвтэр',
+          style: TextStyle(fontSize: 16, height: 1.45),
         ),
       ),
     );

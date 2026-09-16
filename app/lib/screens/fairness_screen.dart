@@ -29,6 +29,7 @@ import '../game/game_controller.dart';
 import '../ui/platform_guard.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
+import '../ui/glyphs.dart';
 
 /// GDD-06 S04-ийн төлөвийн хүснэгт.
 enum FairnessStage { showCode, askShake, noSensor, sealed }
@@ -233,8 +234,9 @@ class _FairnessScreenState extends State<FairnessScreen> {
   }
 
   Widget _buildShake(GameController c, int reader) {
-    final double t =
-        (_shakeMs / kShakeTarget.inMilliseconds).clamp(0.0, 1.0).toDouble();
+    final double t = (_shakeMs / kShakeTarget.inMilliseconds)
+        .clamp(0.0, 1.0)
+        .toDouble();
     return PhoneScaffold(
       title: '№$reader — утсаа хоёр секунд сэгсэр.',
       subtitle: 'Утсыг барьж, дарж, хоёр секунд сэг.',
@@ -271,8 +273,10 @@ class _FairnessScreenState extends State<FairnessScreen> {
                     // Хөдөлгөөн багасгах горимд цагираг нь ТОО болно
                     // (GDD-06 §0-ын хүртээмжийн дүрэм 2).
                     if (c.settings.reduceMotion)
-                      Text('${(t * 100).round()} %',
-                          style: kBody.copyWith(color: kTextMuted))
+                      Text(
+                        '${(t * 100).round()} %',
+                        style: kBody.copyWith(color: kTextMuted),
+                      )
                     else
                       SizedBox(
                         height: 10,
@@ -281,8 +285,9 @@ class _FairnessScreenState extends State<FairnessScreen> {
                           child: LinearProgressIndicator(
                             value: t,
                             backgroundColor: kSurfaceHigh,
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(kEmber),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              kEmber,
+                            ),
                           ),
                         ),
                       ),
@@ -374,8 +379,10 @@ class _FairnessScreenState extends State<FairnessScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text('Түгжигдлээ.',
-                    style: kDisplay.copyWith(color: kEmber, height: 1.2)),
+                Text(
+                  'Түгжигдлээ.',
+                  style: kDisplay.copyWith(color: kEmber, height: 1.2),
+                ),
                 const SizedBox(height: kGap),
                 Text(
                   'Хөзөр тараагдлаа.',
@@ -399,13 +406,17 @@ class _Keypad extends StatelessWidget {
   final ValueChanged<String> onDigit;
   final VoidCallback onBackspace;
 
+  /// Устгах товчны дотоод тэмдэглэгээ. ҮСЭГ БИШ — зурагддаг тэмдэг тул
+  /// фонтод байхын шаардлагагүй (`glyphs.dart`-ын тайлбарыг үз).
+  static const String _kBackspace = 'BS';
+
   @override
   Widget build(BuildContext context) {
     const List<String> keys = <String>[
       '1', '2', '3', //
       '4', '5', '6', //
       '7', '8', '9', //
-      '', '0', '⌫', //
+      '', '0', _kBackspace, //
     ];
     return GridView.count(
       crossAxisCount: 3,
@@ -424,20 +435,30 @@ class _Keypad extends StatelessWidget {
               borderRadius: BorderRadius.circular(kRadius),
               child: InkWell(
                 borderRadius: BorderRadius.circular(kRadius),
-                onTap: () => k == '⌫' ? onBackspace() : onDigit(k),
+                onTap: () => k == _kBackspace ? onBackspace() : onDigit(k),
                 child: Container(
                   constraints: const BoxConstraints(
-                      minWidth: kMinTouch, minHeight: kMinTouch),
-                  alignment: Alignment.center,
-                  child: Text(
-                    k,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                      color: kTextPrimary,
-                    ),
+                    minWidth: kMinTouch,
+                    minHeight: kMinTouch,
                   ),
+                  alignment: Alignment.center,
+                  child: k == _kBackspace
+                      ? const Mark(
+                          MarkShape.backspace,
+                          size: 28,
+                          color: kTextPrimary,
+                          weight: 2.2,
+                        )
+                      : Text(
+                          k,
+                          style: const TextStyle(
+                            fontFamily: kDisplayFont,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                            color: kTextPrimary,
+                          ),
+                        ),
                 ),
               ),
             ),

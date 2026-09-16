@@ -3,8 +3,7 @@
 // S19-ийн ХАМГИЙН ЧУХАЛ тест: ХӨЗРИЙН ТОР БАЙХГҮЙ. Дэлгэц дээр нэг агшинд
 // ганц суудал, ганц дүр. Тор гарвал зургаан шөнийн төлөөс алга болно.
 
-import 'package:engine/engine.dart'
-    show Ability, Role, Seat, abilityOf;
+import 'package:engine/engine.dart' show Ability, Role, Seat, abilityOf;
 import 'package:flutter/material.dart' hide Intent;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hotuntlaa/game/game_controller.dart';
@@ -33,7 +32,8 @@ void main() {
       if (ab == Ability.mafiaKill) {
         // Эмч юу ч хийхгүй тул хохирогч баталгаатай.
         final Seat target = c.circuitSeats.firstWhere(
-            (Seat t) => c.checkTarget(s, ab, t) == null);
+          (Seat t) => c.checkTarget(s, ab, t) == null,
+        );
         c.submitIntent(s, ab, target);
       } else {
         c.submitIntent(s, Ability.noAction, null);
@@ -52,8 +52,9 @@ void main() {
     expect(c.firstOutWhenMn, 'Шөнө 1');
   });
 
-  testWidgets('Ялалтын мөр → 3,000 мс → «Бүжигт хүлэг»',
-      (WidgetTester tester) async {
+  testWidgets('Ялалтын мөр → 3,000 мс → «Бүжигт хүлэг»', (
+    WidgetTester tester,
+  ) async {
     final GameController c = endedController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -76,8 +77,7 @@ void main() {
     await tester.pump(const Duration(seconds: 25));
   });
 
-  testWidgets('Мафи ялбал мөр нь «Мафи ялалаа!»',
-      (WidgetTester tester) async {
+  testWidgets('Мафи ялбал мөр нь «Мафи ялалаа!»', (WidgetTester tester) async {
     final GameController c = dealtController();
     // Зөвхөн мафи амьд үлдэв.
     c.alive = <Seat>{
@@ -99,16 +99,18 @@ void main() {
     await tester.pump(const Duration(seconds: 25));
   });
 
-  testWidgets('S18 нь 4.0 секунд ХААГДАХГҮЙ, дараа нь товшилтоор гарна',
-      (WidgetTester tester) async {
+  testWidgets('S18 нь 4.0 секунд ХААГДАХГҮЙ, дараа нь товшилтоор гарна', (
+    WidgetTester tester,
+  ) async {
     final GameController c = endedController();
     await pumpScreen(
       tester,
       CeremonyScreen(
-          controller: c,
-          onAgain: () {},
-          onLedger: () {},
-          startAt: CeremonyStage.horse),
+        controller: c,
+        onAgain: () {},
+        onLedger: () {},
+        startAt: CeremonyStage.horse,
+      ),
     );
 
     await tester.tapAt(const Offset(180, 400));
@@ -125,23 +127,24 @@ void main() {
     await tester.pump(const Duration(seconds: 25));
   });
 
-  testWidgets('S18-д «ялагдал» гэсэн үг БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('S18-д «ялагдал» гэсэн үг БАЙХГҮЙ', (WidgetTester tester) async {
     final GameController c = endedController();
     await pumpScreen(
       tester,
       CeremonyScreen(
-          controller: c,
-          onAgain: () {},
-          onLedger: () {},
-          startAt: CeremonyStage.horse),
+        controller: c,
+        onAgain: () {},
+        onLedger: () {},
+        startAt: CeremonyStage.horse,
+      ),
     );
     expect(find.textContaining('ялагд'), findsNothing);
     await tester.pump(const Duration(seconds: 25));
   });
 
-  testWidgets('S18 `skipped`: хэн ч хасагдаагүй бол шууд S19 руу',
-      (WidgetTester tester) async {
+  testWidgets('S18 `skipped`: хэн ч хасагдаагүй бол шууд S19 руу', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController();
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -161,8 +164,9 @@ void main() {
     await tester.pump(const Duration(seconds: 25));
   });
 
-  testWidgets('S19: суудал тутамд SEAT_nn → 400 мс → дүр → 1.2 сек зай',
-      (WidgetTester tester) async {
+  testWidgets('S19: суудал тутамд SEAT_nn → 400 мс → дүр → 1.2 сек зай', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(seats: 6);
     final List<String> cues = <String>[];
     await pumpScreen(
@@ -200,8 +204,9 @@ void main() {
     expect(find.text('Өнөөдрийн тэмдэглэл'), findsOneWidget);
   });
 
-  testWidgets('S19: нэг агшинд ганцхан дүрийн нэр — ТОР ХЭЗЭЭ Ч БАЙХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('S19: нэг агшинд ганцхан дүрийн нэр — ТОР ХЭЗЭЭ Ч БАЙХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(seats: 6);
     await pumpScreen(
       tester,
@@ -225,8 +230,9 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
-  testWidgets('S19 `paused`: товшилт зогсооно, дахин товшилт үргэлжлүүлнэ',
-      (WidgetTester tester) async {
+  testWidgets('S19 `paused`: товшилт зогсооно, дахин товшилт үргэлжлүүлнэ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(seats: 6);
     await pumpScreen(
       tester,
@@ -252,8 +258,9 @@ void main() {
     await tester.pump(const Duration(seconds: 12));
   });
 
-  testWidgets('S19: алгасах ТОВЧ байхгүй, хоёр хуруу нь дараагийн суудал',
-      (WidgetTester tester) async {
+  testWidgets('S19: алгасах ТОВЧ байхгүй, хоёр хуруу нь дараагийн суудал', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(seats: 6);
     await pumpScreen(
       tester,

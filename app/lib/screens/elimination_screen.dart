@@ -169,35 +169,38 @@ class _EliminationScreenState extends State<EliminationScreen> {
   }
 
   Widget _numbers() => FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          _seats.take(math.max(1, _shown)).map((Seat s) => '№$s').join(' · '),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-              fontSize: 160,
-              fontWeight: FontWeight.w700,
-              height: 1.0,
-              color: kTextPrimary),
-        ),
-      );
+    fit: BoxFit.scaleDown,
+    child: Text(
+      _seats.take(math.max(1, _shown)).map((Seat s) => '№$s').join(' · '),
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 160,
+        fontWeight: FontWeight.w700,
+        height: 1.0,
+        color: kTextPrimary,
+      ),
+    ),
+  );
 
   Widget _exiledView() => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Flexible(child: Center(child: _numbers())),
-          if (_elimBSaid) ...<Widget>[
-            const SizedBox(height: kGap),
-            // «Зураас татагдана» — дугаарын доор.
-            const Divider(height: 1, thickness: 2, color: kEmber),
-            const SizedBox(height: kGap),
-            Text('Хотоос хөөгдлөө.',
-                textAlign: TextAlign.center,
-                style: kTitle.copyWith(color: kTextPrimary, height: 1.45)),
-            ..._revealLines(),
-          ],
-        ],
-      );
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Flexible(child: Center(child: _numbers())),
+      if (_elimBSaid) ...<Widget>[
+        const SizedBox(height: kGap),
+        // «Зураас татагдана» — дугаарын доор.
+        const Divider(height: 1, thickness: 2, color: kEmber),
+        const SizedBox(height: kGap),
+        Text(
+          'Хотоос хөөгдлөө.',
+          textAlign: TextAlign.center,
+          style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
+        ),
+        ..._revealLines(),
+      ],
+    ],
+  );
 
   /// `revealRoleOnDeath` асаалттай ҮЕД Л. АУДИО БАЙХГҮЙ — `ROLE_*` гэсэн
   /// дүрээ зарлах клип каталогт байхгүй (GDD-07 §2.1).
@@ -206,55 +209,60 @@ class _EliminationScreenState extends State<EliminationScreen> {
     return <Widget>[
       const SizedBox(height: kGap),
       for (final Seat s in _seats)
-        Builder(builder: (BuildContext context) {
-          final Role? r = c.roleOf(s);
-          if (r == null) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _seats.length == 1
-                  ? 'Тэрээр ${cardCopyFor(r).mechanic} байлаа.'
-                  : '№$s — ${cardCopyFor(r).mechanic} байлаа.',
-              textAlign: TextAlign.center,
-              style: kBody.copyWith(color: kTextMuted),
-            ),
-          );
-        }),
+        Builder(
+          builder: (BuildContext context) {
+            final Role? r = c.roleOf(s);
+            if (r == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _seats.length == 1
+                    ? 'Тэрээр ${cardCopyFor(r).mechanic} байлаа.'
+                    : '№$s — ${cardCopyFor(r).mechanic} байлаа.',
+                textAlign: TextAlign.center,
+                style: kBody.copyWith(color: kTextMuted),
+              ),
+            );
+          },
+        ),
     ];
   }
 
   Widget _lastWordsView() => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const SizedBox(height: kGap),
-          Text(
-            _seats.map((Seat s) => '№$s').join(' · '),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.w700,
-                height: 1.2,
-                color: kTextPrimary),
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      const SizedBox(height: kGap),
+      Text(
+        _seats.map((Seat s) => '№$s').join(' · '),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 48,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+          color: kTextPrimary,
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Сүүлчийн үг',
+        textAlign: TextAlign.center,
+        style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
+      ),
+      Expanded(
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: BigCountdown(math.max(0, _secondsLeft)),
           ),
-          const SizedBox(height: 4),
-          Text('Сүүлчийн үг',
-              textAlign: TextAlign.center,
-              style: kTitle.copyWith(color: kTextPrimary, height: 1.45)),
-          Expanded(
-            child: Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: BigCountdown(math.max(0, _secondsLeft)),
-              ),
-            ),
-          ),
-          FilledButton(
-            onPressed: () {
-              _tick?.cancel();
-              widget.onDone();
-            },
-            child: const Text('Дуусгах'),
-          ),
-        ],
-      );
+        ),
+      ),
+      FilledButton(
+        onPressed: () {
+          _tick?.cancel();
+          widget.onDone();
+        },
+        child: const Text('Дуусгах'),
+      ),
+    ],
+  );
 }

@@ -18,14 +18,21 @@ GameController dawnWithVictim({int seats = 12}) {
   final GameController c = nightController(seats: seats);
   final Seat doctor = seatWithAbility(c, Ability.heal);
   final Seat victim = <Seat>[1, 2, 3].firstWhere((Seat s) => s != doctor);
-  final Seat gossip =
-      <Seat>[9, 10, 11, 8].firstWhere((Seat s) => s != doctor && s != victim);
+  final Seat gossip = <Seat>[
+    9,
+    10,
+    11,
+    8,
+  ].firstWhere((Seat s) => s != doctor && s != victim);
 
-  resolveWholeNight(c, target: (Seat seat, Ability a) {
-    if (a == Ability.mafiaKill) return victim;
-    if (a == Ability.heal) return doctor; // өөрийгөө — `SelfHeal.once`
-    return gossip;
-  });
+  resolveWholeNight(
+    c,
+    target: (Seat seat, Ability a) {
+      if (a == Ability.mafiaKill) return victim;
+      if (a == Ability.heal) return doctor; // өөрийгөө — `SelfHeal.once`
+      return gossip;
+    },
+  );
   return c;
 }
 
@@ -37,14 +44,17 @@ GameController dawnNoKill({int seats = 12}) {
 }
 
 void main() {
-  testWidgets('N14 — `DAWN_A` ба хохирогчийн хооронд БОДИТ 2500 мс',
-      (WidgetTester tester) async {
+  testWidgets('N14 — `DAWN_A` ба хохирогчийн хооронд БОДИТ 2500 мс', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dawnWithVictim();
     final Seat victim = c.report!.deaths.first.victim;
     final List<String> cues = <String>[];
 
     await pumpScreen(
-        tester, DawnScreen(controller: c, onDone: () {}, onCue: cues.add));
+      tester,
+      DawnScreen(controller: c, onDone: () {}, onCue: cues.add),
+    );
 
     // Мөр 1 — нүүрс 1.5 секунд. Хохирогчийн дугаар хараахан БАЙХГҮЙ.
     expect(cues, isEmpty);
@@ -68,12 +78,15 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
-  testWidgets('`DAY_START` нь хохирогчийн ДАРАА, 1800 мс-д «Өдөр 1»',
-      (WidgetTester tester) async {
+  testWidgets('`DAY_START` нь хохирогчийн ДАРАА, 1800 мс-д «Өдөр 1»', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dawnWithVictim();
     final List<String> cues = <String>[];
     await pumpScreen(
-        tester, DawnScreen(controller: c, onDone: () {}, onCue: cues.add));
+      tester,
+      DawnScreen(controller: c, onDone: () {}, onCue: cues.add),
+    );
 
     await tester.pump(const Duration(milliseconds: 4000)); // 1500 + 2500
     expect(cues.length, 2);
@@ -88,16 +101,22 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
-  testWidgets('Шивнээ — дугаарууд ЗӨВХӨН дэлгэц дээр, хоолойгоор ХЭЗЭЭ Ч үгүй',
-      (WidgetTester tester) async {
+  testWidgets('Шивнээ — дугаарууд ЗӨВХӨН дэлгэц дээр, хоолойгоор ХЭЗЭЭ Ч үгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dawnWithVictim();
-    expect(c.report!.whisper, isNotEmpty,
-        reason: 'тестийн урьдчилсан нөхцөл: шивнээ төрсөн байх ёстой');
+    expect(
+      c.report!.whisper,
+      isNotEmpty,
+      reason: 'тестийн урьдчилсан нөхцөл: шивнээ төрсөн байх ёстой',
+    );
     final List<Seat> whisper = c.report!.whisper;
     final List<String> cues = <String>[];
 
     await pumpScreen(
-        tester, DawnScreen(controller: c, onDone: () {}, onCue: cues.add));
+      tester,
+      DawnScreen(controller: c, onDone: () {}, onCue: cues.add),
+    );
     // 1500 + 2500 + 1800 + 2000 + 600 = 8400 мс.
     await tester.pump(const Duration(seconds: 6));
     await tester.pump(const Duration(milliseconds: 2500));
@@ -118,29 +137,36 @@ void main() {
     }
   });
 
-  testWidgets('Хохирогчгүй — «Өнөө шөнө хохирогч гарсангүй.», яагаад гэж ХЭЛЭХГҮЙ',
-      (WidgetTester tester) async {
-    final GameController c = dawnNoKill();
-    final List<String> cues = <String>[];
-    await pumpScreen(
-        tester, DawnScreen(controller: c, onDone: () {}, onCue: cues.add));
+  testWidgets(
+    'Хохирогчгүй — «Өнөө шөнө хохирогч гарсангүй.», яагаад гэж ХЭЛЭХГҮЙ',
+    (WidgetTester tester) async {
+      final GameController c = dawnNoKill();
+      final List<String> cues = <String>[];
+      await pumpScreen(
+        tester,
+        DawnScreen(controller: c, onDone: () {}, onCue: cues.add),
+      );
 
-    await tester.pump(const Duration(milliseconds: 1600));
-    expect(cues, <String>['DAWN_NO_KILL']);
-    expect(find.text('Өнөө шөнө хохирогч гарсангүй.'), findsOneWidget);
-    // Эмч таарсан уу, мафи товшоогүй юу — апп аль нь болохыг ХЭЗЭЭ Ч хэлэхгүй.
-    expect(find.textContaining('Эмч'), findsNothing);
-    expect(find.textContaining('аврагд'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(cues, <String>['DAWN_NO_KILL']);
+      expect(find.text('Өнөө шөнө хохирогч гарсангүй.'), findsOneWidget);
+      // Эмч таарсан уу, мафи товшоогүй юу — апп аль нь болохыг ХЭЗЭЭ Ч хэлэхгүй.
+      expect(find.textContaining('Эмч'), findsNothing);
+      expect(find.textContaining('аврагд'), findsNothing);
 
-    await tester.pump(const Duration(seconds: 4));
-  });
+      await tester.pump(const Duration(seconds: 4));
+    },
+  );
 
-  testWidgets('Урсгал дуустал «Үргэлжлүүлэх» товч ГАРАХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('Урсгал дуустал «Үргэлжлүүлэх» товч ГАРАХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dawnWithVictim();
     bool done = false;
     await pumpScreen(
-        tester, DawnScreen(controller: c, onDone: () => done = true));
+      tester,
+      DawnScreen(controller: c, onDone: () => done = true),
+    );
 
     // Чимээгүйн дунд алгасах товч байх ёсгүй.
     await tester.pump(const Duration(milliseconds: 2500));
@@ -153,17 +179,21 @@ void main() {
     expect(done, isTrue);
   });
 
-  testWidgets('160 sp хохирогчийн дугаар 320 логик px дээр ч халихгүй',
-      (WidgetTester tester) async {
+  testWidgets('160 sp хохирогчийн дугаар 320 логик px дээр ч халихгүй', (
+    WidgetTester tester,
+  ) async {
     // 20 суудал — «№20» бол хамгийн өргөн тохиолдол.
     final GameController c = nightController(seats: 20);
     final Seat doctor = seatWithAbility(c, Ability.heal);
     final Seat victim = doctor == 20 ? 19 : 20;
-    resolveWholeNight(c, target: (Seat seat, Ability a) {
-      if (a == Ability.mafiaKill) return victim;
-      if (a == Ability.heal) return doctor;
-      return null;
-    });
+    resolveWholeNight(
+      c,
+      target: (Seat seat, Ability a) {
+        if (a == Ability.mafiaKill) return victim;
+        if (a == Ability.heal) return doctor;
+        return null;
+      },
+    );
     expect(c.report!.deaths.first.victim, victim);
 
     await pumpScreen(

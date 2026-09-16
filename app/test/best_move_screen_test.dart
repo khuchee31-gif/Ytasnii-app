@@ -19,18 +19,25 @@ GameController afterFirstKill({int seats = 12}) {
   final GameController c = nightController(seats: seats);
   final Seat doctor = seatWithAbility(c, Ability.heal);
   final Seat victim = <Seat>[1, 2, 3].firstWhere((Seat s) => s != doctor);
-  resolveWholeNight(c, target: (Seat seat, Ability a) {
-    if (a == Ability.mafiaKill) return victim;
-    if (a == Ability.heal) return doctor;
-    return null;
-  });
+  resolveWholeNight(
+    c,
+    target: (Seat seat, Ability a) {
+      if (a == Ability.mafiaKill) return victim;
+      if (a == Ability.heal) return doctor;
+      return null;
+    },
+  );
   return c;
 }
 
 void main() {
   test('Зөвхөн эхний хохирогч, зөвхөн НЭГ УДАА', () {
     final GameController c = nightController();
-    expect(BestMoveScreen.isDue(c), isFalse, reason: 'хохирогч хараахан байхгүй');
+    expect(
+      BestMoveScreen.isDue(c),
+      isFalse,
+      reason: 'хохирогч хараахан байхгүй',
+    );
 
     final GameController d = afterFirstKill();
     expect(d.firstVictim, isNotNull);
@@ -44,15 +51,20 @@ void main() {
     expect(BestMoveScreen.isDue(d), isFalse, reason: '«Шинэ тоглогч» багц');
   });
 
-  testWidgets('«Шилдэг нүүдэл — 20 секунд. Гурван дугаар сонго.»',
-      (WidgetTester tester) async {
+  testWidgets('«Шилдэг нүүдэл — 20 секунд. Гурван дугаар сонго.»', (
+    WidgetTester tester,
+  ) async {
     final GameController c = afterFirstKill();
     final List<String> cues = <String>[];
-    await pumpScreen(tester,
-        BestMoveScreen(controller: c, onDone: () {}, onCue: cues.add));
+    await pumpScreen(
+      tester,
+      BestMoveScreen(controller: c, onDone: () {}, onCue: cues.add),
+    );
 
-    expect(find.text('Шилдэг нүүдэл — 20 секунд. Гурван дугаар сонго.'),
-        findsOneWidget);
+    expect(
+      find.text('Шилдэг нүүдэл — 20 секунд. Гурван дугаар сонго.'),
+      findsOneWidget,
+    );
     expect(cues, <String>['BESTMOVE_START']);
     // Хохирогч өөрөө торонд БАЙХГҮЙ — тор нь амьд суудлынх.
     expect(find.text('${c.firstVictim}'), findsNothing);
@@ -60,13 +72,16 @@ void main() {
     await tester.pump(const Duration(seconds: 21));
   });
 
-  testWidgets('Гурав сонгогдмогц «Уншуулах» асна — 20 секунд ХҮЛЭЭХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('Гурав сонгогдмогц «Уншуулах» асна — 20 секунд ХҮЛЭЭХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = afterFirstKill();
     final List<Seat> alive = c.alive.toList()..sort();
     final List<String> cues = <String>[];
-    await pumpScreen(tester,
-        BestMoveScreen(controller: c, onDone: () {}, onCue: cues.add));
+    await pumpScreen(
+      tester,
+      BestMoveScreen(controller: c, onDone: () {}, onCue: cues.add),
+    );
 
     Finder readButton() => find.widgetWithText(FilledButton, 'Уншуулах');
     expect(tester.widget<FilledButton>(readButton()).onPressed, isNull);
@@ -75,8 +90,11 @@ void main() {
       await tester.tap(find.text('${alive[i]}'));
       await tester.pump();
     }
-    expect(tester.widget<FilledButton>(readButton()).onPressed, isNull,
-        reason: 'хоёр дугаар хангалтгүй');
+    expect(
+      tester.widget<FilledButton>(readButton()).onPressed,
+      isNull,
+      reason: 'хоёр дугаар хангалтгүй',
+    );
 
     await tester.tap(find.text('${alive[2]}'));
     await tester.pump();
@@ -99,16 +117,17 @@ void main() {
     expect(find.textContaining('зөв'), findsNothing);
   });
 
-  testWidgets('20 секунд дуусахад сонгогдсоныг уншина (нэг ч байж болно)',
-      (WidgetTester tester) async {
+  testWidgets('20 секунд дуусахад сонгогдсоныг уншина (нэг ч байж болно)', (
+    WidgetTester tester,
+  ) async {
     final GameController c = afterFirstKill();
     final List<Seat> alive = c.alive.toList()..sort();
     final List<String> cues = <String>[];
     bool done = false;
     await pumpScreen(
-        tester,
-        BestMoveScreen(
-            controller: c, onDone: () => done = true, onCue: cues.add));
+      tester,
+      BestMoveScreen(controller: c, onDone: () => done = true, onCue: cues.add),
+    );
 
     await tester.tap(find.text('${alive[0]}'));
     await tester.pump();
@@ -116,8 +135,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 19000));
     // 19 секундэд цонх ХЭВЭЭР — цагирган дээрх тоо суудлын дугаартай
     // давхцаж болзошгүй тул гарчгаар шалгана.
-    expect(find.text('Шилдэг нүүдэл — 20 секунд. Гурван дугаар сонго.'),
-        findsOneWidget);
+    expect(
+      find.text('Шилдэг нүүдэл — 20 секунд. Гурван дугаар сонго.'),
+      findsOneWidget,
+    );
     expect(done, isFalse);
 
     await tester.pump(const Duration(milliseconds: 1100));
@@ -130,15 +151,16 @@ void main() {
     expect(done, isTrue);
   });
 
-  testWidgets('Сонголтгүй — хөтлөгч ЮУ Ч ХЭЛЭХГҮЙ, шууд S13 руу',
-      (WidgetTester tester) async {
+  testWidgets('Сонголтгүй — хөтлөгч ЮУ Ч ХЭЛЭХГҮЙ, шууд S13 руу', (
+    WidgetTester tester,
+  ) async {
     final GameController c = afterFirstKill();
     final List<String> cues = <String>[];
     bool done = false;
     await pumpScreen(
-        tester,
-        BestMoveScreen(
-            controller: c, onDone: () => done = true, onCue: cues.add));
+      tester,
+      BestMoveScreen(controller: c, onDone: () => done = true, onCue: cues.add),
+    );
 
     await tester.pump(const Duration(milliseconds: 20100));
     expect(done, isTrue);
@@ -146,12 +168,15 @@ void main() {
     expect(c.bestMoveSpoken, isTrue);
   });
 
-  testWidgets('Цагираг 20 секундэд дүүрнэ, хөдөлгөөн багасгахад тоо болно',
-      (WidgetTester tester) async {
+  testWidgets('Цагираг 20 секундэд дүүрнэ, хөдөлгөөн багасгахад тоо болно', (
+    WidgetTester tester,
+  ) async {
     final GameController c = afterFirstKill();
     c.settings.reduceMotion = true;
     await pumpScreen(
-        tester, BestMoveScreen(controller: c, onDone: () {}, onCue: (_) {}));
+      tester,
+      BestMoveScreen(controller: c, onDone: () {}, onCue: (_) {}),
+    );
 
     expect(find.text('20'), findsWidgets);
     await tester.pump(const Duration(milliseconds: 5000));
@@ -160,8 +185,9 @@ void main() {
     await tester.pump(const Duration(seconds: 16));
   });
 
-  testWidgets('320 логик px — халихгүй, «Уншуулах» ≥ 72 dp',
-      (WidgetTester tester) async {
+  testWidgets('320 логик px — халихгүй, «Уншуулах» ≥ 72 dp', (
+    WidgetTester tester,
+  ) async {
     final GameController c = afterFirstKill(seats: 20);
     await pumpScreen(
       tester,
@@ -170,8 +196,9 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    final Size button =
-        tester.getSize(find.widgetWithText(FilledButton, 'Уншуулах'));
+    final Size button = tester.getSize(
+      find.widgetWithText(FilledButton, 'Уншуулах'),
+    );
     expect(button.height, greaterThanOrEqualTo(72));
 
     final Size tile = tester.getSize(find.byType(InkWell).first);

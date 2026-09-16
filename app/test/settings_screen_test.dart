@@ -9,6 +9,8 @@ import 'package:hotuntlaa/game/settings.dart';
 import 'package:hotuntlaa/screens/settings_screen.dart';
 
 import 'phone_viewport.dart';
+import 'package:hotuntlaa/ui/glyphs.dart';
+import 'package:hotuntlaa/ui/widgets.dart';
 
 void main() {
   late GameController c;
@@ -31,8 +33,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Дөрвөн preset карт ба гэрийн дүрмийн дөрөв',
-      (WidgetTester tester) async {
+  testWidgets('Дөрвөн preset карт ба гэрийн дүрмийн дөрөв', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
 
     for (final PresetId id in PresetId.values) {
@@ -56,8 +59,9 @@ void main() {
     expect(find.textContaining('Хэл'), findsNothing);
   });
 
-  testWidgets('«Дэлгэрэнгүй» нугалаа — анхандаа хаалттай',
-      (WidgetTester tester) async {
+  testWidgets('«Дэлгэрэнгүй» нугалаа — анхандаа хаалттай', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
     expect(find.text('Нэг хүний үг'), findsNothing);
 
@@ -68,8 +72,9 @@ void main() {
     expectNoOverflow(tester);
   });
 
-  testWidgets('«Нэг хүний үг» 40 сек анхдагч, 30/40/45/60/90-ээр явна',
-      (WidgetTester tester) async {
+  testWidgets('«Нэг хүний үг» 40 сек анхдагч, 30/40/45/60/90-ээр явна', (
+    WidgetTester tester,
+  ) async {
     final SemanticsHandle h = tester.ensureSemantics();
     await pump(tester);
     await openAdvanced(tester);
@@ -98,8 +103,9 @@ void main() {
     expect(find.text('Эмч эхний шөнө хохирч болно.'), findsOneWidget);
   });
 
-  testWidgets('Зөвхөн уншигдах багц засагдвал «Сонгодог» руу хуулагдана',
-      (WidgetTester tester) async {
+  testWidgets('Зөвхөн уншигдах багц засагдвал «Сонгодог» руу хуулагдана', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
     await tester.tap(find.text('Спорт'));
     await tester.pump();
@@ -117,14 +123,18 @@ void main() {
     expect(find.text('Сонгодог болгож хадгаллаа.'), findsNothing);
   });
 
-  testWidgets('Тоглолт явж байхад «Дараагийн тоглолтод хүчинтэй»',
-      (WidgetTester tester) async {
+  testWidgets('Тоглолт явж байхад «Дараагийн тоглолтод хүчинтэй»', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
     expect(find.text('Дараагийн тоглолтод хүчинтэй'), findsNothing);
 
     c.go(GamePhase.speechRound);
-    await tester.pumpWidget(MaterialApp(
-        home: SettingsScreen(controller: c, onClose: () {})));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsScreen(controller: c, onClose: () {}),
+      ),
+    );
     await tester.pump();
     expect(find.text('Дараагийн тоглолтод хүчинтэй'), findsOneWidget);
     // Дэлгэц ХААГДАХГҮЙ — тохируулга засагдсан хэвээр.
@@ -134,11 +144,19 @@ void main() {
   testWidgets('Доод мөрөнд `b` бэхлэгдсэн', (WidgetTester tester) async {
     await pump(tester);
     expect(find.text('Алдаж болох санал'), findsOneWidget);
-    expect(find.text('●●'), findsOneWidget);
+    // Цэг нь ТЕКСТ БИШ, зурагддаг тэмдэг болсон (`ui/glyphs.dart`).
+    expect(
+      find.descendant(
+        of: find.byType(PipStrip),
+        matching: findMark(MarkShape.discFilled),
+      ),
+      findsNWidgets(2),
+    );
   });
 
-  testWidgets('«Бүх өгөгдлийг устгах» — хоёр товшилт, хоёр дахь 3 сек бүдэг',
-      (WidgetTester tester) async {
+  testWidgets('«Бүх өгөгдлийг устгах» — хоёр товшилт, хоёр дахь 3 сек бүдэг', (
+    WidgetTester tester,
+  ) async {
     await pump(tester);
     await openAdvanced(tester);
 
@@ -148,10 +166,15 @@ void main() {
     await tester.pump();
 
     expect(
-        find.text('Ангийн дэвтэр, суудлын жагсаалт, бүх тоглолт, бүх цол '
-            '— бүгд устана. Буцаах боломжгүй.'),
-        findsOneWidget);
-    FilledButton wipe = tester.widget(find.widgetWithText(FilledButton, 'Устгах'));
+      find.text(
+        'Ангийн дэвтэр, суудлын жагсаалт, бүх тоглолт, бүх цол '
+        '— бүгд устана. Буцаах боломжгүй.',
+      ),
+      findsOneWidget,
+    );
+    FilledButton wipe = tester.widget(
+      find.widgetWithText(FilledButton, 'Устгах'),
+    );
     expect(wipe.onPressed, isNull, reason: 'Хоёр дахь товч 3 секунд бүдэг');
 
     await tester.pump(const Duration(seconds: 3));
@@ -159,8 +182,9 @@ void main() {
     expect(wipe.onPressed, isNotNull);
   });
 
-  testWidgets('320 px дээр халихгүй — нугалаа нээлттэй үед ч',
-      (WidgetTester tester) async {
+  testWidgets('320 px дээр халихгүй — нугалаа нээлттэй үед ч', (
+    WidgetTester tester,
+  ) async {
     await pump(tester, narrow: true);
     await openAdvanced(tester);
     expectNoOverflow(tester);

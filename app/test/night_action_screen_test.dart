@@ -16,6 +16,8 @@ import 'package:hotuntlaa/ui/widgets.dart';
 
 import 'deal_test_support.dart';
 import 'night_test_support.dart';
+import 'package:hotuntlaa/ui/glyphs.dart';
+import 'phone_viewport.dart';
 
 /// Эргэлтийг тухайн суудал хүртэл `noAction`-оор түлхэнэ.
 void advanceTo(GameController c, Seat seat) {
@@ -41,8 +43,9 @@ Widget actionFor(GameController c, Seat seat, {VoidCallback? onFinished}) =>
     );
 
 void main() {
-  testWidgets('Дүр бүрийн асуулт — дэлгэцийн ЦОРЫН ГАНЦ ялгаа',
-      (WidgetTester tester) async {
+  testWidgets('Дүр бүрийн асуулт — дэлгэцийн ЦОРЫН ГАНЦ ялгаа', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController();
     const Map<Ability, String> want = <Ability, String>{
       Ability.mafiaKill: 'Хэнийг хохироох вэ?',
@@ -54,18 +57,25 @@ void main() {
     for (final MapEntry<Ability, String> e in want.entries) {
       final Seat s = seatWithAbility(c, e.key);
       await pumpScreen(tester, actionFor(c, s));
-      expect(find.text(e.value), findsOneWidget,
-          reason: '${e.key.name} суудалд буруу асуулт');
+      expect(
+        find.text(e.value),
+        findsOneWidget,
+        reason: '${e.key.name} суудалд буруу асуулт',
+      );
       // Байрлал бүх дүрд ижил: дугаар, асуулт, тор, батлах зурвас.
       expect(find.text('№$s'), findsOneWidget);
       expect(find.byType(SeatGrid), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('nightConfirm')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('nightConfirm')),
+        findsOneWidget,
+      );
       await tester.pump(const Duration(seconds: 7));
     }
   });
 
-  testWidgets('Баталсан ч цонх 6.0 секундээс ЭРТ ХААГДАХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('Баталсан ч цонх 6.0 секундээс ЭРТ ХААГДАХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController(seats: 10);
     final Seat seat = seatWithAbility(c, Ability.suspect);
     advanceTo(c, seat);
@@ -73,7 +83,9 @@ void main() {
 
     bool finished = false;
     await pumpScreen(
-        tester, actionFor(c, seat, onFinished: () => finished = true));
+      tester,
+      actionFor(c, seat, onFinished: () => finished = true),
+    );
 
     expect(find.text('Суудал сонго'), findsOneWidget);
     await tester.tap(find.text('$target'));
@@ -85,14 +97,19 @@ void main() {
     expect(finished, isFalse);
 
     await tester.pump(const Duration(milliseconds: 4000)); // ~4650 мс
-    expect(finished, isFalse, reason: 'цонх эрт хаагдвал тэр бол цагийн ул мөр');
+    expect(
+      finished,
+      isFalse,
+      reason: 'цонх эрт хаагдвал тэр бол цагийн ул мөр',
+    );
 
     await tester.pump(const Duration(milliseconds: 2000)); // ~6650 мс
     expect(finished, isTrue);
   });
 
-  testWidgets('Товшилт батлахгүй — 600 мс ДАРЖ-ДҮҮРГЭНЭ',
-      (WidgetTester tester) async {
+  testWidgets('Товшилт батлахгүй — 600 мс ДАРЖ-ДҮҮРГЭНЭ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController(seats: 10);
     final Seat killer = seatsWithAbility(c, Ability.mafiaKill).first;
     advanceTo(c, killer);
@@ -110,12 +127,16 @@ void main() {
 
     await tester.pump(const Duration(seconds: 7));
     finishNight(c);
-    expect(c.report!.deaths, isEmpty,
-        reason: 'батлаагүй сонголт нь `noAction` — товшоогүйтэй ижил');
+    expect(
+      c.report!.deaths,
+      isEmpty,
+      reason: 'батлаагүй сонголт нь `noAction` — товшоогүйтэй ижил',
+    );
   });
 
-  testWidgets('Дарж-дүүргэсэн бай хөдөлгүүрт хүрнэ',
-      (WidgetTester tester) async {
+  testWidgets('Дарж-дүүргэсэн бай хөдөлгүүрт хүрнэ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController(seats: 10);
     final Seat killer = seatsWithAbility(c, Ability.mafiaKill).first;
     advanceTo(c, killer);
@@ -132,40 +153,49 @@ void main() {
     expect(c.report!.deaths.first.victim, target);
   });
 
-  testWidgets('S10 — «Мөр олдлоо.» 2.0 секунд, дараа нь ХЭЗЭЭ Ч дахин гарахгүй',
-      (WidgetTester tester) async {
-    final GameController c = nightController(seats: 10);
-    final Seat det = seatWithAbility(c, Ability.investigate);
-    final Seat mafia = seatsWithAbility(c, Ability.mafiaKill).first;
-    advanceTo(c, det);
+  testWidgets(
+    'S10 — «Мөр олдлоо.» 2.0 секунд, дараа нь ХЭЗЭЭ Ч дахин гарахгүй',
+    (WidgetTester tester) async {
+      final GameController c = nightController(seats: 10);
+      final Seat det = seatWithAbility(c, Ability.investigate);
+      final Seat mafia = seatsWithAbility(c, Ability.mafiaKill).first;
+      advanceTo(c, det);
 
-    await pumpScreen(tester, actionFor(c, det));
-    await tester.tap(find.text('$mafia'));
-    await tester.pump();
-    await holdConfirm(tester); // батлагдах агшин ≈ 600 мс
+      await pumpScreen(tester, actionFor(c, det));
+      await tester.tap(find.text('$mafia'));
+      await tester.pump();
+      await holdConfirm(tester); // батлагдах агшин ≈ 600 мс
 
-    // Хариу нь ТЭР ДОР НЬ, тэр суудлын ижил цонхны дотор. Хоёр дахь
-    // `RevealGate` БАЙХГҮЙ (GDD-15).
-    expect(find.text('Мөр олдлоо.'), findsOneWidget);
-    expect(find.text('✕'), findsOneWidget, reason: 'өнгө БА хэлбэр БА үг');
+      // Хариу нь ТЭР ДОР НЬ, тэр суудлын ижил цонхны дотор. Хоёр дахь
+      // `RevealGate` БАЙХГҮЙ (GDD-15).
+      expect(find.text('Мөр олдлоо.'), findsOneWidget);
+      expect(
+        findMark(MarkShape.cross),
+        findsOneWidget,
+        reason: 'өнгө БА хэлбэр БА үг',
+      );
 
-    await tester.pump(const Duration(milliseconds: 1900)); // ≈ 1950 мс харагдав
-    expect(find.text('Мөр олдлоо.'), findsOneWidget);
+      await tester.pump(
+        const Duration(milliseconds: 1900),
+      ); // ≈ 1950 мс харагдав
+      expect(find.text('Мөр олдлоо.'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 200)); // ≥ 2000 мс
-    expect(find.text('Мөр олдлоо.'), findsNothing);
-    expect(find.text('Ширээн дээр тавь'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 200)); // ≥ 2000 мс
+      expect(find.text('Мөр олдлоо.'), findsNothing);
+      expect(find.text('Ширээн дээр тавь'), findsOneWidget);
 
-    // Дахин харах зам БАЙХГҮЙ — товшилт ч, буцалт ч.
-    await tester.tapAt(const Offset(180, 400));
-    await tester.pump();
-    expect(find.text('Мөр олдлоо.'), findsNothing);
+      // Дахин харах зам БАЙХГҮЙ — товшилт ч, буцалт ч.
+      await tester.tapAt(const Offset(180, 400));
+      await tester.pump();
+      expect(find.text('Мөр олдлоо.'), findsNothing);
 
-    await tester.pump(const Duration(seconds: 7));
-  });
+      await tester.pump(const Duration(seconds: 7));
+    },
+  );
 
-  testWidgets('S10 — мафи биш бол «Мөр олдсонгүй.», ногоон ○',
-      (WidgetTester tester) async {
+  testWidgets('S10 — мафи биш бол «Мөр олдсонгүй.», ногоон ○', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController(seats: 10);
     final Seat det = seatWithAbility(c, Ability.investigate);
     final Seat doctor = seatWithAbility(c, Ability.heal);
@@ -177,12 +207,13 @@ void main() {
     await holdConfirm(tester);
 
     expect(find.text('Мөр олдсонгүй.'), findsOneWidget);
-    expect(find.text('○'), findsOneWidget);
+    expect(findMark(MarkShape.discHollow), findsOneWidget);
     await tester.pump(const Duration(seconds: 7));
   });
 
-  testWidgets('Иргэн баталсан ч ямар ч хариу ГАРАХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('Иргэн баталсан ч ямар ч хариу ГАРАХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController(seats: 10);
     final Seat citizen = seatWithAbility(c, Ability.suspect);
     advanceTo(c, citizen);
@@ -199,8 +230,9 @@ void main() {
     await tester.pump(const Duration(seconds: 7));
   });
 
-  testWidgets('Хасагдсан суудал торонд «хасагдсан» шошготой, дарагдахгүй',
-      (WidgetTester tester) async {
+  testWidgets('Хасагдсан суудал торонд «хасагдсан» шошготой, дарагдахгүй', (
+    WidgetTester tester,
+  ) async {
     final GameController c = dealtController(seats: 10);
     c.alive.remove(4);
     c.beginNight();
@@ -217,15 +249,18 @@ void main() {
     await tester.pump(const Duration(seconds: 7));
   });
 
-  testWidgets('«Би харахгүй байна» — хар дэлгэц, цаг, `noAction`',
-      (WidgetTester tester) async {
+  testWidgets('«Би харахгүй байна» — хар дэлгэц, цаг, `noAction`', (
+    WidgetTester tester,
+  ) async {
     final GameController c = nightController(seats: 10);
     final Seat killer = seatsWithAbility(c, Ability.mafiaKill).first;
     advanceTo(c, killer);
 
     bool finished = false;
     await pumpScreen(
-        tester, actionFor(c, killer, onFinished: () => finished = true));
+      tester,
+      actionFor(c, killer, onFinished: () => finished = true),
+    );
     await tester.tap(find.text('Би харахгүй байна'));
     await tester.pump();
 
@@ -239,18 +274,21 @@ void main() {
     expect(c.report!.deaths, isEmpty);
   });
 
-  testWidgets('Хоёр дахь импульс 5500 мс-д — сонголтоос ХАМААРАХГҮЙ',
-      (WidgetTester tester) async {
+  testWidgets('Хоёр дахь импульс 5500 мс-д — сонголтоос ХАМААРАХГҮЙ', (
+    WidgetTester tester,
+  ) async {
     final List<MethodCall> haptics = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform,
-            (MethodCall call) async {
-      if (call.method == 'HapticFeedback.vibrate') haptics.add(call);
-      return null;
-    });
-    addTearDown(() => TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
+        .setMockMethodCallHandler(SystemChannels.platform, (
+          MethodCall call,
+        ) async {
+          if (call.method == 'HapticFeedback.vibrate') haptics.add(call);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
 
     final GameController c = nightController(seats: 10);
     final Seat seat = c.currentSeat!;
@@ -267,16 +305,18 @@ void main() {
     await tester.pump(const Duration(seconds: 7));
   });
 
-  testWidgets('360 ба 320 логик px — мөр халихгүй, хүрэх талбай ≥ 48',
-      (WidgetTester tester) async {
+  testWidgets('360 ба 320 логик px — мөр халихгүй, хүрэх талбай ≥ 48', (
+    WidgetTester tester,
+  ) async {
     for (final Size size in <Size>[kPhoneD1, kPhoneNarrow]) {
       final GameController c = nightController(seats: 20);
       final Seat seat = c.currentSeat!;
       await pumpScreen(tester, actionFor(c, seat), size: size);
       expect(tester.takeException(), isNull, reason: '$size дээр дэлгэц халив');
 
-      final Size strip = tester
-          .getSize(find.byKey(const ValueKey<String>('nightConfirm')));
+      final Size strip = tester.getSize(
+        find.byKey(const ValueKey<String>('nightConfirm')),
+      );
       expect(strip.height, greaterThanOrEqualTo(72));
 
       // Торны хүрэх талбай хэзээ ч `kMinTouch`-ээс бага биш.
@@ -284,11 +324,12 @@ void main() {
       expect(tile.width, greaterThanOrEqualTo(kMinTouch));
       expect(tile.height, greaterThanOrEqualTo(kMinTouch));
 
-      final Size blind =
-          tester.getSize(find.ancestor(
-        of: find.text('Би харахгүй байна'),
-        matching: find.byType(TextButton),
-      ));
+      final Size blind = tester.getSize(
+        find.ancestor(
+          of: find.text('Би харахгүй байна'),
+          matching: find.byType(TextButton),
+        ),
+      );
       expect(blind.height, greaterThanOrEqualTo(kMinTouch));
 
       await tester.pump(const Duration(seconds: 7));

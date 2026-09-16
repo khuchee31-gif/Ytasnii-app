@@ -23,6 +23,7 @@ import '../game/settings.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets.dart';
 import 'day_screen.dart' show TwoFingerSwipe, mmss;
+import '../ui/glyphs.dart';
 
 /// Нэг өдөрт дээд тал нь хэдэн нэр дэвшигч (GDD-06 S14; 20 хүний
 /// замбараагүй байдлыг зогсооно).
@@ -238,8 +239,9 @@ class _VoteScreenState extends State<VoteScreen> {
   }
 
   void _nextSpeaker() {
-    final int total =
-        _stage == VoteStage.defence ? kDefenceSeconds : kTieSpeechSeconds;
+    final int total = _stage == VoteStage.defence
+        ? kDefenceSeconds
+        : kTieSpeechSeconds;
     if (_at + 1 >= _ballot.length) {
       _tick?.cancel();
       if (_stage == VoteStage.defence) widget.onCue?.call('DEFENCE_END');
@@ -381,10 +383,10 @@ class _VoteScreenState extends State<VoteScreen> {
 
   @override
   Widget build(BuildContext context) => switch (_stage) {
-        VoteStage.nomination => _nominationView(),
-        VoteStage.defence || VoteStage.tieSpeech => _speechView(),
-        VoteStage.voting || VoteStage.allFate => _dialView(),
-      };
+    VoteStage.nomination => _nominationView(),
+    VoteStage.defence || VoteStage.tieSpeech => _speechView(),
+    VoteStage.voting || VoteStage.allFate => _dialView(),
+  };
 
   // S14
   Widget _nominationView() {
@@ -403,8 +405,10 @@ class _VoteScreenState extends State<VoteScreen> {
           if (full)
             Padding(
               padding: const EdgeInsets.only(bottom: kGap),
-              child: Text('Гурваас илүү болохгүй.',
-                  style: kBody.copyWith(color: kEmber)),
+              child: Text(
+                'Гурваас илүү болохгүй.',
+                style: kBody.copyWith(color: kEmber),
+              ),
             ),
           SeatGrid(
             seats: seats,
@@ -458,9 +462,13 @@ class _VoteScreenState extends State<VoteScreen> {
                 Flexible(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Text('$who',
-                        style: kSeatNumber.copyWith(
-                            fontSize: 140, color: kTextPrimary)),
+                    child: Text(
+                      '$who',
+                      style: kSeatNumber.copyWith(
+                        fontSize: 140,
+                        color: kTextPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: kGap),
@@ -470,8 +478,7 @@ class _VoteScreenState extends State<VoteScreen> {
                     child: LinearProgressIndicator(
                       value: (_secondsLeft / total).clamp(0.0, 1.0),
                       backgroundColor: kSurfaceHigh,
-                      valueColor:
-                          const AlwaysStoppedAnimation<Color>(kEmber),
+                      valueColor: const AlwaysStoppedAnimation<Color>(kEmber),
                     ),
                   ),
                 const SizedBox(height: kGap),
@@ -481,9 +488,11 @@ class _VoteScreenState extends State<VoteScreen> {
                   style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
                 ),
                 const SizedBox(height: 4),
-                Text(mmss(math.max(0, _secondsLeft)),
-                    textAlign: TextAlign.center,
-                    style: kBody.copyWith(color: kTextMuted)),
+                Text(
+                  mmss(math.max(0, _secondsLeft)),
+                  textAlign: TextAlign.center,
+                  style: kBody.copyWith(color: kTextMuted),
+                ),
               ],
             ),
           ),
@@ -511,32 +520,38 @@ class _VoteScreenState extends State<VoteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(headline,
-                      style: kTitle.copyWith(
-                          color: kTextPrimary, height: 1.45)),
+                  Text(
+                    headline,
+                    style: kTitle.copyWith(color: kTextPrimary, height: 1.45),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     allFate
                         ? 'Олонх дэмжвэл тэнцсэн бүгд гарна: '
-                            '${_ballot.map((Seat s) => '№$s').join(' · ')}'
+                              '${_ballot.map((Seat s) => '№$s').join(' · ')}'
                         : (_asked ? 'Эсрэг хэн байна? Гараа өргө.' : ' '),
                     style: kBody.copyWith(color: kTextMuted),
                   ),
                   if (_tooMany)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text('Амьд хүнээс их байна.',
-                          style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              height: 1.45,
-                              color: kDanger)),
+                      child: Text(
+                        'Амьд хүнээс их байна.',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          height: 1.45,
+                          color: kDanger,
+                        ),
+                      ),
                     ),
                   if (_notice != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(_notice!,
-                          style: kBody.copyWith(color: kEmber)),
+                      child: Text(
+                        _notice!,
+                        style: kBody.copyWith(color: kEmber),
+                      ),
                     ),
                 ],
               ),
@@ -632,9 +647,17 @@ class _VoteDialState extends State<VoteDial> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                _stepButton('−', () => _emit(widget.value - 1)),
+                _stepButton(
+                  MarkShape.minus,
+                  'Хасах',
+                  () => _emit(widget.value - 1),
+                ),
                 const SizedBox(width: kGap),
-                _stepButton('+', () => _emit(widget.value + 1)),
+                _stepButton(
+                  MarkShape.plus,
+                  'Нэмэх',
+                  () => _emit(widget.value + 1),
+                ),
               ],
             ),
           ],
@@ -660,8 +683,7 @@ class _VoteDialState extends State<VoteDial> {
                 colour: colour,
               ),
               child: Center(
-                child: _number(
-                    colour, math.min(200, size.shortestSide * 0.62)),
+                child: _number(colour, math.min(200, size.shortestSide * 0.62)),
               ),
             ),
           ),
@@ -671,18 +693,22 @@ class _VoteDialState extends State<VoteDial> {
   }
 
   Widget _number(Color colour, double size) => FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text('${widget.value}',
-            style: TextStyle(
-                fontSize: size,
-                fontWeight: FontWeight.w700,
-                height: 1.0,
-                color: colour)),
-      );
+    fit: BoxFit.scaleDown,
+    child: Text(
+      '${widget.value}',
+      style: TextStyle(
+        fontSize: size,
+        fontWeight: FontWeight.w700,
+        height: 1.0,
+        color: colour,
+      ),
+    ),
+  );
 
-  Widget _stepButton(String glyph, VoidCallback onTap) => Semantics(
+  Widget _stepButton(MarkShape shape, String label, VoidCallback onTap) =>
+      Semantics(
         button: true,
-        label: glyph == '+' ? 'Нэмэх' : 'Хасах',
+        label: label,
         child: Material(
           color: kSurfaceRaised,
           borderRadius: BorderRadius.circular(kRadius),
@@ -693,12 +719,7 @@ class _VoteDialState extends State<VoteDial> {
               width: 88,
               height: 88,
               child: Center(
-                child: Text(glyph,
-                    style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w700,
-                        height: 1.0,
-                        color: kTextPrimary)),
+                child: Mark(shape, size: 40, weight: 3.4, color: kTextPrimary),
               ),
             ),
           ),
@@ -719,8 +740,9 @@ class _DialPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset pivot =
-        leftHanded ? Offset(0, size.height) : Offset(size.width, size.height);
+    final Offset pivot = leftHanded
+        ? Offset(0, size.height)
+        : Offset(size.width, size.height);
     final double r = size.width * 0.9;
     final Paint track = Paint()
       ..style = PaintingStyle.stroke
@@ -750,7 +772,8 @@ class _DialPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DialPainter old) =>
-      old.value != value || old.colour != colour ||
+      old.value != value ||
+      old.colour != colour ||
       old.leftHanded != leftHanded;
 }
 
@@ -847,10 +870,11 @@ class _HoldToConfirmState extends State<HoldToConfirm> {
                     widget.label,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        height: 1.45,
-                        color: widget.enabled ? kTextPrimary : kTextMuted),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                      color: widget.enabled ? kTextPrimary : kTextMuted,
+                    ),
                   ),
                 ),
               ),

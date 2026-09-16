@@ -95,7 +95,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final GameSettings s = _s;
-    final int b = b0(widget.controller.roster.n, widget.controller.roster.mafia);
+    final int b = b0(
+      widget.controller.roster.n,
+      widget.controller.roster.mafia,
+    );
 
     return PhoneScaffold(
       title: 'Тохиргоо',
@@ -103,9 +106,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          PresetCards(selected: s.basePreset, onPick: (PresetId id) {
-            setState(() => s.apply(id));
-          }),
+          PresetCards(
+            selected: s.basePreset,
+            onPick: (PresetId id) {
+              setState(() => s.apply(id));
+            },
+          ),
           const SizedBox(height: 20),
 
           // --- Гэрийн дүрмийн дөрөв (GDD-03 §4) ---------------------------
@@ -166,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               ToggleRow(
                 label: 'Хөдөлгөөн багасгах',
-                hint: 'Цагираг → тоо, харанхуйлалт унтарна.',
+                hint: 'Цагираг — тоо, харанхуйлалт унтарна.',
                 value: s.reduceMotion,
                 onChanged: (bool v) => _edit(() => s.reduceMotion = v),
               ),
@@ -212,8 +218,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onChanged: (int v) => _edit(() {
                   s.speechSeconds = v;
                   // GDD-03 §2: `dayMaxMinutes` нь N × үгээс ГАРГАЖ АВНА.
-                  s.dayMaxMinutes =
-                      ((widget.controller.seatCount * v) / 60).ceil().clamp(3, 12);
+                  s.dayMaxMinutes = ((widget.controller.seatCount * v) / 60)
+                      .ceil()
+                      .clamp(3, 12);
                 }),
               ),
               _ValueStepper(
@@ -256,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onChanged: (bool v) => _edit(() => s.lyloBanner = v),
               ),
               ToggleRow(
-                label: '📌 Тэмдэглэ',
+                label: 'Тэмдэглэ',
                 value: s.pinMoments,
                 onChanged: (bool v) => _edit(() => s.pinMoments = v),
               ),
@@ -267,16 +274,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 OutlinedButton(
                   onPressed: _askWipe,
                   style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
-                      minimumSize: const Size.fromHeight(kMinTouch)),
+                    foregroundColor: kDanger,
+                    minimumSize: const Size.fromHeight(kMinTouch),
+                  ),
                   child: const Text('Бүх өгөгдлийг устгах'),
                 )
               else ...<Widget>[
                 const Text(
-                    'Ангийн дэвтэр, суудлын жагсаалт, бүх тоглолт, бүх цол '
-                    '— бүгд устана. Буцаах боломжгүй.',
-                    style: TextStyle(
-                        fontSize: 15, height: 1.45, color: kTextPrimary)),
+                  'Ангийн дэвтэр, суудлын жагсаалт, бүх тоглолт, бүх цол '
+                  '— бүгд устана. Буцаах боломжгүй.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.45,
+                    color: kTextPrimary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 FilledButton(
                   onPressed: _wipeArmed
@@ -292,7 +304,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         }
                       : null,
                   style: FilledButton.styleFrom(
-                      backgroundColor: kDanger, foregroundColor: kTextPrimary),
+                    backgroundColor: kDanger,
+                    foregroundColor: kTextPrimary,
+                  ),
                   child: const Text('Устгах'),
                 ),
               ],
@@ -300,9 +314,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
 
           if (s.copiedToSongodog)
-            const Text('Сонгодог болгож хадгаллаа.',
-                style:
-                    TextStyle(fontSize: 14, height: 1.45, color: kTextMuted)),
+            const Text(
+              'Сонгодог болгож хадгаллаа.',
+              style: TextStyle(fontSize: 14, height: 1.45, color: kTextMuted),
+            ),
         ],
       ),
       action: Column(
@@ -325,9 +340,9 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: kLabel.copyWith(color: kTextMuted)),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(text, style: kLabel.copyWith(color: kTextMuted)),
+  );
 }
 
 class _NarratorPreviewRow extends StatelessWidget {
@@ -351,14 +366,18 @@ class _NarratorPreviewRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Хөтлөгч юу хэлэх вэ?',
-                    style: kBody.copyWith(
-                        color: on ? kTextPrimary : kTextMuted)),
-                Text('40 секундын сонсгол.',
-                    style: kLabel.copyWith(
-                        color: kTextMuted,
-                        letterSpacing: 0,
-                        fontWeight: FontWeight.w400)),
+                Text(
+                  'Хөтлөгч юу хэлэх вэ?',
+                  style: kBody.copyWith(color: on ? kTextPrimary : kTextMuted),
+                ),
+                Text(
+                  '40 секундын сонсгол.',
+                  style: kLabel.copyWith(
+                    color: kTextMuted,
+                    letterSpacing: 0,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
               ],
             ),
           ),
@@ -399,8 +418,9 @@ class _ValueStepper extends StatelessWidget {
         value: '$value $suffix',
         valueWidth: 80,
         onMinus: cur > 0 ? () => onChanged(options[cur - 1]) : null,
-        onPlus:
-            cur < options.length - 1 ? () => onChanged(options[cur + 1]) : null,
+        onPlus: cur < options.length - 1
+            ? () => onChanged(options[cur + 1])
+            : null,
       ),
     );
   }
