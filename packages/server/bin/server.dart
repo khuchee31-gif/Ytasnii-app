@@ -332,6 +332,10 @@ class Server {
         final int? pick = _asInt(e.data['targetSeat']);
         _withRoom(c, (GameRoom r, PlayerId id) => r.vote(id, pick));
 
+      case C2S.dayAction:
+        final String what = _asStr(e.data['kind']) ?? '';
+        _withRoom(c, (GameRoom r, PlayerId id) => r.dayAction(id, what, nowMs));
+
       case C2S.emote:
         final String kind = _asStr(e.data['kind']) ?? '';
         final int? at = _asInt(e.data['targetSeat']);

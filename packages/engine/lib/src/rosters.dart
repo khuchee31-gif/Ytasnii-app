@@ -66,7 +66,10 @@ class Roster {
   /// GDD-04-ийн балансын хүснэгт хүчинтэй хэвээр.
   final bool watcher;
 
-  /// Үлдсэн суудлууд: `n - mafia - doctor - detective - watcher`.
+  /// v2 — Хотын дарга гарах уу. Мөн нэг ИРГЭНИЙ суудлыг орлоно.
+  final bool mayor;
+
+  /// Үлдсэн суудлууд: `n - mafia - doctor - detective - нэмэлтүүд`.
   final int citizens;
 
   /// GDD-04 §2-ын хүснэгтэд хэвлэгдсэн `b`. Үргэлж `b0(n, mafia)`-тай тэнцүү.
@@ -81,11 +84,17 @@ class Roster {
     required this.citizens,
     required this.b,
     this.watcher = false,
+    this.mayor = false,
   });
 
-  /// Нэг иргэнийг Ажиглагч болгоно. Иргэн үлдэхгүй бол ӨӨРЧЛӨХГҮЙ.
-  Roster withWatcher() {
-    if (watcher || citizens < 2) return this;
+  /// Нэг иргэнийг нэмэлт дүр болгоно. Иргэн үлдэхгүй бол ӨӨРЧЛӨХГҮЙ.
+  ///
+  /// ДОР ХАЯЖ НЭГ ИРГЭН ҮЛДЭНЭ. Бүх иргэнийг чадвартай дүр болговол
+  /// «юу ч хийгээгүй хүн» гэсэн ойлголт алга болж, шөнийн жигд хуурмаг
+  /// эвдэрнэ: чимээгүй суудал байхгүй бол дуугүй хүн нь тэр дороо
+  /// сэжигтэй болно.
+  Roster _swapCitizen({bool? watcher, bool? mayor}) {
+    if (citizens < 2) return this;
     return Roster(
       n: n,
       mafia: mafia,
@@ -94,16 +103,21 @@ class Roster {
       detective: detective,
       citizens: citizens - 1,
       b: b,
-      watcher: true,
+      watcher: watcher ?? this.watcher,
+      mayor: mayor ?? this.mayor,
     );
   }
+
+  Roster withWatcher() => watcher ? this : _swapCitizen(watcher: true);
+
+  Roster withMayor() => mayor ? this : _swapCitizen(mayor: true);
 
   /// Мафийн дотор хэдэн энгийн Алуурчин байх вэ (Ахлагч суудлыг хассан).
   int get killers => mafia - (boss ? 1 : 0);
 
   @override
-  String toString() =>
-      'Roster(n: $n, M: $mafia, boss: $boss, watcher: $watcher, b: $b)';
+  String toString() => 'Roster(n: $n, M: $mafia, boss: $boss, '
+      'watcher: $watcher, mayor: $mayor, b: $b)';
 }
 
 /// GDD-04 §2-ын шилжүүлэх хүснэгт, үг үсгээр. **15 мөр, N = 6…20.**
@@ -134,12 +148,14 @@ const Map<int, Roster> _kRosterTable = <int, Roster>{
 /// [watcher] нь ЗӨВХӨН эзний зориудын сонголт. Анхдагч бүрэлдэхүүн
 /// хөдлөхгүй тул GDD-04 §2-ын хүснэгт, `deal_test`-ийн алтан векторууд
 /// хүчинтэй хэвээр.
-Roster rosterFor(int n, {bool watcher = false}) {
-  final r = _kRosterTable[n];
+Roster rosterFor(int n, {bool watcher = false, bool mayor = false}) {
+  Roster? r = _kRosterTable[n];
   if (r == null) {
     throw ArgumentError.value(n, 'n', 'Суудлын тоо $kMinSeats..$kMaxSeats байх ёстой');
   }
-  return watcher ? r.withWatcher() : r;
+  if (watcher) r = r.withWatcher();
+  if (mayor) r = r.withMayor();
+  return r;
 }
 
 /// Хуваарилахын өмнөх канон хөзрийн багц — ХАТУУ, ТОГТМОЛ дараалалтай.
@@ -160,6 +176,7 @@ List<Role> deckFor(Roster r) {
   // Ажиглагч нь Мөрдөгчийн ДАРАА, иргэдийн ӨМНӨ. Дараалал нь зөвхөн
   // детерминизмын төлөө чухал — `fisherYates` дараа нь холино.
   if (r.watcher) deck.add(Role.watcher);
+  if (r.mayor) deck.add(Role.mayor);
   for (var i = 0; i < r.citizens; i++) {
     deck.add(Role.citizen);
   }

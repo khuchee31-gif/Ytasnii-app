@@ -47,6 +47,7 @@ const ACTS_IN := {
 	"doctor": "nightDoctor",
 	"detective": "nightDetective",
 	"watcher": "nightDetective",
+	# Дарга ШӨНӨ юу ч хийхгүй — иргэнтэй яг адил. Түүний хүч бол ӨДӨР.
 }
 
 ## Үйлдлийн товчны бичвэр.
@@ -75,6 +76,7 @@ const ERR_TEXT := {
 	"nameTooShort": "Нэр хэт богино байна.",
 	"nameReserved": "Энэ нэрийг авч болохгүй.",
 	"notYourTurn": "Одоо чиний ээлж биш.",
+	"notYourAbility": "Чамд энэ эрх байхгүй.",
 	"invalidTarget": "Энэ хүнийг сонгож болохгүй.",
 	"tooFewPlayers": "Хүн цөөн байна.",
 	"nameTaken": "Энэ нэр аль хэдийн байна.",
@@ -99,6 +101,9 @@ var _my_role := ""
 ## Ажиглагчийн энэ шөнийн харсан суудлууд. Зочин бүрд нэг мессеж ирдэг
 ## тул дараалуулж хуримтлуулна, эс бөгөөс сүүлчийнх нь л харагдана.
 var _watch_seen: Array = []
+
+## Өөрийгөө илчилсэн даргын суудлууд (0-ээс, тайзных). НИЙТИЙН.
+var _revealed: Array = []
 var _players: Array = []                 # нийтийн мэдээлэл, ДҮРГҮЙ
 var _votes: Dictionary = {}
 var _can_speak := false
@@ -120,6 +125,7 @@ var solo_bots := 0
 
 ## Ганцаараа туршихад Ажиглагчийг асаах уу (хөгжүүлэлтийн арг).
 var solo_watcher := false
+var solo_mayor := false
 var _solo_done := false
 
 
@@ -170,9 +176,11 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	net.eliminated.connect(_on_eliminated)
 	net.mafia_pick.connect(_on_mafia_pick)
 	net.emote.connect(_on_emote)
+	net.vote_weight.connect(_on_vote_weight)
 	if hud != null:
 		hud.acted.connect(_on_act)
 		hud.emoted.connect(_on_emoted)
+		hud.extra_acted.connect(_on_extra)
 
 	lobby = Lobby.new()
 	add_child(lobby)
@@ -332,6 +340,11 @@ func _on_room_state(d: Dictionary) -> void:
 	var code := str(d.get("code", ""))
 	if not code.is_empty():
 		_joined_code = code
+	# Хожуу орсон, эсвэл дахин холбогдсон хүн ч илчлэлтийг ХАРНА.
+	if d.get("revealed") is Array:
+		_revealed = d.get("revealed")
+		if table != null:
+			table.set_revealed(_revealed)
 	_phase = str(d.get("phase", _phase))
 	_players = d.get("players", []) if d.get("players") is Array else []
 
@@ -365,6 +378,8 @@ func _on_room_state(d: Dictionary) -> void:
 		if _players.size() <= 1:
 			if solo_watcher:
 				net.set_option("watcher", true)
+			if solo_mayor:
+				net.set_option("mayor", true)
 			net.add_bots(solo_bots)
 		elif _players.size() >= MIN_PLAYERS:
 			_solo_done = true
@@ -482,6 +497,20 @@ func _on_emote(seat: int, kind: String, target_seat: int) -> void:
 	table.emote(seat - 1, kind, target_seat - 1 if target_seat > 0 else -1)
 
 
+## Нэг суудлын саналын жин өөрчлөгдөв — дарга илчиллээ.
+##
+## Энэ нь НИЙТИЙН явдал: өдөр, бүх хүний өмнө болдог. Тиймээс бүх
+## тоглогчийн дэлгэц дээр ижил зүйл гарна.
+func _on_vote_weight(seat: int, weight: int) -> void:
+	if seat <= 0:
+		return
+	if weight > 1 and not _revealed.has(seat):
+		_revealed.append(seat)
+	if table != null:
+		table.set_revealed(_revealed)
+	_notify("%d-р суудал ӨӨРИЙГӨӨ ИЛЧИЛЛЭЭ — түүний санал %d." % [seat, weight])
+
+
 func _on_voice(d: Dictionary) -> void:
 	_can_speak = bool(d.get("canSpeak", false))
 	# Микрофоныг СЕРВЕР нээнэ. Апп өөрөө шийддэггүй — эс бөгөөс
@@ -521,6 +550,16 @@ func _on_act() -> void:
 		return
 	_submitted = true
 	_refresh()
+
+
+## Нэмэлт товч: дарга өөрийгөө илчилнэ.
+##
+## БУЦААХГҮЙ үйлдэл тул гол товчноос ТУСДАА байрлана — санал өгөх гэж
+## байгаад дүрээ илчилж болохгүй.
+func _on_extra() -> void:
+	if net == null or not net.is_open():
+		return
+	net.day_action("reveal")
 
 
 ## Дохионы товч дарагдав.
@@ -580,7 +619,21 @@ func _refresh() -> void:
 		"action": "" if _submitted else label,
 		"action_ready": table != null and table.selected_seat() >= 0,
 		"can_emote": _can_emote_now(),
+		"extra": _extra_label(),
 	})
+
+
+## Нэмэлт товчны бичвэр. Хоосон бол товч харагдахгүй.
+##
+## ЗӨВХӨН ӨӨРИЙН дүрээс хамаарна — сервер бусдын дүрийг илгээдэггүй.
+func _extra_label() -> String:
+	if _my_role != "mayor" or not _am_alive():
+		return ""
+	if _phase != "day" and _phase != "vote":
+		return ""
+	if _my_seat > 0 and _revealed.has(_my_seat):
+		return ""
+	return "ИЛЧЛЭХ · САНАЛ ×3"
 
 
 ## Би амьд байна уу.

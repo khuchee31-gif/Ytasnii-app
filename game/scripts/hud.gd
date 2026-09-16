@@ -24,6 +24,9 @@ signal acted
 ## Дохионы товч дарагдав.
 signal emoted(kind: String)
 
+## Нэмэлт товч дарагдав (одоогоор: дарга илчлэх).
+signal extra_acted
+
 const PAD := 24
 const AMBER := Color(0.92, 0.66, 0.34)
 const COLD := Color(0.42, 0.78, 0.86)
@@ -35,6 +38,11 @@ var _hint := Label.new()
 var _mic := Label.new()
 var _name := Label.new()
 var _act := Button.new()
+
+## ГОЛ товчны ДЭЭР. Хоёр өөр шийдвэрийг нэг товчинд багтаавал тоглогч
+## санал өгөх гэж байгаад дүрээ илчлэх эрсдэлтэй — буцаах боломжгүй
+## үйлдэлд тэр нь ноцтой.
+var _extra := Button.new()
 var _rule := ColorRect.new()
 
 ## Дохионы товчлуурууд.
@@ -149,6 +157,15 @@ func _ready() -> void:
 	root.add_child(_act)
 	_style_button()
 
+	_extra.text = ""
+	_extra.add_theme_font_size_override("font_size", 24)
+	_extra.focus_mode = Control.FOCUS_NONE
+	_band(_extra, Control.PRESET_BOTTOM_RIGHT, -400, -184, -PAD, -124)
+	_extra.pressed.connect(func() -> void: extra_acted.emit())
+	_extra.visible = false
+	root.add_child(_extra)
+	_style(_extra, 10, 14)
+
 
 ## Хяналтыг дэлгэцийн ирмэгт БЭХЛЭНЭ, тогтмол цэгээр биш.
 ##
@@ -248,6 +265,10 @@ func apply(state: Dictionary) -> void:
 	_act.text = label
 	_act.visible = not label.is_empty()
 	_act.disabled = not bool(state.get("action_ready", false))
+
+	var extra: String = str(state.get("extra", ""))
+	_extra.text = extra
+	_extra.visible = not extra.is_empty()
 
 	_can_emote = bool(state.get("can_emote", false))
 	_sync_emotes()

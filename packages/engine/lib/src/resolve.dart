@@ -363,7 +363,7 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
 
   // ---- 170 winCheck -------------------------------------------------------
   w.enter(170);
-  w.win = evaluateWin(w.alive, s0.setup);
+  w.win = evaluateWin(w.alive, s0.setup, revealedMayors: s0.revealedMayors);
 
   // ---- Тайлан угсрах ------------------------------------------------------
   final List<Death> deaths = List<Death>.unmodifiable(w.deaths);
@@ -564,7 +564,11 @@ List<Cue> buildCues(List<Death> deaths, List<Seat> whisper) {
 
 /// `M == 0` → хотынхон; `M >= T` → мафи (шөнө-эхэлдэг конвенц); бусад → `none`.
 /// Хоёулаа зэрэг үнэн байж ЧАДАХГҮЙ — инвариант N10.
-WinState evaluateWin(Set<Seat> alive, Setup setup) {
+WinState evaluateWin(
+  Set<Seat> alive,
+  Setup setup, {
+  Set<Seat> revealedMayors = const <Seat>{},
+}) {
   int m = 0;
   for (final Seat s in alive) {
     final Role? r = setup.roleOf(s);
@@ -572,6 +576,17 @@ WinState evaluateWin(Set<Seat> alive, Setup setup) {
   }
   final int t = alive.length - m;
   if (m == 0) return WinState.hotynhon;
-  if (m >= t) return WinState.mafi;
+
+  // ИЛЧИЛСЭН ДАРГА нь хоёр нэмэлт саналтай. Мафийн «ялалт» нь
+  // тоогоороо тэнцээд өдрийн саналыг дийлнэ гэсэн үг; хотод нэмэлт
+  // санал байвал тэр дүгнэлт ХУДАЛ болно.
+  //
+  // Илчлэлт нь НИЙТИЙНХ тул үүнийг уншсанаар нууц юу ч задрахгүй.
+  // Зөвхөн АМЬД, ҮНЭХЭЭР дарга байгаа суудлыг тооцно.
+  int extra = 0;
+  for (final Seat s in revealedMayors) {
+    if (alive.contains(s) && setup.roleOf(s) == Role.mayor) extra += 2;
+  }
+  if (m >= t + extra) return WinState.mafi;
   return WinState.none;
 }

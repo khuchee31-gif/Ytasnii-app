@@ -60,6 +60,7 @@ class BotView {
     this.myAllies = const <int>{},
     this.allyPicks = const <int, int>{},
     this.liveVotes = const <int, int>{},
+    this.iAmRevealed = false,
   });
 
   final int mySeat;
@@ -84,6 +85,9 @@ class BotView {
   /// Өнөөдрийн санал: саналлагчийн суудал → бай. НИЙТИЙН мэдээлэл.
   final Map<int, int> liveVotes;
 
+  /// Би аль хэдийн илчилсэн үү. НИЙТИЙН мэдээлэл (`roomState.revealed`).
+  final bool iAmRevealed;
+
   final BotMemory mem;
 }
 
@@ -100,6 +104,11 @@ class BotNight extends BotCommand {
 class BotVote extends BotCommand {
   const BotVote(this.targetSeat);
   final int targetSeat;
+}
+
+/// Өдрийн үйлдэл: дарга өөрийгөө илчилнэ.
+class BotReveal extends BotCommand {
+  const BotReveal();
 }
 
 /// Дохио. `targetSeat` нь зөвхөн заалтад утгатай.
@@ -181,12 +190,36 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
       return null;
 
     case NetPhase.vote:
+      // ДАРГА: над руу санал ирж байвал илчилнэ. Энэ нь яг тэр мөчид
+      // хийх ёстой зүйл — илчлэлт нь түүний амийг аврах ганц арга.
+      //
+      // `myRole`-ыг уншиж байгаа нь ЗӨВ: бот ӨӨРИЙН дүрээр үйлддэг.
+      // Хориотой нь БУСДЫН дүрийг унших.
+      if (v.myRole == eng.Role.mayor && !v.iAmRevealed && _underFire(v)) {
+        return const BotReveal();
+      }
       final int? t = _votePick(v, rng);
       return t == null ? null : BotVote(t);
 
     default:
       return null;
   }
+}
+
+/// Над руу хамгийн олон санал ирж байна уу.
+///
+/// ЗӨВХӨН НИЙТИЙН мэдээллээс: `liveVotes` нь `voteState`-ээр бүх утас
+/// руу явдаг.
+bool _underFire(BotView v) {
+  if (v.liveVotes.isEmpty) return false;
+  final Map<int, int> tally = <int, int>{};
+  for (final int t in v.liveVotes.values) {
+    tally[t] = (tally[t] ?? 0) + 1;
+  }
+  final int mine = tally[v.mySeat] ?? 0;
+  if (mine == 0) return false;
+  final int top = tally.values.reduce((int a, int b) => a > b ? a : b);
+  return mine >= top;
 }
 
 /// Ажиглагч хэнийг ажиглах вэ.

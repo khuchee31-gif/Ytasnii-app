@@ -347,7 +347,7 @@ void main() {
         if (sr == null) continue;
         expect(sr, isA<List<Object?>>());
         for (final Object? x in sr as List<Object?>) {
-          expect(<String>{'watcher'}.contains(x), isTrue,
+          expect(<String>{'watcher', 'mayor'}.contains(x), isTrue,
               reason: '«$x» нь зөвшөөрөгдсөн нэмэлт дүр биш');
         }
       }

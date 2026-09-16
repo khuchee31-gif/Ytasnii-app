@@ -35,6 +35,9 @@ signal mafia_pick(data: Dictionary)
 ## Хэн нэг дохио гаргав. НИЙТИЙНХ.
 signal emote(seat: int, kind: String, target_seat: int)
 
+## Нэг суудлын саналын жин өөрчлөгдөв (дарга илчиллээ).
+signal vote_weight(seat: int, weight: int)
+
 ## Протоколын хувилбар. `packages/protocol/lib/src/messages.dart`-тай
 ## ЯГ тэнцүү байх ёстой. Зөрвөл сервер шууд татгалзана — «хагас
 ## ойлголцсон» тоглолт бол хамгийн муу төрлийн алдаа.
@@ -264,6 +267,11 @@ func remove_bot() -> void:
 	send("removeBot", {})
 
 
+## ӨДРИЙН үйлдэл. Одоогоор ганц: `"reveal"` — дарга өөрийгөө илчилнэ.
+func day_action(kind: String) -> void:
+	send("dayAction", {"kind": kind})
+
+
 ## Өрөөний нэмэлт дүрийг асаах/унтраах. ЗӨВХӨН эзэн, ЗӨВХӨН лоббид —
 ## сервер шалгана.
 func set_option(key: String, on: bool) -> void:
@@ -312,6 +320,8 @@ func _receive(raw: String) -> void:
 		"voiceGrant": voice_grant.emit(d)
 		"eliminated": eliminated.emit(d)
 		"mafiaPick": mafia_pick.emit(d)
+		"voteWeight": vote_weight.emit(int(d.get("seat", 0)),
+			int(d.get("weight", 1)))
 		"emote": emote.emit(int(d.get("seat", 0)), str(d.get("kind", "")),
 			int(d.get("targetSeat", 0)) if d.get("targetSeat") != null else 0)
 		"error": server_error.emit(str(d.get("code", "")), d)

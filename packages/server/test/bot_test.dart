@@ -165,6 +165,10 @@ void main() {
             'myAllies': 'Set<int>',
             'allyPicks': 'Map<int, int>',
             'liveVotes': 'Map<int, int>',
+            // НИЙТИЙН: `roomState.revealed` нь бүх утас руу явдаг.
+            // Өөрийгөө илчилсэн эсэхээ мэдэхгүй бол дарга бот дахин
+            // дахин илчлэхийг оролдоно.
+            'iAmRevealed': 'bool',
             'mem': 'BotMemory',
           });
     });

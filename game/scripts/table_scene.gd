@@ -140,6 +140,8 @@ var _focus := -1                  # бүгд хэн рүү харах вэ (-1 =
 var _buzz := -1                   # сая эмоци гаргасан хүн
 var _buzz_t := 0.0
 var _emote_at: Dictionary = {}    # суудал → хэн рүү заасан
+var _revealed: Dictionary = {}    # илчилсэн даргын суудлууд
+var _mayor_marks: Dictionary = {} # суудал → ширээн дээрх тэмдэг
 # Зөвхөн хөгжүүлэлт: зураг авахад эмоци дуусчихсан байдаг тул давтана.
 var _dev_emote: Array = []
 
@@ -187,6 +189,10 @@ func _ready() -> void:
 		_apply_alive()
 	if _arg("pick", -1.0) >= 0.0:
 		select_seat(int(_arg("pick", 0.0)))
+	# Хөгжүүлэлтийн шалгалт: илчилсэн даргын тэмдгийг харах.
+	var rev := int(_arg("reveal", -1.0))
+	if rev >= 0:
+		set_revealed([rev + 1])
 	# Хөгжүүлэлтийн шалгалт: эмоцийг ЗУРАГ дээр харах.
 	#   tools/render.sh -- emote=point from=2 at=6 hold=1 out=a.png
 	var em := _arg_str("emote", "")
@@ -353,6 +359,8 @@ func _rebuild_stage() -> void:
 	_build_seats()
 	_cam = _build_camera()
 	_apply_alive()
+	_mayor_marks.clear()
+	_apply_revealed()
 	if _selected >= 0:
 		select_seat(_selected)
 
@@ -842,6 +850,7 @@ func _build_hud() -> void:
 	sess.verbose = _arg("verbose", 0.0) > 0.5
 	sess.solo_bots = int(_arg("solo", 0.0))
 	sess.solo_watcher = _arg("watcher", 0.0) > 0.5
+	sess.solo_mayor = _arg("mayor", 0.0) > 0.5
 	# Нэрийг ХООСОН-оор эхлүүлнэ. Утсан дээр тушаалын мөр байхгүй тул
 	# үндсэн утга ҮРГЭЛЖ ялдаг — талбарт бичээстэй «Зочин» нь хэн
 	# нэгний нэр мэт харагдаж, хэрэглэгчийг эргэлзүүлж байв.
@@ -989,7 +998,54 @@ func _seat_name(seat: int) -> String:
 	# Суудлын дугаар ҮРГЭЛЖ харагдана: төстэй хоёр нэр байвал «Бат мафи»
 	# гэдэг утгагүй, «3. Бат мафи» гэдэг тодорхой.
 	var tag: String = " · БОТ" if bool(_bots.get(seat, false)) else ""
+	# ИЛЧИЛСЭН ДАРГА. Энэ нь дүр алдагдаж байгаа хэрэг БИШ: тэр өөрөө,
+	# өдөр, бүх хүний өмнө зарласан. Харин ХАРАГДАХ ёстой — эс бөгөөс
+	# гурван санал хаанаас гарч ирснийг хэн ч ойлгохгүй.
+	if _revealed.has(seat):
+		tag += " · ДАРГА ×3"
 	return "%d. %s%s" % [seat + 1, n, tag]
+
+
+## Өөрийгөө илчилсэн даргын суудлууд (СЕРВЕРИЙН дугаар, 1-ээс).
+func set_revealed(seats: Array) -> void:
+	var next: Dictionary = {}
+	for s in seats:
+		next[int(s) - 1] = true
+	if next.keys() == _revealed.keys():
+		return
+	_revealed = next
+	_apply_revealed()
+
+
+## Илчилсэн даргын өмнө ширээн дээр гэрэлтэх тэмдэг.
+##
+## ТЭМДЭГ НЬ ШИРЭЭН ДЭЭР, дүр дээр БИШ. Толгой дээр хөвөх сум нь
+## харанхуй өрөөний мэдрэмжийг эвднэ; ширээн дээрх зүйл нь бодит эд
+## мэт — тэнд гэрэл тусав гэсэн үг.
+func _apply_revealed() -> void:
+	for seat in _mayor_marks:
+		var old_node: Node = _mayor_marks[seat]
+		if is_instance_valid(old_node):
+			old_node.queue_free()
+	_mayor_marks.clear()
+	if _stage == null:
+		return
+	for seat in _revealed:
+		var a := _angle_of(int(seat))
+		var m := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.26, 0.008, 0.05)
+		m.mesh = box
+		m.material_override = MatLib.glow(Color(0.20, 0.13, 0.04),
+			Color(0.95, 0.68, 0.22), 0.9)
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# ШИРЭЭНИЙ ЧӨЛӨӨТ ХЭСЭГТ. Суудлын ирмэгт тавьбал хүний гарын
+		# доор орж, харагдахаа болино (зураг авч шалгасан).
+		m.position = Vector3(sin(a) * (TABLE_R - 0.52), TABLE_H + 0.004,
+			cos(a) * (TABLE_R - 0.52))
+		m.rotation.y = -a
+		_stage.add_child(m)
+		_mayor_marks[seat] = m
 
 
 # --- Тоглогчийн жагсаалт -----------------------------------------------------

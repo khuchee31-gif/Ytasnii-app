@@ -349,6 +349,13 @@ abstract final class C2S {
   /// цацагдана — нуух ёстой нь ХЭН аль дүртэй гэдэг.
   static const String setOption = 'setOption';
 
+  /// ӨДРИЙН үйлдэл. Ачаалал: `{"kind": "reveal"}`.
+  ///
+  /// Одоогоор ганц үйлдэл: Хотын дарга өөрийгөө илчилнэ. Ерөнхий нэр
+  /// ЗОРИУДААР — `C2S.mayorReveal` гэж нэрлэвэл сүлжээгээ ажиглаж буй
+  /// хүн «энэ утас даргынх» гэж уншина, дарж ч амжаагүй байхад нь.
+  static const String dayAction = 'dayAction';
+
   /// Дохио гаргах. Ачаалал: `{"kind": "point", "targetSeat": n|null}`.
   ///
   /// `targetSeat` нь зөвхөн `point`-д утгатай. Бусад дохионд сервер
@@ -406,6 +413,14 @@ abstract final class S2C {
   /// ЗӨВХӨН мафид: хамтрагч хэн рүү чиглэснийг харуулна.
   static const String mafiaPick = 'mafiaPick';
 
+  /// Нэг суудлын САНАЛЫН ЖИН өөрчлөгдөв. `{"seat": n, "weight": 3}`.
+  ///
+  /// НИЙТИЙНХ бөгөөд тэр нь ЗӨВ: илчлэлт нь өдөр, бүх хүний өмнө
+  /// болдог — нуух зүйл байхгүй. Мессежийн нэр нь ДҮРИЙГ нэрлэхгүй:
+  /// «жин нь гурав болов» гэдэг нь харагдах баримт, «дарга» гэдэг нь
+  /// тайлбар. Хожим өөр дүр саналын жинд нөлөөлбөл ижил суваг ажиллана.
+  static const String voteWeight = 'voteWeight';
+
   /// Хэн нэг дохио гаргав. НИЙТИЙНХ — өрөөнд байгаа бүх хүн ЯГ үүнийг
   /// нүдээрээ харах ёстой тул нууцлах зүйлгүй.
   /// `{"seat": n, "kind": "point", "targetSeat": n|null}`.
@@ -427,6 +442,9 @@ abstract final class ErrCode {
   static const String gameInProgress = 'gameInProgress';
   static const String notHost = 'notHost';
   static const String notYourTurn = 'notYourTurn';
+
+  /// Тухайн дүрд байхгүй үйлдэл. (Ж: дарга биш хүн илчлэх гэв.)
+  static const String notYourAbility = 'notYourAbility';
   static const String invalidTarget = 'invalidTarget';
   static const String tooFewPlayers = 'tooFewPlayers';
   /// ХЭРЭГЛЭГДЭХГҮЙ — одоо давхардсан нэрийг дугаарлана (`uniqueName`).

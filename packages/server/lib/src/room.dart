@@ -108,6 +108,22 @@ class GameRoom {
 
   bool get optWatcher => _optWatcher;
 
+  /// Хотын даргатай тоглох уу.
+  bool _optMayor = false;
+
+  bool get optMayor => _optMayor;
+
+  /// Өөрийгөө ИЛЧИЛСЭН даргын суудлууд. НИЙТИЙН мэдээлэл.
+  final Set<int> _revealed = <int>{};
+
+  Set<int> get revealedSeats => Set<int>.unmodifiable(_revealed);
+
+  /// Тухайн суудлын саналын ЖИН.
+  ///
+  /// Илчилсэн дарга гурав, бусад нэг. Сервер Л үүнийг мэднэ — апп
+  /// тоолж харуулж болох ч эцсийн тоолол ЭНД болно.
+  int voteWeightOf(int seat) => _revealed.contains(seat) ? 3 : 1;
+
   /// Ботын өрөөнд үе шатыг богиносгоно.
   ///
   /// Нэг өдөр-шөнийн бүтэн эргэлт 230 секунд. Ганцаараа туршиж байгаа
@@ -391,6 +407,8 @@ class GameRoom {
     switch (key) {
       case 'watcher':
         _optWatcher = on;
+      case 'mayor':
+        _optMayor = on;
       default:
         return const <Outbound>[];
     }
@@ -491,6 +509,39 @@ class GameRoom {
     return <Outbound>[_voteState()];
   }
 
+  /// ӨДРИЙН үйлдэл. Одоогоор ганц: дарга өөрийгөө илчилнэ.
+  ///
+  /// НЭГ УДАА, БУЦААХГҮЙ. Илчилсэн хүн мафийн эхний бай болно — тэр нь
+  /// эрсдэл; хариуд нь түүний санал гурав болно. Тэр солилцоо нь дүрийн
+  /// бүх утга учир тул «буцаах» товч байж БОЛОХГҮЙ.
+  List<Outbound> dayAction(PlayerId id, String kind, int nowMs) {
+    final PublicPlayer? p = _players[id];
+    final _Secret? me = _secrets[id];
+    if (p == null || me == null || !p.alive) {
+      return <Outbound>[_err(id, ErrCode.notYourTurn)];
+    }
+    // ӨДӨР эсвэл САНАЛ ХУРААЛТЫН үед. Санал хураалтын дундуур илчлэх нь
+    // тоглоомын хамгийн хурц мөч — түүнийг хаах шалтгаан байхгүй.
+    if (_phase != NetPhase.day && _phase != NetPhase.vote) {
+      return <Outbound>[_err(id, ErrCode.notYourTurn)];
+    }
+    if (kind != 'reveal') return const <Outbound>[];
+    if (me.role != eng.Role.mayor) {
+      return <Outbound>[_err(id, ErrCode.notYourAbility)];
+    }
+    if (!_revealed.add(me.seat)) {
+      return <Outbound>[_err(id, ErrCode.notYourTurn)];
+    }
+    return <Outbound>[
+      Outbound.all(Envelope(S2C.voteWeight, <String, Object?>{
+        'seat': me.seat,
+        'weight': voteWeightOf(me.seat),
+      })),
+      ..._stateForAll(),
+      if (_phase == NetPhase.vote) _voteState(),
+    ];
+  }
+
   /// Дохио (эмоци) гаргах.
   ///
   /// НИЙТИЙНХ: өрөөнд байгаа бүх хүн үүнийг НҮДЭЭРЭЭ харах ёстой зүйл
@@ -581,6 +632,8 @@ class GameRoom {
           out.addAll(vote(b.id, targetSeat));
         case BotEmote(:final String kind, :final int? targetSeat):
           out.addAll(emote(b.id, kind, targetSeat, nowMs));
+        case BotReveal():
+          out.addAll(dayAction(b.id, 'reveal', nowMs));
         case null:
           break;
       }
@@ -648,6 +701,7 @@ class GameRoom {
           : const <int>{},
       allyPicks: picks,
       liveVotes: votes,
+      iAmRevealed: _revealed.contains(me.seat),
       mem: b.mem,
     );
   }
@@ -670,7 +724,8 @@ class GameRoom {
 
   List<Outbound> _deal(int nowMs) {
     final int n = _players.length;
-    final eng.Roster roster = eng.rosterFor(n, watcher: _optWatcher);
+    final eng.Roster roster =
+        eng.rosterFor(n, watcher: _optWatcher, mayor: _optMayor);
     final List<eng.Role> deck = eng.deckFor(roster);
 
     final eng.DealResult d = eng.deal(
@@ -808,6 +863,7 @@ class GameRoom {
           : _orderPerm,
       lastHealTarget: _lastHeal,
       selfHealUsed: _selfHealUsed,
+      revealedMayors: _revealed,
     );
     _enter(NetPhase.nightFalls, nowMs, _ms(PhaseMs.nightFalls), out);
   }
@@ -923,9 +979,12 @@ class GameRoom {
       }
     }
 
+    // ЖИНТЭЙ тоолол. Илчилсэн дарга гурван санал.
     final Map<int, int> tally = <int, int>{};
-    for (final int seat in _votes.values) {
-      tally[seat] = (tally[seat] ?? 0) + 1;
+    for (final MapEntry<PlayerId, int> e in _votes.entries) {
+      final int? from = _players[e.key]?.seat;
+      if (from == null) continue;
+      tally[e.value] = (tally[e.value] ?? 0) + voteWeightOf(from);
     }
     int? outSeat;
     if (tally.isNotEmpty) {
@@ -957,21 +1016,18 @@ class GameRoom {
   /// Хөдөлгүүрийн `resolveNight` нь ШӨНИЙН дараа шалгадаг. Өдрийн хасалт
   /// нь түүний гадна болдог тул ижил дүрмийг энд хэрэглэнэ.
   void _recomputeWin() {
-    int mafi = 0;
-    int town = 0;
-    for (final MapEntry<PlayerId, _Secret> e in _secrets.entries) {
-      if (!(_players[e.key]?.alive ?? false)) continue;
-      if (eng.factionOf(e.value.role) == eng.Faction.mafi) {
-        mafi++;
-      } else {
-        town++;
-      }
-    }
-    if (mafi == 0) {
-      _win = eng.WinState.hotynhon;
-    } else if (mafi >= town) {
-      _win = eng.WinState.mafi;
-    }
+    // ХӨДӨЛГҮҮРЭЭС АСУУНА, энд дахин бичихгүй.
+    //
+    // Өмнө нь ижил дүрэм хоёр газар бичигдсэн байв. Илчилсэн дарга
+    // гэх мэт тэнцлийг өөрчилдөг дүр нэмэгдэхэд тэр хоёр нь чимээгүй
+    // салж, өдрийн хасалтын дараа өөр, шөнийн дараа өөр хариу гарна.
+    final Set<int> alive = _players.values
+        .where((PublicPlayer p) => p.alive && p.seat != null)
+        .map((PublicPlayer p) => p.seat!)
+        .toSet();
+    final eng.WinState w = eng.evaluateWin(alive, _setup!,
+        revealedMayors: _revealed);
+    if (w != eng.WinState.none) _win = w;
   }
 
   void _finish(int nowMs, List<Outbound> out) {
@@ -1048,7 +1104,11 @@ class GameRoom {
         // алдагдлын тест түүнийг ТУСАД НЬ, цагаан жагсаалтаар шалгана.
         'setupRoles': <String>[
           if (_optWatcher) eng.Role.watcher.name,
+          if (_optMayor) eng.Role.mayor.name,
         ],
+        // Илчилсэн суудлууд — НИЙТИЙНХ. Дүрийн нэр агуулахгүй, зөвхөн
+        // суудлын дугаар.
+        'revealed': _revealed.toList()..sort(),
           'hostId': hostId,
           'isPublic': isPublic,
           'players':
@@ -1088,6 +1148,11 @@ class GameRoom {
         Envelope(S2C.voteState, <String, Object?>{
           'votes': _votes.map((PlayerId k, int v) =>
               MapEntry<String, Object?>(_secrets[k]?.seat.toString() ?? k, v)),
+          // Жинтэй тоолол — апп өөрөө тоолохгүй. Илчилсэн дарга байхад
+          // «гурван санал» гэдгийг ширээн дээр ХАРАХ ёстой.
+          'weights': <String, Object?>{
+            for (final int s in _revealed) '$s': voteWeightOf(s),
+          },
         }),
       );
 

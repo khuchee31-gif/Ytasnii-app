@@ -38,6 +38,15 @@ enum Role {
   /// v2 — Ажиглагч. Нэг суудлыг сонгоод, тэр шөнө ХЭН ТҮҮН РҮҮ ОЧСОНЫГ
   /// үүрээр мэднэ. Өөрөө зочлолын бүртгэлд ОРОХГҮЙ (resolve.dart §130).
   watcher,
+
+  /// v2 — Хотын дарга. ШӨНИЙН ҮЙЛДЭЛ БАЙХГҮЙ (иргэнтэй яг адил тул
+  /// шөнийн цагаар ялгарахгүй). Өдөр НЭГ УДАА өөрийгөө илчилж болно;
+  /// тэр цагаас хойш түүний санал ГУРАВ болно.
+  ///
+  /// Илчлэлт нь НИЙТИЙНХ — тиймээс ялалтын нөхцөл түүнийг мэдэх ёстой
+  /// (`evaluateWin`). Эс бөгөөс мафи тоогоороо тэнцсэн ч дарга саналаар
+  /// тэднийг дийлсээр байх бөгөөд тоглоом дуусахгүй.
+  mayor,
 }
 
 enum Faction { mafi, hotynhon }
@@ -112,6 +121,9 @@ Ability abilityOf(Role r) => switch (r) {
       Role.detective => Ability.investigate,
       Role.citizen => Ability.suspect,
       Role.watcher => Ability.watch,
+      // ЯГ ИРГЭНИЙНХ. Шөнийн үйлдэл нэмбэл дарга шөнийн цагаар ялгарч,
+      // түүний хүч нь ӨДРИЙНХ байхаа болино.
+      Role.mayor => Ability.suspect,
     };
 
 /// Эрэмбийн шатны хувин (GDD-05 §3.2).
@@ -223,6 +235,13 @@ class NightState {
   /// Тэнцэл тайлах ЦОРЫН ГАНЦ эх сурвалж — санамсаргүй тэнцэл хориотой.
   final List<Seat> orderPerm;
 
+  /// Өөрийгөө ИЛЧИЛСЭН Хотын даргын суудлууд.
+  ///
+  /// НИЙТИЙН мэдээлэл — илчлэлт нь өдөр, бүх хүний өмнө болдог. Ялалтын
+  /// нөхцөлд хэрэгтэй: илчилсэн дарга гурван саналтай тул мафи
+  /// тоогоороо тэнцсэн ч өдрийг дийлэхгүй.
+  final Set<Seat> revealedMayors;
+
   const NightState({
     required this.setup,
     required this.night,
@@ -231,6 +250,7 @@ class NightState {
     required this.orderPerm,
     this.lastHealTarget = const {},
     this.selfHealUsed = const {},
+    this.revealedMayors = const {},
   });
 
   int rank(Seat s) => orderPerm.indexOf(s);
