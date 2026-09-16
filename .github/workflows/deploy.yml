@@ -1,8 +1,18 @@
 name: Deploy to GitHub Pages
 
+# GDD-19 §1 гурван согог олсныг энд зассан:
+#   1. `main` салбар руу push хийхэд ажиллахаар бичигдсэн атлаа тэр салбар
+#      REPO-Д ОГТ БАЙГААГҮЙ → workflow хэзээ ч ажиллаагүй.
+#   2. Pages хэзээ ч асаагүй (`has_pages: false`).
+#   3. `path: "."` — бүх repo-г түүхийгээр нь байршуулна. Jekyll ажиллахгүй тул
+#      `docs/`-ийн 37 бүлэг вэб хуудас биш, ТАТАГДДАГ .md файл болж харагдана.
+#
+# Одоо: зөвхөн маркетингийн хуудсыг цуглуулж байршуулна. `docs/` нь GitHub
+# дээрээ markdown-аар уншигдана — Pages-ээр дамжуулах шаардлагагүй.
+
 on:
   push:
-    branches: ["claude/unclear-request-kgCmA", "main"]
+    branches: ["main", "claude/mafia-game-rules-gbdh82"]
   workflow_dispatch:
 
 permissions:
@@ -29,10 +39,21 @@ jobs:
         with:
           enablement: true
 
-      - name: Upload site
+      # Зөвхөн байршуулах ёстой файлуудыг нэг хавтаст цуглуулна.
+      # `docs/` энд ОРОХГҮЙ — 37 .md файлыг татагддаг болгох нь согог байсан.
+      - name: Сайтыг цуглуулах
+        run: |
+          mkdir -p _site
+          cp index.html style.css main.js _site/
+          # .nojekyll — Jekyll-ийн боловсруулалтыг унтрааж, доогуур зураастай
+          # нэртэй файлуудыг алгасахаас сэргийлнэ.
+          touch _site/.nojekyll
+          ls -la _site
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: _site
 
       - name: Deploy
         id: deployment

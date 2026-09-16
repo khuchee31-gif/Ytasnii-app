@@ -1,13 +1,15 @@
-name: engine
+name: engine + app
 
 on:
   push:
     paths:
       - 'packages/engine/**'
+      - 'app/**'
       - '.github/workflows/engine.yml'
   pull_request:
     paths:
       - 'packages/engine/**'
+      - 'app/**'
       - '.github/workflows/engine.yml'
 
 jobs:
@@ -50,3 +52,19 @@ jobs:
       - name: Хаалганы fuzz (200,000 seed)
         if: github.ref == 'refs/heads/main'
         run: FUZZ_SEEDS=200000 dart run tool/fuzz.dart
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      # GDD-19 — эхний гаргах хувилбар вэб тул build нь заавал ажиллах ёстой.
+      - run: flutter build web --release
