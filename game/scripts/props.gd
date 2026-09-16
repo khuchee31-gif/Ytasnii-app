@@ -223,6 +223,68 @@ static func dust(top_y: float, bottom_y: float, radius: float, count: int) -> CP
 
 # --- Неон --------------------------------------------------------------------
 
+## Тамхины утаа — үнсний савнаас нимгэн судал.
+##
+## ГЭРЛИЙН БАГАНЫН ДОТОР л утга учиртай: туяанд оршсон утаа нь агаарыг
+## ХАРАГДАХУЙЦ болгоно. Тоостой хамт ажиллаж, өрөөг хавтгай зургаас
+## орон зай болгоно.
+##
+## ЦӨӨН ТООС. Хорин бөөм хангалттай — олон бол утаа биш, манан болно.
+static func smoke(pos: Vector3) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.position = pos
+	p.amount = 14
+	p.lifetime = 5.2
+	p.preprocess = 4.0
+	p.randomness = 0.9
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.012
+	p.direction = Vector3(0, 1, 0)
+	p.spread = 7.0
+	p.gravity = Vector3(0.012, 0.030, -0.006)
+	p.initial_velocity_min = 0.020
+	p.initial_velocity_max = 0.055
+	# ХЭМЖЭЭГ ТОРООР өгнө, `scale_amount`-аар БИШ.
+	#
+	# Эхний оролдлого нь 1 м-ийн бөмбөгийг 0.05-аар хумихыг оролдсон
+	# боловч дэлгэц бүхэлдээ цагаан манан болсон (зураг авч шалгав).
+	# Жижиг тор + жижиг үржүүлэгч нь тодорхой бөгөөд алдаа гарах зайгүй.
+	p.scale_amount_min = 0.7
+	p.scale_amount_max = 1.8
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.25))
+	curve.add_point(Vector2(0.35, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	p.scale_amount_curve = curve
+	var q := QuadMesh.new()
+	q.size = Vector2(0.055, 0.055)
+	p.mesh = q
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(0.58, 0.50, 0.42, 0.14)
+	# ЗӨӨЛӨН ИРМЭГ. Дөрвөлжин тор дээр хавтгай өнгө тавибал утаа биш,
+	# цагаан хайрцаг харагдана (зураг авч шалгав). Радиаль шилжилт нь
+	# ирмэгийг уусгана — зураг файл хэрэггүй, кодоор үүснэ.
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 1))
+	g.set_color(1, Color(1, 1, 1, 0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = 48
+	tex.height = 48
+	m.albedo_texture = tex
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.disable_receive_shadows = true
+	p.material_override = m
+	p.draw_order = CPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	return p
+
+
 ## Хананы неон — ГУДАМЖНЫ шинж тэмдэг.
 ##
 ## Хоёр үүрэгтэй: (1) харанхуйд хүйтэн ирмэгийн гэрэл өгч, хүний хар
@@ -247,5 +309,6 @@ static func neon(pos: Vector3, tint: Color) -> Node3D:
 	l.omni_attenuation = 1.8
 	l.shadow_enabled = false
 	l.position = Vector3(0, 0.34, 0.24)
+	l.name = "glow"
 	n.add_child(l)
 	return n

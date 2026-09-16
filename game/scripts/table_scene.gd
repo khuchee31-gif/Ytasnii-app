@@ -186,6 +186,8 @@ var _tally: Dictionary = {}       # суудал → ирсэн саналын �
 var _candidates: Dictionary = {}  # дахин саналын нэрс (хоосон = чөлөөт)
 
 # --- Үе шатны АЯС ------------------------------------------------------------
+var _lamp_pivot: Node3D = null
+var _neon_light: OmniLight3D = null
 var _key: SpotLight3D = null
 var _fill: SpotLight3D = null
 var _rims: Array[OmniLight3D] = []
@@ -194,6 +196,7 @@ var _grade: ShaderMaterial = null
 
 var _mood: Dictionary = {}        # одоогийн (хэлбэлзэж буй) утгууд
 var _mood_to: Dictionary = {}     # очих утгууд
+var _neon_energy := 1.9           # неоны анхны хүч
 var _blackout := 0.0              # үхлийн харанхуй (сек)
 var _pending_dead: Array = []     # харанхуйн дунд унах суудлууд
 var _tally_top := 0               # хамгийн их нь
@@ -380,7 +383,11 @@ func _build_room() -> void:
 func _build_backdrop(hw: float, hd: float) -> void:
 	var z := hd - 0.03
 	# Неон — толгойн хажууд, хүйтэн ирмэг өгнө.
-	add_child(Props.neon(Vector3(-0.58, 1.18, z), Color(0.22, 0.80, 0.92)))
+	var sign_node := Props.neon(Vector3(-0.58, 1.18, z), Color(0.22, 0.80, 0.92))
+	add_child(sign_node)
+	_neon_light = sign_node.get_node_or_null("glow") as OmniLight3D
+	if _neon_light != null:
+		_neon_energy = _neon_light.light_energy
 
 	# Хаалттай төмөр хаалт — банзан хана хэвтээ судалтай болно.
 	var shutter := MatLib.metal("shutter", Color(0.115, 0.112, 0.108), 313)
@@ -674,7 +681,18 @@ func _angle_of(seat: int) -> float:
 # --- Гэрэл -------------------------------------------------------------------
 
 func _build_lamp() -> void:
-	add_child(Props.lamp(LAMP_Y, CEIL))
+	# БҮХ ЧИЙДЭНГИЙН ЭД АНГИ НЭГ ТУЛГУУРТ.
+	#
+	# Чийдэн МАШ БАГА ганхана (±0.35°, 9 секундын мөчлөг). Тэр нь бараг
+	# анзаарагдахгүй ч сүүдрүүд аажим мөлхөж, өрөө «амьсгалдаг» болно.
+	# Зогсонги сүүдэр нь зургийг ЗУРАГ болгодог; хөдөлгөөнтэй сүүдэр нь
+	# ОРОН ЗАЙ болгоно.
+	_lamp_pivot = Node3D.new()
+	_lamp_pivot.position = Vector3(0, CEIL, 0)
+	add_child(_lamp_pivot)
+	var lamp_node := Props.lamp(LAMP_Y, CEIL)
+	lamp_node.position.y -= CEIL
+	_lamp_pivot.add_child(lamp_node)
 
 	# ГОЛ гэрэл — ЦАЦРАГ биш, ДООШ ЧИГЛЭСЭН туяа.
 	#
@@ -696,7 +714,8 @@ func _build_lamp() -> void:
 	key.shadow_bias = 0.028
 	key.shadow_normal_bias = 1.2
 	key.light_specular = 0.55
-	add_child(key)
+	key.position.y -= CEIL
+	_lamp_pivot.add_child(key)
 	_key = key
 
 	# ХОЁР ДАХЬ туяа — ижил цэгээс, өргөн, сул. Тусдаа эх үүсвэр мэт
@@ -716,14 +735,17 @@ func _build_lamp() -> void:
 	fill.spot_attenuation = 1.25
 	fill.shadow_enabled = false
 	fill.light_specular = 0.25
-	add_child(fill)
+	fill.position.y -= CEIL
+	_lamp_pivot.add_child(fill)
 	_fill = fill
 
 	# Гэрлийн багана + тоос. Энэ хоёр нь харанхуйд ГҮН үүсгэнэ — тоглоом
 	# хавтгай зураг биш, АГААРТАЙ орон зай мэт болно.
 	if _arg("shaft", 1.0) > 0.5:
-		add_child(Props.shaft(LAMP_Y + 0.02, TABLE_H - 0.02, 0.28, 1.62,
-			Color(1.0, 0.70, 0.40), SHAFT_STRENGTH))
+		var sh := Props.shaft(LAMP_Y + 0.02, TABLE_H - 0.02, 0.28, 1.62,
+			Color(1.0, 0.70, 0.40), SHAFT_STRENGTH)
+		sh.position.y -= CEIL
+		_lamp_pivot.add_child(sh)
 	if _arg("dust", 1.0) > 0.5:
 		# Тоос нь ЭРГЭЛЗЭЭ төрүүлэх зэрэг л байх ёстой. Эхний тохиргоо нь
 		# цас будран буух мэт болж, бүх дүр төрхийг сүйтгэсэн.
@@ -767,6 +789,10 @@ func _build_lamp() -> void:
 	bounce.light_specular = 0.10
 	add_child(bounce)
 	_bounce = bounce
+
+	# Тамхины утаа — гэрлийн баганын дотор.
+	if _arg("dust", 1.0) > 0.5:
+		add_child(Props.smoke(Vector3(0.22, TABLE_H + 0.035, -0.16)))
 
 	_mark("lamp", Vector3(0, LAMP_Y, 0))
 
@@ -959,6 +985,7 @@ func _build_hud() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	_drive_room(_clock)
 	_drive_mood(delta)
 	_drive_actors(delta)
 	if _hud == null or _cam == null:
@@ -1209,6 +1236,22 @@ func _drive_mood(delta: float) -> void:
 		_mood[f] = lerpf(float(_mood[f]), float(_mood_to[f]), k)
 	_mood["tint"] = Color(_mood["tint"]).lerp(Color(_mood_to["tint"]), k)
 	_apply_mood(dim)
+
+
+## Чийдэнгийн ганхалт, неоны анивчилт.
+##
+## ХОЁУЛАА МАШ БАГА. Хэт их бол «эвдэрсэн» мэт болж, анхаарлыг ширээнээс
+## булаана. Зорилго нь өрөө АМЬД гэдгийг мэдрүүлэх, өөр рүүгээ татах биш.
+func _drive_room(t: float) -> void:
+	if _lamp_pivot != null:
+		_lamp_pivot.rotation.x = sin(t * 0.111 * TAU) * 0.0062
+		_lamp_pivot.rotation.z = sin(t * 0.083 * TAU + 1.7) * 0.0048
+	if _neon_light != null:
+		# Ихэнх үед тогтвортой; хааяа нэг хором сүүмэлзэнэ. Тогтмол
+		# анивчих нь хямдхан харагдана — ховор доголдол нь бодитой.
+		var f := sin(t * 11.3) * sin(t * 3.7) * sin(t * 1.3)
+		var dip: float = 1.0 - clampf((f - 0.72) * 3.0, 0.0, 0.85)
+		_neon_light.light_energy = _neon_energy * dip
 
 
 func _apply_mood(dim: float) -> void:
