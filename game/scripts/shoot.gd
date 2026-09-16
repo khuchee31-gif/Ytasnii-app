@@ -8,6 +8,11 @@ extends Node
 @export var out_path: String = "res://shots/shot.png"
 
 func _ready() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("hold="):
+			# Сүлжээний шалгалтад тайз хэдэн секунд амьд байх ёстой:
+			# сервертэй холбогдож, өрөөнд орж, үе шат солигдохыг хүлээнэ.
+			await get_tree().create_timer(a.substr(5).to_float()).timeout
 	for i in range(frames_to_wait):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw

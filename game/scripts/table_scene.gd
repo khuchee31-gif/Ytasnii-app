@@ -23,6 +23,7 @@ const Props := preload("res://scripts/props.gd")
 const Humanoid := preload("res://scripts/humanoid.gd")
 const TableCamera := preload("res://scripts/table_camera.gd")
 const Hud := preload("res://scripts/hud.gd")
+const Session := preload("res://scripts/session.gd")
 
 # --- Хэмжээс (метр) ----------------------------------------------------------
 
@@ -119,9 +120,14 @@ var _cam: Camera3D = null
 ## Толгойгүй орчинд зураг авах бүрт кодоо засаад дахин хөрвүүлэх нь удаан.
 ## Тохиргоог гаднаас өгвөл нэг зурган дээр хэдэн хувилбар шалгана.
 static func _arg(key: String, def: float) -> float:
+	var got := _arg_str(key, "")
+	return got.to_float() if not got.is_empty() else def
+
+
+static func _arg_str(key: String, def: String) -> String:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with(key + "="):
-			return a.substr(key.length() + 1).to_float()
+			return a.substr(key.length() + 1)
 	return def
 
 
@@ -706,38 +712,33 @@ func _build_post() -> void:
 
 # --- Дэлгэцийн мэдээлэл ------------------------------------------------------
 
-## Үе шатны монгол нэр. Серверээс ЗӨВХӨН үе шатны шошго ирдэг — сервер
-## ямар ч хэлний тухай мэдэхгүй (`packages/protocol`).
-const PHASE_NAME := {
-	"lobby": "ӨРӨӨ",
-	"dealing": "ХӨЗӨР ТАРААЖ БАЙНА",
-	"nightFalls": "ХОТ УНТЛАА",
-	"nightMafia": "АЛУУРЧИД СЭРЛЭЭ",
-	"nightDoctor": "ЭМЧ СЭРЛЭЭ",
-	"nightDetective": "МӨРДӨГЧ СЭРЛЭЭ",
-	"dawn": "ҮҮР ЦАЙЛАА",
-	"day": "ӨДӨР",
-	"vote": "САНАЛ ХУРААЛТ",
-	"elimination": "ХАСАЛТ",
-	"gameOver": "ТОГЛОЛТ ДУУСЛАА",
-}
-
-
 func _build_hud() -> void:
 	if overview:
 		return
 	_hud = Hud.new()
 	add_child(_hud)
-	# ЖИШЭЭ төлөв. Сервер холбогдоход `net_client.gd` үүнийг дарна.
-	_hud.apply({
-		"phase": PHASE_NAME["vote"],
-		"seconds": 42,
-		"hint": "Хэнийг хасах вэ? Нэг хүнийг сонго.",
-		"voice": "МИКРОФОН НЭЭЛТТЭЙ — БҮГД СОНСОЖ БАЙНА",
-		"can_speak": true,
-		"action": "САНАЛ ӨГӨХ",
-		"action_ready": true,
-	})
+
+	# Сервер заагдсан бол ЖИНХЭНЭ тоглолт. Эс бөгөөс тайз нь ганцаараа
+	# ажиллана — дүр төрх, гэрэлтүүлгийг сервергүйгээр шалгах боломжтой
+	# байх нь хөгжүүлэлтэд чухал.
+	var url := _arg_str("server", "")
+	if url.is_empty():
+		_hud.apply({
+			"phase": "САНАЛ ХУРААЛТ",
+			"seconds": 42,
+			"hint": "Хэнийг хасах вэ? Нэг хүнийг сонго.",
+			"voice": "МИКРОФОН НЭЭЛТТЭЙ — БҮГД СОНСОЖ БАЙНА",
+			"can_speak": true,
+			"action": "САНАЛ ӨГӨХ",
+			"action_ready": true,
+		})
+		return
+
+	var sess := Session.new()
+	add_child(sess)
+	sess.room_code = _arg_str("room", "")
+	sess.verbose = _arg("verbose", 0.0) > 0.5
+	sess.setup(self, _hud, url, _arg_str("name", "Зочин"))
 
 
 func _process(_delta: float) -> void:
