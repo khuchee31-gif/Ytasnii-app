@@ -25,10 +25,12 @@ ENDPOINT = 'https://image.pollinations.ai/prompt/'
 
 # Бүх зурганд НЭГ хэв маяг. Энэ мөр өөрчлөгдвөл БҮХ ассет дахин үүснэ.
 STYLE = (
-    'dark cinematic game art, harsh single overhead light source, deep black '
-    'shadows, heavy film grain, desaturated muted palette of rust orange and '
-    'bone white and cold teal, plain near-black background, moody oppressive '
-    'atmosphere, sharp focus on face, no text, no watermark, no logo'
+    'dark cinematic game character render, SOLID PURE BLACK BACKGROUND, '
+    'subject fully isolated on black, dramatic rim light from above, '
+    'deep black shadows, heavy film grain, muted palette of rust '
+    'orange and bone white and cold teal, moody oppressive atmosphere, '
+    'sharp focus on face, no text, no watermark, no logo, no background '
+    'detail, studio darkness'
 )
 
 # Үүсгэх өндрөөс хэдэн хувийг доороос таслах вэ (усан тэмдэг тэнд).
@@ -39,7 +41,7 @@ _WM_STRIP = 0.20
 SEAT_BASE = (
     'head and shoulders portrait of a mongolian high school student, '
     'plain dark school uniform, neutral calm expression, looking straight at '
-    'camera, centered, night classroom background'
+    'camera, centered, nothing behind the subject, pure black void'
 )
 SEAT_VARIANTS = [
     'short black hair, round face',
@@ -100,6 +102,71 @@ def fetch(prompt: str, w: int, h: int, seed: int, tries: int = 3) -> Image.Image
     raise RuntimeError(f'зураг татаж чадсангүй ({tries} оролдлого): {last}')
 
 
+# --- Дэвсгэр таслах ---------------------------------------------------------
+#
+# Зураг үүсгэгчээс «хар дэвсгэр» гэж гуйхад ТОГТВОРТОЙ АЖИЛЛАДАГГҮЙ: заримдаа
+# саарал хана, заримдаа өрөө гарч ирнэ. Харанхуй тоглоомын өрөөнд тэр саарал
+# дөрвөлжин нь МАНАН мэт тархаж, 12 дүр зэрэг зурагдахад дэлгэц бүхэлдээ
+# бүдгэрч байв.
+#
+# Шийдэл: `rembg` (u2net) нь хүнийг дэвсгэрээс нь ЗӨВ тасална. Энэ нь зөвхөн
+# БҮТЭЭХ үед ажиллана — апп дотор орохгүй, гаралт нь энгийн JPEG хэвээр.
+#
+# Суулгах:  pip install rembg onnxruntime
+# Байхгүй бол зууван бүдгэрүүлэлт рүү шилжинэ — чанар муу ч ажиллана.
+
+_SESSION = None
+_REMBG_OK = None
+
+
+def _rembg_session():
+    global _SESSION, _REMBG_OK
+    if _REMBG_OK is None:
+        try:
+            from rembg import new_session
+            _SESSION = new_session('u2net')
+            _REMBG_OK = True
+        except Exception as e:                       # noqa: BLE001
+            print(f'  (rembg байхгүй: {e}) — зууван маск ашиглана')
+            _REMBG_OK = False
+    return _SESSION
+
+
+def _elliptic_matte(img, cx=0.5, cy=0.42, rx=0.50, ry=0.60):
+    """Нөөц арга: зууван талбайн гадна харанхуйлна."""
+    w, h = img.size
+    px = img.load()
+    if px is None:
+        return img
+    for y in range(h):
+        ny = (y / h - cy) / ry
+        for x in range(w):
+            nx = (x / w - cx) / rx
+            d = (nx * nx + ny * ny) ** 0.5
+            if d <= 1.0:
+                continue
+            k = max(0.0, 1.0 - (d - 1.0) / 0.35) ** 2
+            r, g, b = px[x, y][:3]
+            px[x, y] = (int(r * k), int(g * k), int(b * k))
+    return img
+
+
+def cut_out(img):
+    """Дэвсгэрийг арилгаж, ХАР болгоно.
+
+    Тоглоомын өрөө хар учраас ил тод давхарга хэрэггүй — хар дэвсгэр төгс
+    уусна, файл нь JPEG хэвээр жижиг үлдэнэ.
+    """
+    sess = _rembg_session()
+    if sess is None:
+        return _elliptic_matte(img.convert('RGB'))
+    from rembg import remove
+    cut = remove(img.convert('RGBA'), session=sess)
+    out = Image.new('RGB', cut.size, (0, 0, 0))
+    out.paste(cut, mask=cut.split()[3])
+    return out
+
+
 def make(prompt: str, seed: int, size: int, path: str, force: bool) -> bool:
     """Үүсгэж, усан тэмдгийг таслаад хадгална. Аль хэдийн байвал алгасна."""
     if os.path.exists(path) and not force:
@@ -111,6 +178,7 @@ def make(prompt: str, seed: int, size: int, path: str, force: bool) -> bool:
     w, h = img.size
     img = img.crop((0, 0, w, int(h * (1.0 - _WM_STRIP))))
     img = img.convert('RGB').resize((size, size), Image.LANCZOS)
+    img = cut_out(img)
     img.save(path, 'JPEG', quality=88, optimize=True)
     print(f'  ✓ {os.path.basename(path)}  {os.path.getsize(path)//1024} KB')
     return True
@@ -128,7 +196,7 @@ def main() -> int:
     if a.only != 'roles':
         print('Суудлын хөрөг (саармаг, дүр алдагдуулахгүй):')
         for i, v in enumerate(SEAT_VARIANTS, start=1):
-            make(f'{SEAT_BASE}, {v}', seed=1000 + i, size=256,
+            make(f'{SEAT_BASE}, {v}', seed=1000 + i, size=320,
                  path=os.path.join(OUT, 'seats', f'seat{i:02d}.jpg'),
                  force=a.force)
 

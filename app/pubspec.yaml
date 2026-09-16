@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  protocol:
+    path: ../packages/protocol
+  web_socket_channel: ^3.0.0
 
   # Шөнийн хөдөлгүүр. Цэвэр Dart, Flutter-гүй — GDD-05 §2.
   engine:
@@ -107,5 +110,9 @@ flutter:
           weight: 500
         - asset: assets/fonts/Rubik-Bold.ttf
           weight: 700
+  assets:
+    - assets/art/roles/
+    - assets/art/seats/
+
   shaders:
     - shaders/probe.frag

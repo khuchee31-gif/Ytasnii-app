@@ -121,26 +121,46 @@ void main() {
       }
     });
 
-    test('6, 8, 12 суудлын аль ч тохиолдолд БҮГД дэлгэцэд багтана', () {
-      // Энэ бол тайзны гол шаардлага: хүн ширээг харах ёстой. Камерыг
-      // тохируулах үед энэ тоог ХЭМЖИЖ сонгосон — эндээс доош унавал
-      // ширээний хоёр тал дэлгэцээс гарч эхэлнэ.
-      for (final int n in <int>[6, 8, 12]) {
+    test('толгой эргүүлэхэд суудал БҮР хэзээ нэгэн цагт харагдана', () {
+      // Камер одоо ЖИНХЭНЭ суугаагийн нүдэнд байгаа тул бүх суудал зэрэг
+      // харагдахгүй — хажуу, ард байгаа хүмүүс дэлгэцээс гарна. Энэ нь
+      // алдаа БИШ, ширээнд сууж байгаа хүний бодит хараа.
+      //
+      // ХАРИН шаардлага нь: толгойгоо эргүүлэхэд хүн бүр олдох ёстой.
+      // Эс бөгөөс тоглогч зарим хүнийг ХЭЗЭЭ Ч харахгүй болно.
+      for (final int n in <int>[6, 8, 10, 12]) {
         final TableLayout t = TableLayout(seatCount: n);
-        final Camera3D c = t.cameraFor(1);
-        int visible = 0;
-        for (int s = 1; s <= n; s++) {
-          final Projected p = c.project(t.headOf(s, 1), 360, 800);
-          if (p.visible && p.x > 10 && p.x < 350 && p.y > 0 && p.y < 800) {
-            visible++;
+        final Set<int> everSeen = <int>{};
+        for (
+          double yaw = -TableLayout.maxYaw;
+          yaw <= TableLayout.maxYaw;
+          yaw += 0.1
+        ) {
+          final Camera3D c = t.cameraFor(1, yaw: yaw);
+          for (int s = 2; s <= n; s++) {
+            final Projected p = c.project(t.headOf(s, 1), 360, 800);
+            if (p.visible && p.x > 10 && p.x < 350 && p.y > 0 && p.y < 800) {
+              everSeen.add(s);
+            }
           }
         }
         expect(
-          visible,
-          n,
-          reason: 'n=$n үед $visible суудал л багтлаа, $n байх ёстой',
+          everSeen.length,
+          n - 1,
+          reason:
+              'n=$n үед ${everSeen.length} суудал л олдлоо, '
+              '${n - 1} байх ёстой (өөрийнхөө суудлыг хасаад)',
         );
       }
+    });
+
+    test('yaw = 0 үед эсрэг талын суудал дэлгэцийн голд ойр', () {
+      // Толгойгоо эргүүлээгүй үед хүн ширээний ЭСРЭГ талыг харна.
+      const TableLayout t = TableLayout(seatCount: 12);
+      final Camera3D c = t.cameraFor(1);
+      final Projected opp = c.project(t.headOf(7, 1), 360, 800);
+      expect(opp.visible, isTrue);
+      expect(opp.x, closeTo(180, 30), reason: 'эсрэг тал голдоо байх ёстой');
     });
 
     test('6-аас 12 суудлын аль ч тоонд эвдрэхгүй', () {
