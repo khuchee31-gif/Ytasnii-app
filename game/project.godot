@@ -17,13 +17,14 @@ config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [display]
-window/size/viewport_width=720
-window/size/viewport_height=1600
+window/size/viewport_width=1600
+window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 ; «expand» — өөр харьцаатай утсанд хар туузаар хүрээлэхгүй, илүү
 ; өндөр дэлгэцэнд илүү тайз харагдана.
 window/stretch/aspect="expand"
-window/handheld/orientation=1
+; 0 = хэвтээ. Тоглоом утсыг ХӨНДЛӨН барьж тоглоно.
+window/handheld/orientation=0
 
 [rendering]
 ; GL Compatibility — Redmi 9A (PowerVR GE8320, Vulkan БАЙХГҮЙ) дээр

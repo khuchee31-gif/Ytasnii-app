@@ -1,12 +1,15 @@
 # Дэлгэцийн мэдээлэл ба товчлуурууд.
 #
-# БАЙРЛУУЛАЛТЫН ЗАРЧИМ (босоо утас, 720×1600):
+# БАЙРЛУУЛАЛТЫН ЗАРЧИМ (утсыг ХӨНДЛӨН барина, суурь 1600×720):
 #   • Дунд хэсэг бол ТАЙЗ. Түүн дээр юу ч байрлуулахгүй — тоглогч нүүр
 #     рүү харах ёстой.
-#   • Дээд 14 % — үе шат, цаг. Хүн эхлээд тийш хардаг.
-#   • Доод 22 % — хуруу хүрдэг бүс. Бүх товчлуур ЗӨВХӨН энд.
-#   • Хажуугийн 24 цэг хоосон — хумигдсан дэлгэцтэй утсанд ирмэг рүү
-#     тавьсан товч дарагдахгүй.
+#   • Хөндлөн барихад эрхий хуруу ХОЁР ДООД БУЛАНд байна. Тиймээс:
+#       зүүн доод  — микрофоны төлөв (зөвхөн харах, дарахгүй)
+#       баруун доод — гол товч (дарна)
+#   • Дээд зурвас — үе шат, цаг. Хүн эхлээд тийш хардаг.
+#   • Товч нь дэлгэцийн өргөнийг ГҮЙЦЭД эзлэхгүй: хөндлөн дэлгэц 1600
+#     цэг өргөн бөгөөд бүтэн өргөнтэй товч нь ширээг далдалж, эрхий
+#     хүрэхэд ч хол байна.
 #
 # ЮУ ХАРУУЛАХГҮЙ ВЭ: бусад тоглогчийн ДҮР. Хэзээ ч, ямар ч байдлаар.
 # Энэ файл дүрийн тухай мэдээлэл хүлээж авдаггүй — `apply()` нь зөвхөн
@@ -41,54 +44,54 @@ func _ready() -> void:
 
 	# --- Дээд: үе шат ---------------------------------------------------------
 	_phase.text = ""
-	_phase.add_theme_font_size_override("font_size", 40)
+	_phase.add_theme_font_size_override("font_size", 36)
 	_phase.add_theme_color_override("font_color", INK)
 	_phase.add_theme_constant_override("outline_size", 8)
 	_phase.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
-	_band(_phase, Control.PRESET_TOP_WIDE, PAD, 54, -PAD, 104)
+	_band(_phase, Control.PRESET_TOP_LEFT, PAD, 20, PAD + 760, 68)
 	root.add_child(_phase)
 
-	_timer.add_theme_font_size_override("font_size", 40)
+	_timer.add_theme_font_size_override("font_size", 36)
 	_timer.add_theme_color_override("font_color", AMBER)
 	_timer.add_theme_constant_override("outline_size", 8)
 	_timer.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
 	_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_band(_timer, Control.PRESET_TOP_WIDE, PAD, 54, -PAD, 104)
+	_band(_timer, Control.PRESET_TOP_RIGHT, -220, 20, -PAD, 68)
 	root.add_child(_timer)
 
 	# Нимгэн зураас — гарчиг ба тайзыг тусгаарлана.
 	_rule.color = Color(0.92, 0.66, 0.34, 0.30)
-	_band(_rule, Control.PRESET_TOP_WIDE, PAD, 112, -PAD, 114)
+	_band(_rule, Control.PRESET_TOP_WIDE, PAD, 74, -PAD, 76)
 	root.add_child(_rule)
 
-	_hint.add_theme_font_size_override("font_size", 26)
+	_hint.add_theme_font_size_override("font_size", 24)
 	_hint.add_theme_color_override("font_color", Color(0.72, 0.70, 0.68))
 	_hint.add_theme_constant_override("outline_size", 6)
 	_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
-	_band(_hint, Control.PRESET_TOP_WIDE, PAD, 124, -PAD, 158)
+	_band(_hint, Control.PRESET_TOP_LEFT, PAD, 84, PAD + 860, 116)
 	root.add_child(_hint)
 
 	# --- Сонгосон хүний нэр — тайз дээр хөвнө ---------------------------------
-	_name.add_theme_font_size_override("font_size", 30)
+	_name.add_theme_font_size_override("font_size", 26)
 	_name.add_theme_color_override("font_color", INK)
 	_name.add_theme_constant_override("outline_size", 8)
 	_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name.size = Vector2(320, 38)
+	_name.size = Vector2(300, 34)
 	_name.visible = false
 	root.add_child(_name)
 
 	# --- Доод: микрофон ба үйлдэл --------------------------------------------
-	_mic.add_theme_font_size_override("font_size", 26)
+	_mic.add_theme_font_size_override("font_size", 24)
 	_mic.add_theme_constant_override("outline_size", 6)
 	_mic.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
-	_mic.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_band(_mic, Control.PRESET_BOTTOM_WIDE, PAD, -250, -PAD, -216)
+	_mic.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_band(_mic, Control.PRESET_BOTTOM_LEFT, PAD, -56, PAD + 700, -22)
 	root.add_child(_mic)
 
 	_act.text = ""
-	_act.add_theme_font_size_override("font_size", 34)
-	_band(_act, Control.PRESET_BOTTOM_WIDE, PAD + 60, -196, -(PAD + 60), -92)
+	_act.add_theme_font_size_override("font_size", 30)
+	_band(_act, Control.PRESET_BOTTOM_RIGHT, -400, -112, -PAD, -24)
 	_act.pressed.connect(func() -> void: acted.emit())
 	root.add_child(_act)
 	_style_button()
@@ -114,8 +117,8 @@ func _style_button() -> void:
 		box.border_color = AMBER
 		box.set_border_width_all(2)
 		box.set_corner_radius_all(6)
-		box.content_margin_top = 18
-		box.content_margin_bottom = 18
+		box.content_margin_top = 14
+		box.content_margin_bottom = 14
 		_act.add_theme_stylebox_override(state, box)
 	var down := StyleBoxFlat.new()
 	down.bg_color = Color(0.34, 0.22, 0.10, 0.96)
@@ -166,4 +169,4 @@ func show_name(text: String, screen: Vector2, visible_v: bool) -> void:
 	if not _name.visible:
 		return
 	_name.text = text
-	_name.position = Vector2(screen.x - _name.size.x * 0.5, screen.y - 196.0)
+	_name.position = Vector2(screen.x - _name.size.x * 0.5, screen.y - 104.0)
