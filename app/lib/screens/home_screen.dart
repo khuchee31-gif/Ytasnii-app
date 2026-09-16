@@ -10,6 +10,7 @@ import 'package:flutter/material.dart' hide Intent;
 
 import '../game/game_controller.dart';
 import '../game/phase.dart';
+import '../ui/atmosphere.dart';
 import '../ui/tokens.dart';
 import 'setup_parts.dart';
 
@@ -188,14 +189,32 @@ class HomeScreen extends StatelessWidget {
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: kGutter),
-                  child: Text('ХОТ УНТЛАА',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 3,
-                          height: 1.45,
-                          color: _fg)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      // Гарчиг нь хоёр мөр, тус бүр өөрийн жинтэй — нэг эгнээ
+                      // том үсэг бол «апп», эвдэрсэн хэмнэл бол «зурагт хуудас».
+                      Text('ХОТ',
+                          textAlign: TextAlign.center,
+                          style: kDisplay.copyWith(
+                              fontSize: 64, color: _fg, letterSpacing: 10)),
+                      ChromaticTitle(
+                        'УНТЛАА',
+                        style: kDisplay.copyWith(
+                            fontSize: 64, letterSpacing: 10),
+                      ),
+                      const SizedBox(height: 18),
+                      // Нимгэн зураас — хэвлэмэл хуудасны зүсэлт.
+                      SizedBox(
+                        width: 140,
+                        child: Divider(color: _muted, thickness: 1, height: 1),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('АНГИЙН МАФИ · НЭГ УТСААР',
+                          textAlign: TextAlign.center,
+                          style: kLabel.copyWith(color: _muted)),
+                    ],
+                  ),
                 ),
               ),
             ),

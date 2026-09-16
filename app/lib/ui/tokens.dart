@@ -15,26 +15,32 @@ import 'package:flutter/services.dart';
 // Өнгө — «Улаанбаатар ноар» (GDD-08 §7.4). Контраст харьцаа хэмжигдсэн.
 // ---------------------------------------------------------------------------
 
-/// Суурь. AMOLED дээр батерей хэмнэнэ, шөнийн ширээнд нүд гялбуулахгүй.
-const Color kSurface = Color(0xFF0E1A2B);
-const Color kSurfaceRaised = Color(0xFF16263C);
-const Color kSurfaceHigh = Color(0xFF1F3350);
+/// Суурь — бараг хар. AMOLED дээр пиксел унтарна, ширээн дунд нүд гялбуулахгүй.
+/// Material-ийн «цэнхэрдүү саарал» биш: энэ бол ШӨНӨ.
+const Color kSurface = Color(0xFF0A0A0B);
+const Color kSurfaceRaised = Color(0xFF131315);
+const Color kSurfaceHigh = Color(0xFF1C1C1F);
 
-/// Үндсэн өнгө. #EAF0F7 дээр 6.97:1.
-const Color kEmber = Color(0xFFF08A2B);
+/// Зэв — цорын ганц дулаан өнгө. Хэт олон газар хэрэглэвэл хүчээ алдана.
+const Color kRust = Color(0xFFC1440E);
+const Color kEmber = kRust;
 
-/// Текст. Суурин дээр 15.24:1.
-const Color kTextPrimary = Color(0xFFEAF0F7);
-const Color kTextMuted = Color(0xFF9DB0C6);
+/// Хүйтэн ногоон — мөрдөгчийн хариу, батлагдсан зүйл.
+const Color kCold = Color(0xFF4A7C74);
 
-/// Аюул. 4.52:1 — ЗӨВХӨН ≥18sp bold дээр (GDD-08 §7.4).
-const Color kDanger = Color(0xFFD55E00);
-const Color kOk = Color(0xFF009E73);
+/// Яс — цаасан цагаан, цэвэр цагаан биш. Нүдэнд зөөлөн, хэвлэмэл мэдрэмжтэй.
+const Color kBone = Color(0xFFE8E4DA);
+const Color kTextPrimary = kBone;
+const Color kTextMuted = Color(0xFF8A867E);
 
-/// Шөнө. Дэлгэц ширээн дунд, бараг хар.
-const Color kNight = Color(0xFF050B14);
+/// Цус — зөвхөн хасалт ба `b = 0`. Тоглолтод хэдхэн удаа л гарна.
+const Color kDanger = Color(0xFF8E1F0B);
+const Color kOk = kCold;
 
-const Color kHairline = Color(0x22FFFFFF);
+/// Шөнө. Утас ширээн дунд, бүрэн хар.
+const Color kNight = Color(0xFF000000);
+
+const Color kHairline = Color(0x1AE8E4DA);
 
 // ---------------------------------------------------------------------------
 // Зай ба хэмжээ
@@ -42,7 +48,7 @@ const Color kHairline = Color(0x22FFFFFF);
 
 const double kGutter = 20;
 const double kGap = 12;
-const double kRadius = 14;
+const double kRadius = 3;
 
 /// Material-ийн доод хязгаар. Үүнээс бага товч ХЭЗЭЭ Ч байхгүй.
 const double kMinTouch = 48;
@@ -57,17 +63,39 @@ const double kSeatTile = 96;
 // Үсэг
 // ---------------------------------------------------------------------------
 
+/// Гарчиг — Oswald. Шахмал, өндөр, шөнийн зурагт хуудас шиг.
+const String kDisplayFont = 'Oswald';
+
+/// Бие — Rubik. Кирилл дээр цэвэр, жижиг хэмжээнд уншигдана.
+const String kBodyFont = 'Rubik';
+
 const TextStyle kDisplay = TextStyle(
-    fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 1.5, height: 1.2);
-const TextStyle kTitle =
-    TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.3);
-const TextStyle kBody = TextStyle(fontSize: 16, height: 1.45);
+    fontFamily: kDisplayFont,
+    fontSize: 40,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 4,
+    height: 1.05);
+const TextStyle kTitle = TextStyle(
+    fontFamily: kDisplayFont,
+    fontSize: 26,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1.6,
+    height: 1.2);
+const TextStyle kBody =
+    TextStyle(fontFamily: kBodyFont, fontSize: 16, height: 1.5);
 const TextStyle kLabel = TextStyle(
-    fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.1, height: 1.4);
+    fontFamily: kDisplayFont,
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 2.4,
+    height: 1.4);
 
 /// Суудлын дугаар — ширээний нөгөө талаас уншигдах ёстой.
-const TextStyle kSeatNumber =
-    TextStyle(fontSize: 64, fontWeight: FontWeight.w700, height: 1.0);
+const TextStyle kSeatNumber = TextStyle(
+    fontFamily: kDisplayFont,
+    fontSize: 72,
+    fontWeight: FontWeight.w700,
+    height: 1.0);
 
 // ---------------------------------------------------------------------------
 // Хөдөлгөөн (GDD-08 §7.3)
@@ -129,6 +157,7 @@ ThemeData buildTheme() {
       thumbColor: kEmber,
       inactiveTrackColor: kSurfaceHigh,
     ),
+    fontFamily: kBodyFont,
     textTheme: const TextTheme(
       displayLarge: kDisplay,
       titleLarge: kTitle,
@@ -140,9 +169,13 @@ ThemeData buildTheme() {
         backgroundColor: kEmber,
         foregroundColor: kSurface,
         minimumSize: const Size.fromHeight(kPrimaryButtonHeight),
-        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(kRadius)),
+        textStyle: const TextStyle(
+            fontFamily: kDisplayFont,
+            fontSize: 19,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 2.2),
+        // Дугуй биш. Дугуйлсан булан нь «апп», шулуун булан нь «эд зүйл».
+        shape: const RoundedRectangleBorder(),
       ),
     ),
   );

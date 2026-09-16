@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hotuntlaa/game/game_controller.dart';
 import 'package:hotuntlaa/game/settings.dart';
 import 'package:hotuntlaa/screens/preset_screen.dart';
+import 'package:hotuntlaa/ui/widgets.dart';
 
 import 'phone_viewport.dart';
 
@@ -53,7 +54,10 @@ void main() {
       (WidgetTester tester) async {
     await pump(tester);
 
-    expect(find.text('Алдаж болох санал: ● ●'), findsOneWidget);
+    // `b >= 2` үед тайлбар нэмэх зүйлгүй тул зөвхөн PipStrip гарна
+    // (давхардсан текст мөрийг устгав).
+    expect(find.byType(PipStrip), findsOneWidget);
+    expect(find.text('● ●'), findsNothing);
     expect(find.text('Бүрэлдэхүүн бэлэн.'), findsOneWidget);
     expect(find.text('Ахлагч нэг суудлыг эзэлнэ'), findsOneWidget);
     final FilledButton b = tester.widget(find.byType(FilledButton));
@@ -117,7 +121,10 @@ void main() {
 
     expect(c.settings.basePreset, PresetId.sport);
     expect(c.settings.cityWhisper, isFalse);
-    expect(find.text('Алдаж болох санал: ● ●'), findsOneWidget);
+    // `b >= 2` үед тайлбар нэмэх зүйлгүй тул зөвхөн PipStrip гарна
+    // (давхардсан текст мөрийг устгав).
+    expect(find.byType(PipStrip), findsOneWidget);
+    expect(find.text('● ●'), findsNothing);
     await tester.tap(find.text('Тараая'));
     await tester.pump();
     expect(c.roster.n, 10);

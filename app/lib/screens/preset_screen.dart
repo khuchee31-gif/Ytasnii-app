@@ -270,14 +270,18 @@ class _ScoreBoard extends StatelessWidget {
             // Хөдөлгөөн багасгах горимд цэгэн зурвас ОГТ гарахгүй.
             if (!reduceMotion) ...<Widget>[
               PipStrip(b),
-              const SizedBox(height: 6),
+              if (tail.isNotEmpty) const SizedBox(height: 6),
             ],
-            Text('Алдаж болох санал: $mark$tail',
-                style: TextStyle(
-                    fontSize: 15,
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
-                    color: c)),
+            // Текст мөрийг ЗӨВХӨН тайлбар нэмэх үед гаргана. `b >= 2` үед
+            // `tail` хоосон тул энэ мөр нь `PipStrip`-ийн яг ижил өгүүлбэрийг
+            // давтаж, дэлгэц дээр хоёр удаа гарч байв.
+            if (tail.isNotEmpty || reduceMotion)
+              Text('Алдаж болох санал: $mark$tail',
+                  style: TextStyle(
+                      fontSize: 15,
+                      height: 1.45,
+                      fontWeight: FontWeight.w600,
+                      color: c)),
           ],
         ),
       ),

@@ -28,6 +28,7 @@ import 'screens/reveal_screen.dart';
 import 'screens/roster_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/vote_screen.dart';
+import 'ui/atmosphere.dart';
 import 'ui/platform_guard.dart';
 import 'ui/tokens.dart';
 
@@ -104,12 +105,19 @@ class _GameShellState extends State<GameShell> {
     if (!_splashDone) {
       return SplashScreen(onReady: () => setState(() => _splashDone = true));
     }
-    return switch (_overlay) {
-      _Overlay.settings =>
-        SettingsScreen(controller: _c, onClose: _closeOverlay),
-      _Overlay.help => HelpScreen(onClose: _closeOverlay),
-      _Overlay.none => _phaseScreen(),
-    };
+    // Уур амьсгалыг ЭНД нэг л удаа тавина. Ширээн дунд байх үе шатанд
+    // хар хүрээ хүчтэй — өрөө харанхуй, дэлгэц бол ганц гэрэл.
+    final bool table = _c.phase.isTableFacing;
+    return Atmosphere(
+      vignette: table ? 0.95 : 0.8,
+      grain: table ? 0.07 : 0.05,
+      child: switch (_overlay) {
+        _Overlay.settings =>
+          SettingsScreen(controller: _c, onClose: _closeOverlay),
+        _Overlay.help => HelpScreen(onClose: _closeOverlay),
+        _Overlay.none => _phaseScreen(),
+      },
+    );
   }
 
   Widget _phaseScreen() {
