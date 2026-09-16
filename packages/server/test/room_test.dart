@@ -49,13 +49,99 @@ void main() {
           containsAll(<String>['Тоглогч1', 'Тоглогч2', 'Тоглогч3']));
     });
 
-    test('ижил нэр хоёр удаа орохгүй', () {
+    test('ижил нэр дугаарлагдана', () {
+      // ТАТГАЛЗДАГ БАЙСАН. Одоо дугаарлана: татгалзал нь санаатай хүнийг
+      // зогсоохгүй (тэр латин үсэг сольж дахин оролдоно), зөвхөн шударга
+      // хүнд дахин бичүүлж цаг алдуулна.
       final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
       r.join('a', 'Бат', 'x');
       final List<Outbound> out = r.join('b', 'Бат', 'y');
-      expect(out.single.msg.type, S2C.error);
-      expect(out.single.msg.data['code'], ErrCode.nameTaken);
+      expect(out.any((Outbound o) => o.msg.type == S2C.error), isFalse);
+      expect(r.playerCount, 2);
+      expect(r.players.map((PublicPlayer p) => p.name),
+          <String>['Бат', 'Бат 2']);
+    });
+
+    test('хоосон нэрээр орохгүй', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      final List<Outbound> out = r.join('a', '', 'x');
+      expect(out.single.msg.data['code'], ErrCode.nameRequired);
+      expect(r.playerCount, 0);
+    });
+
+    test('хоёр хоосон нэр хоёулаа ОЙЛГОМЖТОЙ татгалзана', () {
+      // Энэ бол хэрэглэгчийн бодитоор тулгарсан алдаа: нэрээ бичээгүй
+      // хоёр хүн хоёулаа «Зочин» болж, хоёр дахь нь өөрийн бичээгүй
+      // нэр «давхардлаа» гэсэн мессеж авдаг байв.
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      for (final String id in <String>['a', 'b']) {
+        final List<Outbound> out = r.join(id, '   ', 'x');
+        expect(out.single.msg.data['code'], ErrCode.nameRequired);
+        expect(out.single.msg.data['code'], isNot(ErrCode.nameTaken));
+      }
+      expect(r.playerCount, 0);
+    });
+
+    test('үл үзэгдэх тэмдэгтээр хуурч чадахгүй', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      r.join('a', 'Бат', 'x');
+      r.join('b', 'Бат\u200B', 'y');
+      expect(r.players.map((PublicPlayer p) => p.name),
+          <String>['Бат', 'Бат 2']);
+    });
+
+    test('латин үсгээр хуурч чадахгүй', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      r.join('a', 'Хулан', 'x');
+      r.join('b', '\u0058улан', 'y');
+      expect(r.players.last.name, '\u0058улан 2');
+    });
+
+    test('том жижиг үсгээр хуурч чадахгүй', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      r.join('a', 'Болд', 'x');
+      r.join('b', 'болд', 'y');
+      expect(r.players.last.name, 'болд 2');
+    });
+
+    test('лоббид нэрээ засаж болно', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      r.join('a', 'Бат', 'x');
+      r.join('a', 'Болд', 'x');
       expect(r.playerCount, 1);
+      expect(r.players.single.name, 'Болд');
+    });
+
+    test('нэрээ засахдаа бусадтай мөргөлдөхгүй', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      r.join('a', 'Бат', 'x');
+      r.join('b', 'Болд', 'y');
+      r.join('b', 'Бат', 'y');
+      expect(r.players.last.name, 'Бат 2');
+    });
+
+    test('тоглолт эхэлсний дараа нэр ХӨЛДӨНӨ', () {
+      // Эс бөгөөс үхсэн Батын дараа мафи «Бат» болж, өдрийн яриа
+      // утгагүй болно.
+      final GameRoom r = _roomWith(6);
+      r.start('p1', 0);
+      final String before = r.players[2].name;
+      r.join('p3', 'ӨӨРСӨН', 'x');
+      expect(r.players[2].name, before);
+      expect(r.playerCount, 6);
+    });
+
+    test('ширээн дээр ижил харагдах хоёр нэр ХЭЗЭЭ Ч байхгүй', () {
+      final GameRoom r = GameRoom(code: 'AAAA', hostId: 'a', seed: _seed(1));
+      const List<String> tries = <String>[
+        'Бат', 'бат', 'БАТ', 'Бат ', 'Бат\u200B', '\u0412ат', 'Болд',
+      ];
+      for (int i = 0; i < tries.length; i++) {
+        r.join('u$i', tries[i], 'x');
+      }
+      final Set<String> keys =
+          r.players.map((PublicPlayer p) => nameKey(p.name)).toSet();
+      expect(keys.length, r.playerCount);
     });
 
     test('хэт олон хүн орохгүй', () {
@@ -77,6 +163,72 @@ void main() {
       expect(out.single.msg.data['code'], ErrCode.tooFewPlayers);
     });
   });
+
+  group('Бот нэмэх', () {
+    GameRoom solo() =>
+        GameRoom(code: 'BOTS', hostId: 'h', seed: _seed(9))..join('h', 'Хүчээ', 'x');
+
+    test('эзэн биш хүн бот нэмж чадахгүй', () {
+      final GameRoom r = solo()..join('b', 'Болд', 'y');
+      final List<Outbound> out = r.addBots('b', 3);
+      expect(out.single.msg.data['code'], ErrCode.notHost);
+    });
+
+    test('тоглолт эхэлсний дараа бот нэмэхгүй', () {
+      final GameRoom r = _roomWith(6);
+      r.start('p1', 0);
+      final List<Outbound> out = r.addBots('p1', 1);
+      expect(out.single.msg.data['code'], ErrCode.gameInProgress);
+    });
+
+    test('багтаамжаас хэтрэхгүй', () {
+      final GameRoom r = solo();
+      r.addBots('h', 1000);
+      expect(r.playerCount, kMaxPlayers);
+    });
+
+    test('бот бүр тэмдэглэгдэж, бэлэн болно', () {
+      final GameRoom r = solo();
+      r.addBots('h', 5);
+      final List<PublicPlayer> bots =
+          r.players.where((PublicPlayer p) => p.isBot).toList();
+      expect(bots.length, 5);
+      expect(bots.every((PublicPlayer p) => p.ready), isTrue);
+      expect(r.humanCount, 1);
+      // Ботууд ӨӨР ӨӨР дугаартай — нэг дугаар давхардвал хоёр дахь нь
+      // эхнийхийнх нь «дахин холбогдолт» гэж тооцогдоно.
+      expect(bots.map((PublicPlayer p) => p.id).toSet().length, 5);
+    });
+
+    test('хүн ботын нэрийг авч чадахгүй', () {
+      final GameRoom r = solo();
+      final List<Outbound> out = r.join('x', 'Бот 1', 'z');
+      expect(out.single.msg.data['code'], ErrCode.nameReserved);
+      r.addBots('h', 1);
+      expect(r.players.last.name, 'Бот 1');
+    });
+
+    test('сүүлчийн ботыг хасна, хүнийг ХЭЗЭЭ Ч хасахгүй', () {
+      final GameRoom r = solo();
+      r.addBots('h', 3);
+      r.removeBot('h');
+      expect(r.playerCount, 3);
+      expect(r.humanCount, 1);
+      expect(r.removeBot('b').single.msg.data['code'], ErrCode.notHost);
+    });
+
+    test('ЭЗЭН ХЭЗЭЭ Ч БОТ БОЛОХГҮЙ', () {
+      // Ботод сокет байхгүй тул эзэн бот болбол `startGame` илгээх хүн
+      // үлдэхгүй, өрөө үүрд лоббид гацна.
+      final GameRoom r = solo();
+      r.addBots('h', 5);
+      r.leave('h');
+      expect(r.isBot(r.hostId), isFalse);
+      r.join('h2', 'Болд', 'y');
+      expect(r.hostId, 'h2');
+    });
+  });
+
 
   group('Дүр тараах', () {
     test('дүр ЗӨВХӨН эзэнд нь, нэг хүнд нэг удаа', () {

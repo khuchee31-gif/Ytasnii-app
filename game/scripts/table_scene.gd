@@ -128,6 +128,7 @@ var _cam: Camera3D = null
 ## ширээ, чийдэн нь хэвээр үлдэнэ.
 var _stage: Node3D = null
 var _names: Dictionary = {}
+var _bots: Dictionary = {}
 var _alive: Dictionary = {}
 var _looking := -1
 ## seat → {root, skel}
@@ -793,7 +794,11 @@ func _build_hud() -> void:
 	var url := _arg_str("server", "")
 	sess.room_code = _arg_str("room", "")
 	sess.verbose = _arg("verbose", 0.0) > 0.5
-	sess.setup(self, _hud, url, _arg_str("name", "Зочин"))
+	sess.solo_bots = int(_arg("solo", 0.0))
+	# Нэрийг ХООСОН-оор эхлүүлнэ. Утсан дээр тушаалын мөр байхгүй тул
+	# үндсэн утга ҮРГЭЛЖ ялдаг — талбарт бичээстэй «Зочин» нь хэн
+	# нэгний нэр мэт харагдаж, хэрэглэгчийг эргэлзүүлж байв.
+	sess.setup(self, _hud, url, _arg_str("name", ""))
 
 
 func _process(_delta: float) -> void:
@@ -832,7 +837,12 @@ func _seat_at_centre() -> int:
 
 func _seat_name(seat: int) -> String:
 	var n: String = str(_names.get(seat, ""))
-	return n if not n.is_empty() else "%d-Р СУУДАЛ" % (seat + 1)
+	if n.is_empty():
+		n = "%d-Р СУУДАЛ" % (seat + 1)
+	# Суудлын дугаар ҮРГЭЛЖ харагдана: төстэй хоёр нэр байвал «Бат мафи»
+	# гэдэг утгагүй, «3. Бат мафи» гэдэг тодорхой.
+	var tag: String = " · БОТ" if bool(_bots.get(seat, false)) else ""
+	return "%d. %s%s" % [seat + 1, n, tag]
 
 
 # --- Тоглогчийн жагсаалт -----------------------------------------------------
@@ -856,14 +866,17 @@ func set_roster(players: Array, my_seat: int) -> void:
 
 	var names: Dictionary = {}
 	var alive: Dictionary = {}
+	var bots: Dictionary = {}
 	for i in range(seated.size()):
 		var d: Dictionary = seated[i]
 		names[i] = str(d.get("name", ""))
 		alive[i] = bool(d.get("alive", true))
+		bots[i] = bool(d.get("isBot", false))
 
 	var viewer: int = clampi(my_seat - 1, 0, seated.size() - 1)
 	var changed := seated.size() != seat_count or viewer != viewer_seat
 	_names = names
+	_bots = bots
 	seat_count = seated.size()
 	viewer_seat = viewer
 	_alive = alive

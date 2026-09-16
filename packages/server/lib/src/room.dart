@@ -15,6 +15,8 @@ import 'dart:typed_data';
 import 'package:engine/engine.dart' as eng;
 import 'package:protocol/protocol.dart';
 
+import 'bot_brain.dart';
+import 'names.dart';
 import 'outbound.dart';
 
 /// Үе шат бүр хэдэн миллисекунд үргэлжлэх вэ.
@@ -80,6 +82,29 @@ class GameRoom {
 
   eng.WinState _win = eng.WinState.none;
 
+  /// Хиймэл тоглогчид. Хоосон бол өрөө бүхэлдээ хүнийх.
+  final Map<PlayerId, BotSeat> _bots = <PlayerId, BotSeat>{};
+
+  /// Ботын өрөөнд үе шатыг богиносгоно.
+  ///
+  /// Нэг өдөр-шөнийн бүтэн эргэлт 230 секунд. Ганцаараа туршиж байгаа
+  /// хүн эргэлт тутамд дөрвөн минут хүлээж, «энэ горим эвдэрсэн» гэж
+  /// дүгнэнэ.
+  ///
+  /// ЯАГААД БҮГД ҮЙЛДМЭГЦ ДУУСГАДАГГҮЙ ВЭ: `_enter` нь `endsInMs`-ыг
+  /// НИЙТЭД илгээдэг. Эрт дуусвал «тэр дүр амьд бөгөөд үйлдсэн» гэдэг
+  /// нь, бүтэн хугацаа явбал «тэр дүр үхсэн» гэдэг нь ил болно. Үе шатны
+  /// урт нь ХЭН ЮУ ХИЙСНЭЭС хамаарч БОЛОХГҮЙ — яг энэ шалтгаанаар
+  /// `_fillMissingIntents` оршдог. Тиймээс БҮХ үе шатыг ИЖИЛ хуваарьтай
+  /// богиносгож, хуваарийг `start`-д НЭГ УДАА шийднэ.
+  bool _fast = false;
+
+  int _ms(int base) {
+    if (!_fast) return base;
+    final int cut = base ~/ 3;
+    return cut < 2000 ? 2000 : cut;
+  }
+
   // --- Уншигчид ------------------------------------------------------------
 
   NetPhase get phase => _phase;
@@ -97,6 +122,15 @@ class GameRoom {
 
   /// Тестэд л хэрэгтэй — жинхэнэ урсгалд дүрийг ХЭЗЭЭ Ч ингэж уншихгүй.
   eng.Role? debugRoleOf(PlayerId id) => _secrets[id]?.role;
+
+  /// Тестэд л хэрэгтэй: ботын дугаарууд.
+  List<PlayerId> get debugBotIds => _bots.keys.toList(growable: false);
+
+  /// Тестэд л хэрэгтэй: бот ЮУ ХАРАХ вэ.
+  ///
+  /// `_botsTick` ЯГ ижил замаар байгуулдаг тул тест нь жинхэнэ урсгалыг
+  /// шалгаж байна — өөр хувилбарыг биш.
+  BotView debugBotView(PlayerId id) => _botView(_bots[id]!);
 
   Set<PlayerId> get _mafiaIds => _secrets.entries
       .where((MapEntry<PlayerId, _Secret> e) =>
@@ -130,24 +164,136 @@ class GameRoom {
 
   // --- Командууд -----------------------------------------------------------
 
-  List<Outbound> join(PlayerId id, String name, String avatarId) {
+  List<Outbound> join(PlayerId id, String name, String avatarId,
+      {bool isBot = false}) {
+    final String clean = cleanName(name);
+
     if (_players.containsKey(id)) {
       // Дахин холбогдов — суудал, дүр нь хэвээр.
       _players[id] = _players[id]!.copyWith(connected: true);
+      // ТОГЛОЛТ ЯВЖ БАЙХАД НЭР ХӨЛДӨНӨ. Эс бөгөөс үхсэн Батын дараа
+      // мафи «Бат» болж, өдрийн яриа утгагүй болно.
+      if (_phase == NetPhase.lobby && nameProblem(clean) == null) {
+        _players[id] =
+            _players[id]!.renamed(uniqueName(clean, _takenKeys(except: id)));
+      }
       return <Outbound>[..._stateForAll(), ..._privateResend(id)];
     }
+
     if (_phase != NetPhase.lobby) {
       return <Outbound>[_err(id, ErrCode.gameInProgress)];
     }
     if (_players.length >= kMaxPlayers) {
       return <Outbound>[_err(id, ErrCode.roomFull)];
     }
-    final String clean = _sanitizeName(name);
-    if (_players.values.any((PublicPlayer p) => p.name == clean)) {
-      return <Outbound>[_err(id, ErrCode.nameTaken)];
+
+    final String? bad = nameProblem(clean, allowReserved: isBot);
+    if (bad != null) return <Outbound>[_err(id, bad)];
+
+    _players[id] = PublicPlayer(
+      id: id,
+      name: uniqueName(clean, _takenKeys()),
+      avatarId: avatarId,
+      isBot: isBot,
+    );
+
+    // ӨРӨӨ ХҮНГҮЙ ЭЗЭНТЭЙ ҮЛДЭЖ БОЛОХГҮЙ. Эзэн нь явсан, эсвэл зөвхөн
+    // ботууд үлдсэн бол орж ирсэн анхны ХҮН эзэн болно — эс бөгөөс
+    // `startGame` илгээх хүн байхгүй тул өрөө үүрд лоббид гацна.
+    if (!isBot && (!_players.containsKey(hostId) || this.isBot(hostId))) {
+      hostId = id;
     }
-    _players[id] = PublicPlayer(id: id, name: clean, avatarId: avatarId);
     return _stateForAll();
+  }
+
+  /// Одоо эзэлсэн бүх нэрийн ХАРЬЦУУЛАХ түлхүүр.
+  ///
+  /// Жагсаалтыг дуудах бүрд шинээр гаргана — 14-аас цөөн тоглогчтой тул
+  /// хямд, бас `leave`-тэй хэзээ ч зөрөхгүй. `leave` нь тоглолт явж
+  /// байхад тоглогчийг үлдээдэг тул тэдний нэр эзэлсэн хэвээр байна —
+  /// яг зөв.
+  Set<String> _takenKeys({PlayerId? except}) => _players.values
+      .where((PublicPlayer p) => p.id != except)
+      .map((PublicPlayer p) => nameKey(p.name))
+      .toSet();
+
+  bool has(PlayerId id) => _players.containsKey(id);
+
+  bool isBot(PlayerId id) => _players[id]?.isBot ?? false;
+
+  /// Ботыг тооцохгүй. `Hub.sweepEmpty` үүгээр өрөө хоосорсныг мэднэ.
+  int get humanCount =>
+      _players.values.where((PublicPlayer p) => !p.isBot).length;
+
+  /// Өрөөнд бот нэмнэ. ЗӨВХӨН эзэн, ЗӨВХӨН лоббид.
+  ///
+  /// Ботыг `_players` руу ШУУД бичихгүй, `join`-оор оруулна: тэгж байж
+  /// лобби, багтаамж, нэрийн бүх шалгалт хэвээр ажиллана. Шууд бичвэл
+  /// суудалгүй тоглогч үүсч, шөнө эхлэхэд `p.seat!` дээр сервер унана.
+  List<Outbound> addBots(PlayerId by, int count) {
+    if (by != hostId) return <Outbound>[_err(by, ErrCode.notHost)];
+    if (_phase != NetPhase.lobby) {
+      return <Outbound>[_err(by, ErrCode.gameInProgress)];
+    }
+    final int room = kMaxPlayers - _players.length;
+    final int n = count < 0 ? 0 : (count > room ? room : count);
+    int next = _nextBotNumber();
+    for (int i = 0; i < n; i++) {
+      final PlayerId id = _botId(next);
+      // `join` алдаа буцаавал тэр нь БОТЫН хаягаар явна — ботод сокет
+      // байхгүй тул чимээгүй алга болно. Тиймээс шалгаад эзэн рүү дахин
+      // хаяглана, эс бөгөөс эзэн товч дараад юу ч болохгүйг хардаг.
+      final List<Outbound> r =
+          join(id, botName(next), 'punk_0${next % 9}', isBot: true);
+      if (!has(id)) {
+        return <Outbound>[
+          for (final Outbound o in r)
+            if (o.msg.type == S2C.error) Outbound.one(by, o.msg),
+        ];
+      }
+      _bots[id] = BotSeat(id, eng.Rng(eng.streamKey(_seed, 'BOT:$next')));
+      setReady(id, true);
+      next++;
+    }
+    return _stateForAll();
+  }
+
+  /// Сүүлчийн ботыг хасна.
+  List<Outbound> removeBot(PlayerId by) {
+    if (by != hostId) return <Outbound>[_err(by, ErrCode.notHost)];
+    if (_phase != NetPhase.lobby) {
+      return <Outbound>[_err(by, ErrCode.gameInProgress)];
+    }
+    PlayerId? last;
+    for (final PublicPlayer p in _players.values) {
+      if (p.isBot) last = p.id;
+    }
+    if (last == null) return const <Outbound>[];
+    _players.remove(last);
+    _bots.remove(last);
+    return _stateForAll();
+  }
+
+  int _nextBotNumber() {
+    int top = 0;
+    for (int n = 1; n <= kMaxPlayers + 2; n++) {
+      if (_players.values.any((PublicPlayer p) => p.name == botName(n))) {
+        top = n;
+      }
+    }
+    return top + 1;
+  }
+
+  /// Ботын дугаарыг ӨРӨӨНИЙ ҮРЭЭС гаргана, КОДООС БИШ.
+  ///
+  /// Код нь нээлттэй өрөөний жагсаалтаар нийтэд ил явдаг. Хэрэв ботын
+  /// дугаар кодоос гардаг байсан бол хэн ч `hello` илгээж тэр ботын
+  /// нэрээр орж, түүний `yourRole`-ыг цуглуулах байсан.
+  PlayerId _botId(int n) {
+    final List<int> key = eng.streamKey(_seed, 'BOTID:$n');
+    final String hex =
+        key.take(8).map((int b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return 'bot-$hex';
   }
 
   List<Outbound> leave(PlayerId id) {
@@ -159,7 +305,16 @@ class GameRoom {
       // Тоглолт явж байхад суудал нь үлдэнэ — эргэж орж болно.
       _players[id] = _players[id]!.copyWith(connected: false);
     }
-    if (id == hostId && _players.isNotEmpty) hostId = _players.keys.first;
+    // ЭЗЭН ХЭЗЭЭ Ч БОТ БОЛОХГҮЙ. Ботод сокет байхгүй тул `startGame`
+    // илгээхгүй, өрөө үүрд лоббид гацна (`start` нь зөвхөн эзнийх).
+    if (id == hostId) {
+      for (final PublicPlayer p in _players.values) {
+        if (!p.isBot) {
+          hostId = p.id;
+          break;
+        }
+      }
+    }
     return _stateForAll();
   }
 
@@ -178,6 +333,7 @@ class GameRoom {
     if (_players.length < kMinPlayers) {
       return <Outbound>[_err(id, ErrCode.tooFewPlayers)];
     }
+    _fast = _players.values.any((PublicPlayer p) => p.isBot);
     return _deal(nowMs);
   }
 
@@ -213,12 +369,23 @@ class GameRoom {
           i.actor == me.seat && i.ability == ability && i.night == _nightNo)
       ..add(intent);
 
+    // Ботын санах ойг ЯГ ЭНД бичнэ. Санах ой нь утас руу явсан зүйлээс
+    // хэтэрч болохгүй тул бичлэгийг мессеж гарах цэгт нь холбоно.
+    final BotSeat? bot = _bots[id];
+    if (bot != null) {
+      if (ability == eng.Ability.heal) bot.mem.lastHeal = targetSeat;
+      if (ability == eng.Ability.investigate) {
+        bot.mem.lastCheck = targetSeat;
+        bot.mem.checked.add(targetSeat);
+      }
+    }
+
     // Мафи хоорондоо сонголтоо ХАРНА — хамтдаа шийдэх нь тэдний давуу тал.
     if (ability == eng.Ability.mafiaKill) {
       return <Outbound>[
         Outbound.to(
           _mafiaIds,
-          Envelope('mafiaPick', <String, Object?>{
+          Envelope(S2C.mafiaPick, <String, Object?>{
             'bySeat': me.seat,
             'targetSeat': targetSeat,
           }),
@@ -250,8 +417,96 @@ class GameRoom {
     if (_phase == NetPhase.lobby || _phase == NetPhase.gameOver) {
       return const <Outbound>[];
     }
-    if (nowMs < _phaseEndsAtMs) return const <Outbound>[];
-    return _advance(nowMs);
+    // БОТУУД ЭХЛЭЭД — үе шат урагшлахаас ӨМНӨ. Эс бөгөөс сүүлийн tick
+    // дээр ирсэн ботын үйлдэл аль хэдийн өөр үе шатанд буух тул
+    // `notYourTurn` болно.
+    final List<Outbound> out = _botsTick(nowMs);
+    if (nowMs < _phaseEndsAtMs) return out;
+    return <Outbound>[...out, ..._advance(nowMs)];
+  }
+
+  /// Хугацаа нь болсон ботуудыг үйлдүүлнэ.
+  ///
+  /// Ботыг ЗӨВХӨН ЦАГ сэрээнэ — ирсэн мессеж сэрээдэггүй. Тиймээс хоёр
+  /// мафи бот бие биенийхээ сонголтод хариу үйлдэж, нэг tick дотор
+  /// хязгааргүй давтагдах боломж БАЙХГҮЙ.
+  List<Outbound> _botsTick(int nowMs) {
+    if (_bots.isEmpty) return const <Outbound>[];
+    final List<BotSeat> due =
+        _bots.values.where((BotSeat b) => b.due(nowMs)).toList()
+          ..sort((BotSeat a, BotSeat b) => a.seat.compareTo(b.seat));
+    if (due.isEmpty) return const <Outbound>[];
+
+    final List<Outbound> out = <Outbound>[];
+    for (final BotSeat b in due) {
+      b.acted = true;
+      final BotCommand? c = decideBot(_botView(b), b.rng);
+      // ЖИНХЭНЭ ХААЛГААР ордог. `_intents` рүү шууд бичвэл хөдөлгүүрийн
+      // шалгалт болон давхардал арилгах алхам алгасагдаж, нэг суудал
+      // хоёр санаатай болж N22 инвариант эвдэрнэ.
+      switch (c) {
+        case BotNight(:final int targetSeat):
+          out.addAll(nightAction(b.id, targetSeat, nowMs));
+        case BotVote(:final int targetSeat):
+          out.addAll(vote(b.id, targetSeat));
+        case null:
+          break;
+      }
+    }
+    return out;
+  }
+
+  /// Бот ЮУ ХАРАХ вэ.
+  ///
+  /// ЭНЭ ФУНКЦ Л нууцад хүрнэ, тэр ч ЗӨВХӨН ӨӨРИЙНХӨД НЬ. Өөр суудлын
+  /// `_secrets` рүү хандахгүй. Тархи нь `BotView`-ээс өөр юу ч хардаггүй
+  /// тул бусдын дүр түүнд хүрэх зам БАЙХГҮЙ.
+  BotView _botView(BotSeat b) {
+    final _Secret me = _secrets[b.id]!;
+    final bool mafi = eng.factionOf(me.role) == eng.Faction.mafi;
+
+    final List<int> alive = _players.values
+        .where((PublicPlayer p) => p.alive && p.seat != null)
+        .map((PublicPlayer p) => p.seat!)
+        .toList()
+      ..sort();
+
+    // Хамтрагчийн сонголт — өрөө үүнийг `mafiaPick`-ээр мафид аль хэдийн
+    // илгээдэг. Мафи биш бот энд ХООСОН авна.
+    final Map<int, int> picks = <int, int>{};
+    if (mafi) {
+      for (final eng.Intent i in _intents) {
+        final int? t = i.target;
+        if (t != null &&
+            i.night == _nightNo &&
+            i.ability == eng.Ability.mafiaKill) {
+          picks[i.actor] = t;
+        }
+      }
+    }
+
+    final Map<int, int> votes = <int, int>{};
+    for (final MapEntry<PlayerId, int> e in _votes.entries) {
+      final int? s = _players[e.key]?.seat;
+      if (s != null) votes[s] = e.value;
+    }
+
+    return BotView(
+      mySeat: me.seat,
+      myRole: me.role,
+      phase: _phase,
+      aliveSeats: alive,
+      myAllies: mafi
+          ? _mafiaIds
+              .where((PlayerId id) => id != b.id)
+              .map((PlayerId id) => _players[id]?.seat)
+              .whereType<int>()
+              .toSet()
+          : const <int>{},
+      allyPicks: picks,
+      liveVotes: votes,
+      mem: b.mem,
+    );
   }
 
   // --- Дотоод урсгал -------------------------------------------------------
@@ -286,12 +541,16 @@ class GameRoom {
       _players[ids[i]] = _players[ids[i]]!.copyWith(seat: seat, alive: true);
     }
 
+    for (final BotSeat b in _bots.values) {
+      b.seat = _secrets[b.id]?.seat ?? -1;
+    }
+
     _setup = eng.Setup(n: n, roleBySeat: d.roleBySeat);
     _nightNo = 0;
     _win = eng.WinState.none;
 
     final List<Outbound> out = <Outbound>[];
-    _enter(NetPhase.dealing, nowMs, PhaseMs.dealing, out);
+    _enter(NetPhase.dealing, nowMs, _ms(PhaseMs.dealing), out);
 
     // ДҮРИЙГ ЗӨВХӨН ЭЗЭНД НЬ. Мафид хамтрагчдынх нь суудлыг ч өгнө.
     for (final MapEntry<PlayerId, _Secret> e in _secrets.entries) {
@@ -323,13 +582,13 @@ class GameRoom {
         _beginNight(nowMs, out);
 
       case NetPhase.nightFalls:
-        _enter(NetPhase.nightMafia, nowMs, PhaseMs.mafia, out);
+        _enter(NetPhase.nightMafia, nowMs, _ms(PhaseMs.mafia), out);
 
       case NetPhase.nightMafia:
-        _enter(NetPhase.nightDoctor, nowMs, PhaseMs.doctor, out);
+        _enter(NetPhase.nightDoctor, nowMs, _ms(PhaseMs.doctor), out);
 
       case NetPhase.nightDoctor:
-        _enter(NetPhase.nightDetective, nowMs, PhaseMs.detective, out);
+        _enter(NetPhase.nightDetective, nowMs, _ms(PhaseMs.detective), out);
 
       case NetPhase.nightDetective:
         _resolveNight(nowMs, out);
@@ -338,12 +597,12 @@ class GameRoom {
         if (_win != eng.WinState.none) {
           _finish(nowMs, out);
         } else {
-          _enter(NetPhase.day, nowMs, PhaseMs.day, out);
+          _enter(NetPhase.day, nowMs, _ms(PhaseMs.day), out);
         }
 
       case NetPhase.day:
         _votes.clear();
-        _enter(NetPhase.vote, nowMs, PhaseMs.vote, out);
+        _enter(NetPhase.vote, nowMs, _ms(PhaseMs.vote), out);
 
       case NetPhase.vote:
         _tallyAndEliminate(nowMs, out);
@@ -375,7 +634,7 @@ class GameRoom {
       seed: _seed,
       orderPerm: List<int>.generate(_setup!.n, (int i) => i + 1),
     );
-    _enter(NetPhase.nightFalls, nowMs, PhaseMs.nightFalls, out);
+    _enter(NetPhase.nightFalls, nowMs, _ms(PhaseMs.nightFalls), out);
   }
 
   /// Хөдөлгүүрийн N22 инвариант: АМЬД СУУДАЛ БҮР яг нэг санаа илгээнэ.
@@ -411,6 +670,9 @@ class GameRoom {
       if (victim != null) {
         _players[victim] = _players[victim]!.copyWith(alive: false);
       }
+      for (final BotSeat b in _bots.values) {
+        b.mem.nightVictims.add(d.victim);
+      }
     }
     _win = r.win;
 
@@ -419,9 +681,22 @@ class GameRoom {
       final PlayerId? who = _bySeat[e.key];
       if (who == null) continue;
       for (final eng.Msg m in e.value) {
+        final BotSeat? b = _bots[who];
+        final int? asked = b?.mem.lastCheck;
+        if (b != null && asked != null) {
+          if (m.code == eng.MsgCode.traceFound) {
+            b.mem.traceFound.add(asked);
+          } else {
+            b.mem.traceNotFound.add(asked);
+          }
+        }
         out.add(Outbound.one(
           who,
           Envelope(S2C.investigateResult, <String, Object?>{
+            // ХЭНИЙГ асуусныг буцаана. Хөдөлгүүрийн хариу нь зөвхөн
+            // «олдсон/олдсонгүй» гэдгийг хэлдэг тул суудалгүй бол
+            // мөрдөгч хүн ч, бот ч хариуг нь хэнд хамаатуулахаа мэдэхгүй.
+            'targetSeat': asked,
             'code': m.code.name,
             'params': m.params,
           }),
@@ -434,10 +709,25 @@ class GameRoom {
       'deaths': r.deaths.map((eng.Death d) => d.victim).toList(),
       'whisper': r.whisper,
     })));
-    _enter(NetPhase.dawn, nowMs, PhaseMs.dawn, out);
+    _enter(NetPhase.dawn, nowMs, _ms(PhaseMs.dawn), out);
   }
 
   void _tallyAndEliminate(int nowMs, List<Outbound> out) {
+    // Ботууд өдрийн саналыг САНАНА — энэ нь нийтэд явсан мэдээлэл
+    // (`_voteState`), тиймээс тэдний мэдлэг хүнийхээс хэтрэхгүй.
+    if (_bots.isNotEmpty) {
+      final Map<int, int> bySeat = <int, int>{};
+      for (final MapEntry<PlayerId, int> e in _votes.entries) {
+        final int? s = _players[e.key]?.seat;
+        if (s != null) bySeat[s] = e.value;
+      }
+      for (final BotSeat b in _bots.values) {
+        b.mem.lastDayVotes
+          ..clear()
+          ..addAll(bySeat);
+      }
+    }
+
     final Map<int, int> tally = <int, int>{};
     for (final int seat in _votes.values) {
       tally[seat] = (tally[seat] ?? 0) + 1;
@@ -460,11 +750,11 @@ class GameRoom {
     }
     _recomputeWin();
 
-    out.add(Outbound.all(Envelope('eliminated', <String, Object?>{
+    out.add(Outbound.all(Envelope(S2C.eliminated, <String, Object?>{
       'seat': outSeat,
       'tally': tally.map((int k, int v) => MapEntry<String, int>('$k', v)),
     })));
-    _enter(NetPhase.elimination, nowMs, PhaseMs.elimination, out);
+    _enter(NetPhase.elimination, nowMs, _ms(PhaseMs.elimination), out);
   }
 
   /// Өдрийн хасалтын дараа ялалт шалгах.
@@ -503,6 +793,9 @@ class GameRoom {
   void _enter(NetPhase p, int nowMs, int ms, List<Outbound> out) {
     _phase = p;
     _phaseEndsAtMs = nowMs + ms;
+    for (final BotSeat b in _bots.values) {
+      b.schedule(nowMs, ms);
+    }
     out
       ..add(Outbound.all(Envelope(S2C.phase, <String, Object?>{
         'phase': p.name,
@@ -531,7 +824,15 @@ class GameRoom {
           // Хэдэн хүнтэй нэг сувагт байна. Нэрсийг илгээхгүй: мафи хэн
           // болохыг тоогоор ч гэсэн таахгүй байхын тулд зөвхөн өөрийн
           // сувгийнхаа хэмжээг мэднэ.
-          'channelSize': can ? members.length : 0,
+          // Ботыг ТООЦОХГҮЙ: ботод сокет байхгүй тул түүнийг тоолвол
+          // хүн байхгүй хоолойг хүлээж суух болно. Гэхдээ бот нь
+          // `voiceMembers` дотор ҮЛДЭНЭ — дамжуулах зам байт тутмаараа
+          // хэвээр байх ёстой.
+          'channelSize': can
+              ? members
+                  .where((PlayerId m) => !(_players[m]?.isBot ?? false))
+                  .length
+              : 0,
         }),
       );
     }).toList();
@@ -562,6 +863,17 @@ class GameRoom {
           'seat': s.seat,
           'role': s.role.name,
           'faction': isMafia ? 'mafi' : 'hotynhon',
+          // ХАМТРАГЧИЙГ БАС ЭРГҮҮЛЖ ӨГНӨ. Эс бөгөөс сүлжээ тасарч
+          // дахин орсон мафи хамтрагчаа үүрд мартаж, шөнө тус тусдаа
+          // санал өгч, алалт нь тэнцэж, шөнө санамсаргүй харагдана.
+          if (isMafia)
+            'allySeats': _secrets.values
+                .where((_Secret o) =>
+                    eng.factionOf(o.role) == eng.Faction.mafi &&
+                    o.seat != s.seat)
+                .map((_Secret o) => o.seat)
+                .toList()
+              ..sort(),
         }),
       ),
     ];
@@ -578,12 +890,7 @@ class GameRoom {
       Outbound.one(id, Envelope(S2C.error, <String, Object?>{'code': code}));
 
   Outbound _ack(PlayerId id) =>
-      Outbound.one(id, const Envelope('ack', <String, Object?>{}));
+      Outbound.one(id, const Envelope(S2C.ack, <String, Object?>{}));
 
   /// Нэр — 1..16 тэмдэгт, эхний ба сүүлийн зай авна.
-  static String _sanitizeName(String raw) {
-    final String t = raw.trim();
-    if (t.isEmpty) return 'Зочин';
-    return t.length <= 16 ? t : t.substring(0, 16);
-  }
 }

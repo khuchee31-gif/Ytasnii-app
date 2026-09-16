@@ -77,7 +77,9 @@ func _ready() -> void:
 	_name.add_theme_constant_override("outline_size", 8)
 	_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name.size = Vector2(300, 34)
+	# 16 тэмдэгт нэр дээр «3. » ба « · БОТ» нэмэгдэхэд 300 цэгт
+	# багтахгүй бөгөөд төвлүүлэлт (`show_name`) харагдахуйц гажина.
+	_name.size = Vector2(440, 34)
 	_name.visible = false
 	root.add_child(_name)
 

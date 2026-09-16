@@ -100,6 +100,7 @@ class PublicPlayer {
     this.connected = true,
     this.ready = false,
     this.speaking = false,
+    this.isBot = false,
   });
 
   final PlayerId id;
@@ -116,6 +117,14 @@ class PublicPlayer {
   /// Яг одоо ярьж байна уу — ширээн дээр дүр нь гэрэлтэнэ.
   final bool speaking;
 
+  /// Хиймэл тоглогч мөн үү.
+  ///
+  /// ЭНЭ НЬ ДҮР БИШ. Бот эсэх нь өрөөнд ОРОХ үед тогтоогддог, дүр нь
+  /// хожим САНАМСАРГҮЙ тарагддаг тул энэ талбар дүрийн тухай ЮУ Ч
+  /// хэлэхгүй. Ботыг ил тэмдэглэх нь шударга: тэмдэглэхгүй бол чимээгүй
+  /// суудал «сэжигтэй дуугүй хүн» мэт харагдаж, эхний өдөр хасагдана.
+  final bool isBot;
+
   Map<String, Object?> toJson() => <String, Object?>{
         'id': id,
         'name': name,
@@ -125,6 +134,7 @@ class PublicPlayer {
         'connected': connected,
         'ready': ready,
         'speaking': speaking,
+        'isBot': isBot,
       };
 
   static PublicPlayer fromJson(Map<String, Object?> j) => PublicPlayer(
@@ -136,14 +146,23 @@ class PublicPlayer {
         connected: j['connected'] as bool? ?? true,
         ready: j['ready'] as bool? ?? false,
         speaking: j['speaking'] as bool? ?? false,
+        isBot: j['isBot'] as bool? ?? false,
       );
 
+  /// ЭНЭ ЖАГСААЛТАД ШИНЭ ТАЛБАР НЭМЭХЭЭ БҮҮ МАРТ.
+  ///
+  /// `copyWith` нь объектыг талбар бүрээр нь ДАХИН БАРЬДАГ. Жагсаалтад
+  /// нэмэхгүй орхивол код хэвийн хөрвөж, тестүүд ногоон хэвээр үлдэнэ —
+  /// гэхдээ тэр талбар дуудагдах болгонд чимээгүйхэн анхны утга руугаа
+  /// буцна. `isBot`-ыг орхивол ботууд лоббид тэмдэглэгдээд, тоглолт
+  /// эхэлмэгц хүнээс ялгагдахаа болино.
   PublicPlayer copyWith({
     Seat? seat,
     bool? alive,
     bool? connected,
     bool? ready,
     bool? speaking,
+    bool? isBot,
   }) =>
       PublicPlayer(
         id: id,
@@ -154,6 +173,21 @@ class PublicPlayer {
         connected: connected ?? this.connected,
         ready: ready ?? this.ready,
         speaking: speaking ?? this.speaking,
+        isBot: isBot ?? this.isBot,
+      );
+
+  /// Нэр солих. `copyWith`-д оруулаагүй нь ЗОРИУДААР: нэр солих нь ховор
+  /// бөгөөд эмзэг үйлдэл тул тусад нь нэрлэж, grep-ээр олдохоор байлгав.
+  PublicPlayer renamed(String newName) => PublicPlayer(
+        id: id,
+        name: newName,
+        avatarId: avatarId,
+        seat: seat,
+        alive: alive,
+        connected: connected,
+        ready: ready,
+        speaking: speaking,
+        isBot: isBot,
       );
 }
 
@@ -227,6 +261,18 @@ abstract final class C2S {
   static const String nominate = 'nominate';
   static const String vote = 'vote';
 
+  /// Өрөөнд бот нэмэх. Ачаалал: `{"count": n}`.
+  ///
+  /// ЗӨВХӨН эзэн, ЗӨВХӨН лоббид. Тоог сервер хязгаарлана — апп «мянга
+  /// нэм» гэж хэлсэн ч өрөөний багтаамжаас хэтрэхгүй.
+  ///
+  /// Апп нь ХЭДИЙГ л хэлнэ. Хэн болох, хаана суух, ямар дүр авахыг
+  /// СЕРВЕР шийднэ — яг л хүний суудлыг апп сонгодоггүйтэй адил.
+  static const String addBots = 'addBots';
+
+  /// Сүүлчийн ботыг хасах. Ачаалал хоосон.
+  static const String removeBot = 'removeBot';
+
   /// Амьд байгаа эсэхийг шалгах. Сүлжээ тасарснаас сэргийлнэ.
   static const String ping = 'ping';
 }
@@ -263,6 +309,15 @@ abstract final class S2C {
   /// Дууны серверт холбогдох түлхүүр. Үе шат бүрд шинэчлэгдэж болно.
   static const String voiceGrant = 'voiceGrant';
 
+  /// Хасагдсан хүн зарлагдав. `{"seat": n|null}` — тэнцвэл `null`.
+  static const String eliminated = 'eliminated';
+
+  /// ЗӨВХӨН мафид: хамтрагч хэн рүү чиглэснийг харуулна.
+  static const String mafiaPick = 'mafiaPick';
+
+  /// Хүлээж авлаа. Агуулгагүй.
+  static const String ack = 'ack';
+
   static const String error = 'error';
   static const String pong = 'pong';
 }
@@ -278,7 +333,18 @@ abstract final class ErrCode {
   static const String notYourTurn = 'notYourTurn';
   static const String invalidTarget = 'invalidTarget';
   static const String tooFewPlayers = 'tooFewPlayers';
+  /// ХЭРЭГЛЭГДЭХГҮЙ — одоо давхардсан нэрийг дугаарлана (`uniqueName`).
+  /// Тогтмолыг утасны хуучин хувилбартай тохирохын тулд үлдээв.
   static const String nameTaken = 'nameTaken';
+
+  /// Нэр огт бичээгүй.
+  static const String nameRequired = 'nameRequired';
+
+  /// Нэр хэт богино.
+  static const String nameTooShort = 'nameTooShort';
+
+  /// «Зочин», «Бот 3» гэх мэт систем эзэмшдэг нэр.
+  static const String nameReserved = 'nameReserved';
   static const String rateLimited = 'rateLimited';
   static const String malformed = 'malformed';
 }

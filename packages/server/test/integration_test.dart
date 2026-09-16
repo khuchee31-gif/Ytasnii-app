@@ -193,4 +193,65 @@ void main() {
     expect(c.ofType(S2C.pong), isNotEmpty, reason: 'сервер унасан байна');
     await c.close();
   }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test('бот гэж өөрийгөө зарлаж чадахгүй', () async {
+    // Хүн өөрийгөө бот гэж зарлаж чаддаг байсан бол өдрийн яриан дээр
+    // «энэ бол бот» гэж тоомсоргүй орхигдох — жинхэнэ мафийн заль.
+    final _Client a = await connect('cheat1');
+    await settle();
+    a.send(C2S.createRoom, <String, Object?>{'name': 'Заль', 'isBot': true});
+    await settle();
+
+    final List<Object?> ps =
+        a.ofType(S2C.roomState).last.data['players']! as List<Object?>;
+    final Map<Object?, Object?> me = ps.first as Map<Object?, Object?>;
+    expect(me['isBot'], isFalse);
+    await a.close();
+  });
+
+  test('буруу ТӨРӨЛТЭЙ талбар серверийг унагаахгүй', () async {
+    // Хэлбэр нь зөв атлаа доторх утга нь буруу төрөлтэй мессеж.
+    // `e.data['x'] as int?` нь 1.5 дээр `TypeError` шиддэг бөгөөд тэр нь
+    // сокетын дотор, барихгүй асинхрон алдаа болж БҮХ өрөөтэй хамт
+    // серверийг унагана.
+    final _Client a = await connect('junk2');
+    await settle();
+    a.send(C2S.createRoom, <String, Object?>{'name': 'Хог'});
+    await settle();
+
+    for (final Map<String, Object?> bad in <Map<String, Object?>>[
+      <String, Object?>{'t': C2S.vote, 'd': <String, Object?>{'targetSeat': 1.5}},
+      <String, Object?>{'t': C2S.addBots, 'd': <String, Object?>{'count': 'x'}},
+      <String, Object?>{'t': C2S.addBots, 'd': <String, Object?>{'count': 1.5}},
+      <String, Object?>{'t': C2S.nightAction, 'd': <String, Object?>{'targetSeat': <int>[1]}},
+    ]) {
+      a.channel.sink.add(jsonEncode(<String, Object?>{
+        'v': kProtocolVersion, 't': bad['t'], 'd': bad['d'],
+      }));
+      await settle(80);
+    }
+
+    // Сервер амьд байх ёстой.
+    a.send(C2S.ping);
+    await settle();
+    expect(a.ofType(S2C.pong), isNotEmpty, reason: 'сервер унасан байна');
+    await a.close();
+  });
+
+  test('татгалзсан нэрийн дараа өрөөнд ОРООГҮЙ байна', () async {
+    // Хоосон нэр одоо алдаа тул `createRoom` бүтэлгүйтэж болно. Тэр үед
+    // холболтыг өрөөнд хавсаргавал хүн ороогүй атлаа `setReady` нь тэр
+    // өрөө рүү очно.
+    final _Client a = await connect('noname3');
+    await settle();
+    a.send(C2S.createRoom, <String, Object?>{'name': '   '});
+    await settle();
+    expect(a.ofType(S2C.error).last.data['code'], ErrCode.nameRequired);
+
+    a.send(C2S.setReady, <String, Object?>{'ready': true});
+    await settle();
+    expect(a.ofType(S2C.roomState), isEmpty,
+        reason: 'ороогүй атлаа өрөөний төлөв авчээ');
+    await a.close();
+  });
 }

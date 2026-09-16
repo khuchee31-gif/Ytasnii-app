@@ -19,6 +19,8 @@ signal join_pressed(player_name: String, code: String)
 signal ready_toggled(value: bool)
 signal start_pressed()
 signal refresh_pressed()
+signal add_bots_pressed(count: int)
+signal remove_bot_pressed()
 
 enum State { NAME, JOIN, ROOM }
 
@@ -39,7 +41,10 @@ var _room_code := Label.new()
 var _roster := GridContainer.new()
 var _ready_btn := Button.new()
 var _start_btn := Button.new()
-var _note := Label.new()
+var _bot_add := Button.new()
+var _bot_del := Button.new()
+var _bots_needed := 1
+var _notes: Array[Label] = []
 
 
 func _ready() -> void:
@@ -157,8 +162,9 @@ func _build_name() -> Control:
 	box.add_child(_title("ХОТ УНТЛАА", 58))
 	box.add_child(_small("Ангийнхаа мафиг утсаараа"))
 	box.add_child(_spacer(10))
-	_name_field = _field("Нэрээ бич", 16)
+	_name_field = _field("Нэрээ энд бич", 16)
 	box.add_child(_name_field)
+	box.add_child(_small("Ангийнхан чинь энэ нэрийг харна", 20))
 
 	# СЕРВЕРИЙН ХАЯГ.
 	#
@@ -182,7 +188,7 @@ func _build_name() -> Control:
 	var mk := _style(Button.new(), true)
 	mk.text = "ӨРӨӨ ҮҮСГЭХ"
 	mk.pressed.connect(func() -> void:
-		create_pressed.emit(_name_field.text.strip_edges(), _public_toggle.button_pressed))
+		create_pressed.emit(player_name(), _public_toggle.button_pressed))
 	box.add_child(mk)
 
 	var jn := _style(Button.new())
@@ -208,7 +214,7 @@ func _build_join() -> Control:
 	var go_btn := _style(Button.new(), true)
 	go_btn.text = "ОРОХ"
 	go_btn.pressed.connect(func() -> void:
-		join_pressed.emit(_name_field.text.strip_edges(), _code_field.text.strip_edges()))
+		join_pressed.emit(player_name(), _code_field.text.strip_edges()))
 	box.add_child(go_btn)
 
 	box.add_child(_small("эсвэл нээлттэй өрөөнөөс сонго", 20))
@@ -218,6 +224,8 @@ func _build_join() -> Control:
 	scroll.add_child(_rooms)
 	_rooms.custom_minimum_size = Vector2(600, 0)
 	box.add_child(scroll)
+
+	box.add_child(_note_label())
 
 	var back := _style(Button.new())
 	back.text = "БУЦАХ"
@@ -230,7 +238,7 @@ func _build_join() -> Control:
 
 func _build_room() -> Control:
 	var p := _page()
-	var box := _card(740)
+	var box := _card(800)
 	box.add_child(_small("ӨРӨӨНИЙ КОД", 22))
 	_room_code.text = "····"
 	_room_code.add_theme_font_size_override("font_size", 72)
@@ -246,10 +254,29 @@ func _build_room() -> Control:
 	_roster.add_theme_constant_override("h_separation", 40)
 	_roster.add_theme_constant_override("v_separation", 6)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 250)
-	_roster.custom_minimum_size = Vector2(700, 0)
+	scroll.custom_minimum_size = Vector2(0, 196)
+	_roster.custom_minimum_size = Vector2(760, 0)
 	scroll.add_child(_roster)
 	box.add_child(scroll)
+
+	# БОТЫН ТОВЧ ЯГ ЭНД БАЙНА: хүн дутуу гэдгийг ЯГ энэ дэлгэц бичдэг
+	# («3 ХҮН ДУТУУ»). Засварыг гомдлын дэргэд нь тавина. Нэрийн дэлгэц
+	# дээр тавьбал өрөө үүсээгүй байхад шийдэх болно.
+	var bots := HBoxContainer.new()
+	bots.add_theme_constant_override("separation", 14)
+	_bot_del = _style(Button.new())
+	_bot_del.text = "− БОТ"
+	_bot_del.custom_minimum_size = Vector2(150, 58)
+	_bot_del.pressed.connect(func() -> void: remove_bot_pressed.emit())
+	bots.add_child(_bot_del)
+	_bot_add = _style(Button.new())
+	_bot_add.text = "+ БОТ НЭМЭХ"
+	_bot_add.custom_minimum_size = Vector2(0, 58)
+	_bot_add.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_bot_add.pressed.connect(func() -> void: add_bots_pressed.emit(_bots_needed))
+	bots.add_child(_bot_add)
+	box.add_child(bots)
+	box.add_child(_small("Найз дутвал бот нэмээд ганцаараа туршиж болно", 20))
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
@@ -272,9 +299,16 @@ func _build_room() -> Control:
 	return p
 
 
+## Хуудас бүр ӨӨРИЙН мэдэгдлийн мөртэй.
+##
+## Өмнө нь ганц хувьсагчид хадгалдаг байсан: `_ready()` нь НЭР, ОРОХ,
+## ӨРӨӨ гурвыг дараалан барьдаг тул хувьсагч сүүлчийнх дээр үлдэж,
+## «Нэрээ бичээрэй», «Код 4 үсэгтэй», «Холбогдож байна…» гэх бүх мессеж
+## НУУГДСАН хуудсан дээр бичигддэг байв — хэрэглэгч юу ч хардаггүй.
 func _note_label() -> Label:
-	_note = _small("", 22, Color(0.86, 0.46, 0.40))
-	return _note
+	var l := _small("", 22, Color(0.86, 0.46, 0.40))
+	_notes.append(l)
+	return l
 
 
 func _spacer(h: int) -> Control:
@@ -290,8 +324,8 @@ func go(state: int) -> void:
 	for k in _pages:
 		(_pages[k] as Control).visible = (k == state)
 	visible = true
-	if state == State.NAME and _name_field.text.is_empty():
-		_name_field.grab_focus()
+	# Автоматаар фокус АВАХГҮЙ: хөндлөн дэлгэцэнд Андройдын гар дэлгэц
+	# нээгдэж, «ӨРӨӨ ҮҮСГЭХ» товчийг бүрэн далдална.
 
 
 func hide_all() -> void:
@@ -303,7 +337,7 @@ func set_name_text(v: String) -> void:
 
 
 func player_name() -> String:
-	return _name_field.text.strip_edges()
+	return player_name()
 
 
 func set_server_text(v: String) -> void:
@@ -330,8 +364,8 @@ func server_url() -> String:
 
 
 func set_note(text: String) -> void:
-	if _note != null:
-		_note.text = text
+	for l in _notes:
+		l.text = text
 
 
 ## Нээлттэй өрөөнүүд: `[{code, players, max}]`.
@@ -350,27 +384,44 @@ func show_rooms(list: Array) -> void:
 			int(d.get("players", 0)), int(d.get("max", 0))]
 		var code := str(d.get("code", ""))
 		b.pressed.connect(func() -> void:
-			join_pressed.emit(_name_field.text.strip_edges(), code))
+			join_pressed.emit(player_name(), code))
 		_rooms.add_child(b)
 
 
 ## Өрөөний төлөв. `players` нь НИЙТИЙН мэдээлэл — дүр агуулахгүй.
-func show_room(code: String, players: Array, is_host: bool, min_players: int) -> void:
+func show_room(code: String, players: Array, is_host: bool,
+		min_players: int, max_players: int) -> void:
 	go(State.ROOM)
 	_room_code.text = code
 	for c in _roster.get_children():
 		c.queue_free()
 	var ready_count := 0
-	for p in players:
-		var d: Dictionary = p
+	var bot_count := 0
+	for i in range(players.size()):
+		var d: Dictionary = players[i]
 		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(330, 0)
+		row.custom_minimum_size = Vector2(360, 0)
 		var nm := Label.new()
-		nm.text = str(d.get("name", "?"))
+		# СУУДЛЫН ДУГААР ҮРГЭЛЖ ХАРАГДАНА. Хоёр ижил төстэй нэр байвал
+		# «Бат мафи» гэдэг нь утгагүй, харин «3. Бат мафи» гэдэг тодорхой.
+		nm.text = "%d. %s" % [i + 1, str(d.get("name", "?"))]
+		if bool(d.get("isBot", false)):
+			bot_count += 1
 		nm.add_theme_font_size_override("font_size", 28)
 		nm.add_theme_color_override("font_color", INK)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nm)
+		if bool(d.get("isBot", false)):
+			# Ботыг ИЛ тэмдэглэнэ. Нуувал чимээгүй суудал «сэжигтэй дуугүй
+			# хүн» мэт харагдаж, эхний өдөр хасагдана. Дүрийн тухай юу ч
+			# хэлэхгүй: бот эсэх нь ОРОХ үед тогтоогддог, дүр нь хожим
+			# САНАМСАРГҮЙ тарагддаг.
+			var chip := Label.new()
+			chip.text = "бот"
+			chip.add_theme_font_size_override("font_size", 20)
+			chip.add_theme_color_override("font_color", Color(0.38, 0.62, 0.78))
+			row.add_child(chip)
+
 		var st := Label.new()
 		var is_ready: bool = bool(d.get("ready", false))
 		if is_ready:
@@ -381,6 +432,18 @@ func show_room(code: String, players: Array, is_host: bool, min_players: int) ->
 			Color(0.42, 0.78, 0.50) if is_ready else DIM)
 		row.add_child(st)
 		_roster.add_child(row)
+
+	# ХЭДЭН БОТ НЭМЭХ ВЭ.
+	#
+	# Ганцаараа бол 8 хүнтэй БҮТЭН тоглолт болгоно: тэр үед хоёр
+	# алуурчин гарч, мафийн дуут суваг үнэхээр шалгагдана. Хэдэн найз
+	# ирсэн бол зөвхөн ДУТУУГ нь нөхнө — тэдний оронд бот суулгахгүй.
+	var target: int = 8 if players.size() <= 2 else min_players
+	_bots_needed = clampi(target - players.size(), 1, maxi(max_players - players.size(), 1))
+	_bot_add.text = "+ %d БОТ НЭМЭХ" % _bots_needed
+	_bot_add.visible = is_host
+	_bot_add.disabled = players.size() >= max_players
+	_bot_del.visible = is_host and bot_count > 0
 
 	_start_btn.visible = is_host
 	# Сервер ч гэсэн шалгана (`ErrCode.tooFewPlayers`) — энэ нь зөвхөн

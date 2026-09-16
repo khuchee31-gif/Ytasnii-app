@@ -27,6 +27,10 @@ signal voice_grant(data: Dictionary)
 signal server_error(code: String, data: Dictionary)
 ## Дууны хүрээ ирэв: хэн (суудал), дугаар, μ-law байтууд.
 signal audio_frame(seat: int, seq: int, audio: PackedByteArray)
+## Өдрийн хасалт зарлагдав. `seat` нь `null` бол тэнцсэн.
+signal eliminated(data: Dictionary)
+## ЗӨВХӨН мафид: хамтрагч хэн рүү чиглэв.
+signal mafia_pick(data: Dictionary)
 
 ## Протоколын хувилбар. `packages/protocol/lib/src/messages.dart`-тай
 ## ЯГ тэнцүү байх ёстой. Зөрвөл сервер шууд татгалзана — «хагас
@@ -206,6 +210,19 @@ func vote(target_seat: int) -> void:
 	send("vote", {"targetSeat": target_seat})
 
 
+## Өрөөнд бот нэмэхийг хүснэ.
+##
+## Апп нь ХЭДИЙГ л хэлнэ. Хэн болох, хаана суух, ямар дүр авахыг СЕРВЕР
+## шийднэ — яг л хүний суудлыг апп сонгодоггүйтэй адил. Хэрэв апп ботын
+## дүрийг мэддэг байсан бол задалсан апп тэр дор нь хожно.
+func add_bots(count := 1) -> void:
+	send("addBots", {"count": count})
+
+
+func remove_bot() -> void:
+	send("removeBot", {})
+
+
 # --- Хүлээн авах -------------------------------------------------------------
 
 ## `[tag][seq lo][seq hi][seat][μ-law…]`
@@ -234,6 +251,8 @@ func _receive(raw: String) -> void:
 		"gameOver": game_over.emit(d)
 		"roomList": room_list.emit(d)
 		"voiceGrant": voice_grant.emit(d)
+		"eliminated": eliminated.emit(d)
+		"mafiaPick": mafia_pick.emit(d)
 		"error": server_error.emit(str(d.get("code", "")), d)
 		"pong", "ack": pass
 		_: pass          # Танихгүй төрөл — шинэ сервер, хуучин апп. Алгасна.

@@ -221,12 +221,22 @@ class Server {
               S2C.error, <String, Object?>{'code': ErrCode.roomFull}));
           return;
         }
-        c.room = r;
+        // ХЭРЭГЛЭГЧИЙН `isBot`-ыг ХЭЗЭЭ Ч УНШИХГҮЙ. Хүн өөрийгөө бот
+        // гэж зарлаж чаддаг байсан бол өдрийн яриан дээр «энэ бол бот»
+        // гэж тоомсоргүй орхигдох — жинхэнэ мафийн заль.
         _dispatch(
           r,
           r.join(id, e.data['name'] as String? ?? '',
               e.data['avatarId'] as String? ?? 'punk_01'),
         );
+        // Нэр буруу бол `join` татгалзана. Тэр үед холболтыг өрөөнд
+        // хавсаргавал хүн ороогүй атлаа `setReady`, `startGame` нь тэр
+        // өрөө рүү очно; хоосон өрөө нь бүртгэлд 30 секунд үлдэнэ.
+        if (r.has(id)) {
+          c.room = r;
+        } else {
+          _hub.drop(r.code);
+        }
 
       case C2S.joinRoom:
         final PlayerId? id = c.playerId;
@@ -237,12 +247,12 @@ class Server {
               S2C.error, <String, Object?>{'code': ErrCode.roomNotFound}));
           return;
         }
-        c.room = r;
         _dispatch(
           r,
           r.join(id, e.data['name'] as String? ?? '',
               e.data['avatarId'] as String? ?? 'punk_01'),
         );
+        if (r.has(id)) c.room = r;
 
       case C2S.leaveRoom:
         final GameRoom? r = c.room;
@@ -255,11 +265,18 @@ class Server {
         _withRoom(c, (GameRoom r, PlayerId id) =>
             r.setReady(id, e.data['ready'] as bool? ?? false));
 
+      case C2S.addBots:
+        _withRoom(c, (GameRoom r, PlayerId id) =>
+            r.addBots(id, _asInt(e.data['count']) ?? 0));
+
+      case C2S.removeBot:
+        _withRoom(c, (GameRoom r, PlayerId id) => r.removeBot(id));
+
       case C2S.startGame:
         _withRoom(c, (GameRoom r, PlayerId id) => r.start(id, nowMs));
 
       case C2S.nightAction:
-        final int? target = e.data['targetSeat'] as int?;
+        final int? target = _asInt(e.data['targetSeat']);
         if (target == null) return;
         _withRoom(
             c, (GameRoom r, PlayerId id) => r.nightAction(id, target, nowMs));
@@ -314,6 +331,14 @@ class Server {
     }
   }
 }
+
+/// Сүлжээнээс ирсэн тоог АЮУЛГҮЙ уншина.
+///
+/// `e.data['x'] as int?` нь утга нь 1.5 байвал `TypeError` шиднэ. Тэр нь
+/// `socket.stream.listen`-ийн дотор, үндсэн бүсэд баригдахгүй асинхрон
+/// алдаа болж, БҮХ өрөөтэй хамт серверийг унагана. Нэг хүн ганц мессежээр
+/// ангийн тоглолтыг зогсоож болохгүй.
+int? _asInt(Object? v) => v is int ? v : null;
 
 int? _intArg(List<String> args, String name) {
   final int i = args.indexOf(name);

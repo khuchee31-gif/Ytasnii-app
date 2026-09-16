@@ -55,10 +55,17 @@ class Hub {
     return r;
   }
 
+  /// Нэг өрөөг шууд устгана. Үүсгэх үйлдэл бүтэлгүйтэхэд хэрэгтэй.
+  void drop(String code) => _rooms.remove(code.toUpperCase());
+
   /// Хоосон болсон өрөөг устгана. Сервер үүнийг тогтмол дуудна.
   int sweepEmpty() {
     final List<String> dead = _rooms.entries
-        .where((MapEntry<String, GameRoom> e) => e.value.playerCount == 0)
+        // ХҮНЭЭР тоолно, тоглогчоор БИШ. Бот `_players` дотор үлддэг тул
+        // эзэн нь гарсан ботон өрөө ХЭЗЭЭ Ч цэвэрлэгдэхгүй байсан: өрөө
+        // үүсгээд бот нэмээд гарахыг 500 удаа давтвал сервер дээр шинэ
+        // өрөө үүсэхээ болино (`_maxRooms`).
+        .where((MapEntry<String, GameRoom> e) => e.value.humanCount == 0)
         .map((MapEntry<String, GameRoom> e) => e.key)
         .toList();
     for (final String c in dead) {

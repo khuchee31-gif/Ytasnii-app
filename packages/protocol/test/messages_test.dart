@@ -146,6 +146,45 @@ void main() {
     });
   });
 
+  group('Бот эсэх', () {
+    test('бичээд уншихад хадгалагдана', () {
+      const PublicPlayer p = PublicPlayer(
+          id: 'b1', name: 'Бот 1', avatarId: 'punk_01', isBot: true);
+      expect(PublicPlayer.fromJson(p.toJson()).isBot, isTrue);
+    });
+
+    test('хуучин аппын мессежид талбар байхгүй бол ХҮН', () {
+      final Map<String, Object?> j = <String, Object?>{
+        'id': 'a', 'name': 'Бат', 'avatarId': 'punk_01',
+      };
+      expect(PublicPlayer.fromJson(j).isBot, isFalse);
+    });
+
+    test('`copyWith` тугийг УНАГААХГҮЙ', () {
+      // `copyWith` нь объектыг талбар бүрээр нь дахин барьдаг. Жагсаалтад
+      // `isBot`-ыг нэмэхээ мартвал код хэвийн хөрвөж, тестүүд ногоон
+      // хэвээр үлдэнэ — гэхдээ бот нь тоглолт эхэлмэгц (`copyWith(seat:)`)
+      // чимээгүйхэн хүн болж хувирна.
+      const PublicPlayer bot = PublicPlayer(
+          id: 'b1', name: 'Бот 1', avatarId: 'punk_01', isBot: true);
+      expect(bot.copyWith(alive: false).isBot, isTrue);
+      expect(bot.copyWith(seat: 3).isBot, isTrue);
+      expect(bot.renamed('Бот 2').isBot, isTrue);
+      expect(bot.renamed('Бот 2').name, 'Бот 2');
+    });
+
+    test('ДҮРИЙН талбар нэмэгдээгүй эсэх', () {
+      // Яг ТЭР түлхүүрүүд. Дэд олонлог биш, ЯГ тэнцүү — ингэснээр
+      // дараагийн талбар чимээгүйхэн орж ирэх боломжгүй.
+      const PublicPlayer p = PublicPlayer(
+          id: 'a', name: 'Бат', avatarId: 'punk_01', seat: 2);
+      expect(p.toJson().keys.toSet(), <String>{
+        'id', 'name', 'avatarId', 'seat',
+        'alive', 'connected', 'ready', 'speaking', 'isBot',
+      });
+    });
+  });
+
   group('VoiceScope', () {
     test('шөнийн мафийн суваг нь `everyone` БИШ', () {
       // Энэ нь жирийн шалгалт мэт боловч: хэрэв хэн нэгэн `mafiaOnly`-г

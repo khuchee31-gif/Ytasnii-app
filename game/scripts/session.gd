@@ -54,12 +54,18 @@ const ACT_LABEL := {
 ## — энэ нь зөвхөн товчийг идэвхгүй болгож, хэрэглэгчид ойлгуулах.
 const MIN_PLAYERS := 6
 
+## Дээд хязгаар. Мөн СЕРВЕР шийднэ (`kMaxPlayers`, `room.dart`).
+const MAX_PLAYERS := 14
+
 const ERR_TEXT := {
 	"badVersion": "Аппаа шинэчлэх шаардлагатай.",
 	"roomNotFound": "Ийм кодтой өрөө олдсонгүй.",
 	"roomFull": "Өрөө дүүрсэн байна.",
 	"gameInProgress": "Тоглолт аль хэдийн эхэлсэн.",
-	"notHost": "Зөвхөн өрөөний эзэн эхлүүлнэ.",
+	"notHost": "Зөвхөн өрөөний эзэн л энэ үйлдлийг хийнэ.",
+	"nameRequired": "Нэрээ бичээрэй.",
+	"nameTooShort": "Нэр хэт богино байна.",
+	"nameReserved": "Энэ нэрийг авч болохгүй.",
 	"notYourTurn": "Одоо чиний ээлж биш.",
 	"invalidTarget": "Энэ хүнийг сонгож болохгүй.",
 	"tooFewPlayers": "Хүн цөөн байна.",
@@ -92,6 +98,13 @@ var _auto_join := false
 var _pending: Dictionary = {}
 var _url := ""
 var _public := true
+## Хэрэглэгчийн бичсэн нэр — сервер өөрчилсөн эсэхийг шалгахад.
+var _asked_name := ""
+
+## Хөгжүүлэлтийн товчлол: өрөө үүсгээд, энэ тооны бот нэмээд, эхлүүлнэ.
+## Утсан дээр хэрэглэгдэхгүй — тушаалын мөрөөр л өгөгдөнө.
+var solo_bots := 0
+var _solo_done := false
 
 
 ## Холбогдсоны дараа юу хийх вэ. Хоосон бол ШИНЭ өрөө үүсгэнэ, эс бөгөөс
@@ -129,6 +142,8 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	net.voice_grant.connect(_on_voice)
 	net.room_list.connect(_on_room_list)
 	net.server_error.connect(_on_error)
+	net.eliminated.connect(_on_eliminated)
+	net.mafia_pick.connect(_on_mafia_pick)
 	if hud != null:
 		hud.acted.connect(_on_act)
 
@@ -141,6 +156,8 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	lobby.refresh_pressed.connect(func() -> void:
 		if net.is_open():
 			net.list_rooms())
+	lobby.add_bots_pressed.connect(func(n: int) -> void: net.add_bots(n))
+	lobby.remove_bot_pressed.connect(func() -> void: net.remove_bot())
 	lobby.set_name_text(_remembered_name(name_v))
 	lobby.set_server_text(_remembered("server", url))
 	# Лобби нээлттэй үед тоглоомын дэлгэц харагдах ёсгүй — хоёр давхар
@@ -174,6 +191,9 @@ func _on_open() -> void:
 		var job: Dictionary = _pending
 		_pending = {}
 		_run(str(job.get("kind", "create")), str(job.get("code", "")))
+	elif solo_bots > 0:
+		net.player_name = "Хүчээ"
+		net.create_room(false)
 	elif room_code == "*":
 		_auto_join = true
 		net.list_rooms()
@@ -235,6 +255,7 @@ func _on_create(name_v: String, is_public: bool) -> void:
 		lobby.set_note("Нэрээ бичээрэй.")
 		return
 	_remember("name", name_v)
+	_asked_name = name_v
 	_public = is_public
 	_connect_then("create", "", name_v)
 
@@ -247,6 +268,7 @@ func _on_join(name_v: String, code: String) -> void:
 		lobby.set_note("Код 4 үсэгтэй.")
 		return
 	_remember("name", name_v)
+	_asked_name = name_v
 	_connect_then("join", code, name_v)
 
 
@@ -272,6 +294,19 @@ func _on_room_list(d: Dictionary) -> void:
 func _on_room_state(d: Dictionary) -> void:
 	_phase = str(d.get("phase", _phase))
 	_players = d.get("players", []) if d.get("players") is Array else []
+
+	# Нэр давхцсан бол сервер дугаарлаж өгдөг. Түүнийг ХЭЛЭХГҮЙ бол
+	# «Бат» гэж бичсэн хүн «Бат 2» болоод, апп эвдэрсэн гэж бодно.
+	if not _asked_name.is_empty():
+		for p in _players:
+			var d2: Dictionary = p
+			if str(d2.get("id", "")) != net.player_id:
+				continue
+			var got := str(d2.get("name", ""))
+			if not got.is_empty() and got != _asked_name:
+				_notify("Ижил нэр байсан тул чи «%s» боллоо." % got)
+			_asked_name = ""
+			break
 	if verbose:
 		print("NET roomState code=", d.get("code", "?"), " phase=", _phase,
 			" players=", _players.size())
@@ -285,10 +320,19 @@ func _on_room_state(d: Dictionary) -> void:
 			for i in raw:
 				heads[int(i) + 1] = raw[i]
 			voice.set_seats(heads)
+	# Ганцаараа туршилт: өрөө үүссэн даруйд бот нэмээд эхлүүлнэ.
+	if solo_bots > 0 and not _solo_done and _phase == "lobby":
+		if _players.size() <= 1:
+			net.add_bots(solo_bots)
+		elif _players.size() >= MIN_PLAYERS:
+			_solo_done = true
+			net.start_game()
+
 	if lobby != null:
 		if _phase == "lobby":
 			lobby.show_room(str(d.get("code", "")), _players,
-				str(d.get("hostId", "")) == net.player_id, MIN_PLAYERS)
+				str(d.get("hostId", "")) == net.player_id,
+				MIN_PLAYERS, MAX_PLAYERS)
 		else:
 			lobby.hide_all()
 		if hud != null:
@@ -324,7 +368,10 @@ func _on_vote_state(d: Dictionary) -> void:
 
 
 func _on_night_result(d: Dictionary) -> void:
-	var dead: Array = d.get("died", []) if d.get("died") is Array else []
+	# Сервер `deaths` гэж илгээдэг (`room.dart`). Өмнө нь `died` гэж
+	# уншдаг байсан тул хэн алагдсан ч ҮРГЭЛЖ «нам гүм өнгөрлөө» гэж
+	# бичигддэг байв.
+	var dead: Array = d.get("deaths", []) if d.get("deaths") is Array else []
 	_notify("Шөнө нам гүм өнгөрлөө." if dead.is_empty()
 		else "%s-р суудал алагдлаа." % str(dead[0]))
 
@@ -339,6 +386,22 @@ func _on_game_over(d: Dictionary) -> void:
 	var w := str(d.get("winner", ""))
 	_notify("Мафи ялав." if w == "mafi" else "Хотынхон ялав.")
 	_refresh()
+
+
+func _on_eliminated(d: Dictionary) -> void:
+	var seat: Variant = d.get("seat")
+	if seat == null:
+		_notify("Санал тэнцлээ. Хэн ч хасагдсангүй.")
+	else:
+		_notify("%d-р суудал хасагдлаа." % int(seat))
+
+
+## ЗӨВХӨН мафид ирнэ. Иргэн энэ мессежийг ХЭЗЭЭ Ч авахгүй.
+func _on_mafia_pick(d: Dictionary) -> void:
+	var by: int = int(d.get("bySeat", 0))
+	var target: int = int(d.get("targetSeat", 0))
+	if by != _my_seat:
+		_notify("Хамтрагч %d-р суудлыг сонгов." % target)
 
 
 func _on_voice(d: Dictionary) -> void:

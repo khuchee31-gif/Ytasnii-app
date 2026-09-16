@@ -1,0 +1,211 @@
+// Тоглогчийн нэр — цэвэрлэх, харьцуулах, давхардлыг тайлах.
+//
+// ХОЁР ӨӨР ЗҮЙЛ:
+//   `cleanName`  → ХАРАГДАХ нэр. Хүн өөрийн бичсэнээ танихаар байх ёстой.
+//   `nameKey`    → ХАРЬЦУУЛАХ түлхүүр. ХЭЗЭЭ Ч дэлгэцэнд гарахгүй.
+//
+// ЯАГААД ХОЁР ВЭ: мафи бол ИТГЭЛИЙН тоглоом. «Бат мафи» гэж хэлэхэд
+// ширээн дээр хоёр «Бат» байвал тоглоом тэр дор нь утгагүй болно. Гэтэл
+// хоёр нэр ялгаатай БАЙТ-тай атлаа ЯГ ИЖИЛ харагдаж болно:
+//
+//   «Хулан» — кирилл Х (U+0425)
+//   «Xулан» — латин  X (U+0058)        ← ижил дүрс, өөр байт
+//   «Болд» ба «болд»                    ← зөвхөн том жижиг үсгээр ялгаатай
+//   «Бат» ба «Бат​»                      ← үл үзэгдэх тэмдэгт (U+200B)
+//
+// Тиймээс харьцуулахдаа ЭХЛЭЭД ижил дүрсийг нэгтгэж, ДАРАА нь жижиг үсэг
+// болгоно. Дараалал нь ЧУХАЛ: том `B` ба кирилл `В` ижилхэн, харин жижиг
+// `b` ба `в` ИЖИЛ БИШ — эсрэгээр нь хийвэл тэр хос үүрд алдагдана.
+
+import 'package:protocol/protocol.dart';
+
+/// Нэрийн дээд урт (тэмдэгтээр, байтаар БИШ).
+const int kMaxNameRunes = 16;
+
+/// Хамгийн богино нэр.
+const int kMinNameRunes = 2;
+
+/// Давхардлыг тайлахдаа хамгийн ихдээ хэдэн дугаар туршихыг оролдох вэ.
+/// Өрөө 14 хүнтэй тул 40 нь хэзээ ч дуусахгүй нөөц.
+const int _kMaxSuffix = 40;
+
+// --- Тэмдэгтийн ангилал ------------------------------------------------------
+
+/// Зай мэт ажилладаг бүх тэмдэгт. Бүгд энгийн зай болно.
+const Set<int> _kSpaces = <int>{
+  0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680,
+  0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007,
+  0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000,
+};
+
+/// Хэвлэгддэггүй, өргөнгүй тэмдэгтүүд.
+///
+/// Эдгээрийг ашиглан хоёр хүн ЯГ ижил харагддаг атлаа өөр нэр авч болно.
+bool _invisible(int c) =>
+    (c <= 0x1F) ||                          // C0 удирдлага
+    (c >= 0x7F && c <= 0x9F) ||             // C1 удирдлага
+    c == 0xAD ||                            // зөөлөн зураас
+    c == 0x034F ||                          // grapheme joiner
+    (c >= 0x200B && c <= 0x200F) ||         // тэг өргөнтэй, чиглэл
+    (c >= 0x202A && c <= 0x202E) ||         // чиглэл дарах
+    (c >= 0x2060 && c <= 0x2064) ||         // үг холбогч
+    (c >= 0x2066 && c <= 0x2069) ||         // чиглэл тусгаарлах
+    (c >= 0xFE00 && c <= 0xFE0F) ||         // хувилбар сонгогч
+    c == 0xFEFF;                            // BOM
+
+/// Хослох тэмдэг (диакритик). «Залго» бичвэрийг устгана.
+bool _combining(int c) =>
+    (c >= 0x0300 && c <= 0x036F) ||
+    (c >= 0x1AB0 && c <= 0x1AFF) ||
+    (c >= 0x1DC0 && c <= 0x1DFF) ||
+    (c >= 0x20D0 && c <= 0x20FF) ||
+    (c >= 0xFE20 && c <= 0xFE2F);
+
+/// Задарсан хэлбэрээр бичигдсэн монгол үсгүүдийг нэгтгэнэ.
+///
+/// `Й` = `И` + U+0306, `Ё` = `Е` + U+0308 гэж бичиж болдог. Хоёулаа ижил
+/// харагдана. Нэгтгэхгүй бол дараагийн алхам хослох тэмдгийг нь хаяж,
+/// «Ёндон» → «Ендон» болно.
+const Map<int, Map<int, int>> _kCompose = <int, Map<int, int>>{
+  0x0306: <int, int>{0x0418: 0x0419, 0x0438: 0x0439},   // И→Й, и→й
+  0x0308: <int, int>{0x0415: 0x0401, 0x0435: 0x0451},   // Е→Ё, е→ё
+};
+
+/// ЯГ ИЖИЛ ХАРАГДДАГ латин/грек → кирилл.
+///
+/// Зөвхөн МОНГОЛ цагаан толгойд байдаг үсгүүд рүү буулгана: байхгүй үсэг
+/// рүү буулгах нь ямар ч давхардал зогсоохгүй.
+///
+/// ЭНЭ ХҮСНЭГТИЙГ «САЙЖРУУЛЖ» ЕРӨНХИЙ ДИАКРИТИК ХУУЛАГЧ БОЛГОЖ ҮЛ БОЛНО.
+/// `Ө` нь `О` БИШ, `Ү` нь `У` БИШ — өөр үсэг, өөр нэр («Өнөр» ≠ «Онор»).
+const Map<int, int> _kHomoglyphs = <int, int>{
+  // Латин том
+  0x0041: 0x0410, 0x0042: 0x0412, 0x0043: 0x0421,
+  0x0045: 0x0415, 0x0048: 0x041D, 0x004B: 0x041A, 0x004D: 0x041C,
+  0x004F: 0x041E, 0x0050: 0x0420, 0x0054: 0x0422, 0x0058: 0x0425,
+  0x0059: 0x0423,
+  // Латин жижиг (том үсэг рүү буулгахгүй — доор нь бүгд жижиг болно)
+  0x0061: 0x0430, 0x0063: 0x0441, 0x0065: 0x0435, 0x006F: 0x043E,
+  0x0070: 0x0440, 0x0078: 0x0445, 0x0079: 0x0443,
+  // Грек
+  0x0391: 0x0410, 0x0392: 0x0412, 0x0395: 0x0415, 0x0397: 0x041D,
+  0x039A: 0x041A, 0x039C: 0x041C, 0x039F: 0x041E, 0x03A1: 0x0420,
+  0x03A4: 0x0422, 0x03A5: 0x0423, 0x03A7: 0x0425,
+  0x03BF: 0x043E, 0x03C1: 0x0440,
+};
+
+final RegExp _kAlnum = RegExp(r'[\p{L}\p{N}]', unicode: true);
+
+/// «Бот 3», «Бот3» — системийн эзэмшдэг нэр.
+final RegExp _kBotPattern = RegExp(r'^бот ?\d+$');
+
+// --- Цэвэрлэх ----------------------------------------------------------------
+
+/// Хэрэглэгчийн бичсэнийг ХАРАГДАХ нэр болгоно.
+///
+/// Утгыг нь өөрчлөхгүй — зөвхөн үл үзэгдэх хог, давхар зай, хэт уртыг
+/// цэвэрлэнэ. Хүн өөрийн бичсэнээ таних ёстой.
+String cleanName(String raw) {
+  final List<int> out = <int>[];
+  for (final int c in raw.runes) {
+    if (_kSpaces.contains(c)) {
+      out.add(0x20);
+      continue;
+    }
+    if (_invisible(c)) continue;
+    if (_combining(c)) {
+      // Өмнөх үсэгтэй нь нийлүүлж чадвал нийлүүлнэ, эс бөгөөс хаяна.
+      final Map<int, int>? pairs = _kCompose[c];
+      if (pairs != null && out.isNotEmpty) {
+        final int? joined = pairs[out.last];
+        if (joined != null) out[out.length - 1] = joined;
+      }
+      continue;
+    }
+    out.add(c);
+  }
+
+  // Давхар зайг нэг болгож, хоёр талаас нь тайрна.
+  final List<int> squeezed = <int>[];
+  for (final int c in out) {
+    if (c == 0x20 && (squeezed.isEmpty || squeezed.last == 0x20)) continue;
+    squeezed.add(c);
+  }
+  while (squeezed.isNotEmpty && squeezed.last == 0x20) {
+    squeezed.removeLast();
+  }
+
+  // Тэмдэгтээр тайрна, БАЙТААР БИШ — эс бөгөөс кирилл үсэг эсвэл эможи
+  // дундуураа тасарч, гэмтсэн тэмдэгт үлдэнэ.
+  if (squeezed.length > kMaxNameRunes) {
+    squeezed.removeRange(kMaxNameRunes, squeezed.length);
+    while (squeezed.isNotEmpty && squeezed.last == 0x20) {
+      squeezed.removeLast();
+    }
+  }
+  return String.fromCharCodes(squeezed);
+}
+
+// --- Харьцуулах --------------------------------------------------------------
+
+/// ХАРЬЦУУЛАХ түлхүүр. Хэрэглэгчид ХЭЗЭЭ Ч харуулахгүй.
+///
+/// Дараалал нь чухал: эхлээд ижил дүрс, дараа нь жижиг үсэг.
+String nameKey(String cleaned) {
+  final List<int> folded = cleaned.runes
+      .map((int c) => _kHomoglyphs[c] ?? c)
+      .toList(growable: false);
+  return String.fromCharCodes(folded).toLowerCase();
+}
+
+// --- Шалгах ------------------------------------------------------------------
+
+/// Нэр болохгүй бол алдааны код, болбол `null`.
+///
+/// `allowReserved` нь зөвхөн серверт: бот өөрөө «Бот 3» нэртэй байна.
+String? nameProblem(String cleaned, {bool allowReserved = false}) {
+  final int runes = cleaned.runes.length;
+  if (runes == 0) return ErrCode.nameRequired;
+  if (runes < kMinNameRunes) return ErrCode.nameTooShort;
+  if (_kAlnum.allMatches(cleaned).length < kMinNameRunes) {
+    return ErrCode.nameTooShort;
+  }
+  if (!allowReserved) {
+    final String key = nameKey(cleaned);
+    // Түлхүүр дээр шалгана — «Бoт 3» (латин o) ч баригдана.
+    if (key == 'зочин' || _kBotPattern.hasMatch(key)) {
+      return ErrCode.nameReserved;
+    }
+  }
+  return null;
+}
+
+// --- Давхардал тайлах --------------------------------------------------------
+
+/// Давхардвал ард нь дугаар нэмнэ: «Бат» → «Бат 2» → «Бат 3».
+///
+/// ЯАГААД ТАТГАЛЗААГҮЙ ВЭ: татгалзах нь санаатай хүнийг зогсоохгүй —
+/// тэр латин үсэг сольж дахин оролдоно. Хамгаалалт нь ТАТГАЛЗАЛ биш,
+/// ХАРЬЦУУЛАХ ТҮЛХҮҮР. Татгалзал нь зөвхөн шударга хүнд дахин бичүүлж,
+/// цаг алдуулна. Харин дугаарлалт нь тогтвортой цэггүй — үргэлж чөлөөтэй
+/// дугаар олдоно.
+String uniqueName(String cleaned, Set<String> takenKeys) {
+  if (!takenKeys.contains(nameKey(cleaned))) return cleaned;
+  for (int n = 2; n <= _kMaxSuffix; n++) {
+    final String tail = ' $n';
+    final List<int> base = cleaned.runes.toList();
+    final int room = kMaxNameRunes - tail.runes.length;
+    if (base.length > room) {
+      base.removeRange(room, base.length);
+      while (base.isNotEmpty && base.last == 0x20) {
+        base.removeLast();
+      }
+    }
+    final String candidate = String.fromCharCodes(base) + tail;
+    if (!takenKeys.contains(nameKey(candidate))) return candidate;
+  }
+  throw StateError('нэр дугаарлаж дууслаа');
+}
+
+/// Ботын нэр. `nameProblem` үүнийг хүнд эзэмшүүлэхгүй.
+String botName(int n) => 'Бот $n';
