@@ -114,10 +114,25 @@ class Bot {
     }
   }
 
-  void createRoom() =>
-      _send('createRoom', <String, Object?>{'name': name, 'isPublic': true});
-  void joinRoom(String code) =>
-      _send('joinRoom', <String, Object?>{'code': code, 'name': name});
+  /// Төрх — зөвхөн гоо сайхан, дүртэй ямар ч холбоогүй.
+  ///
+  /// Хиймэл тоглогчид ч өөр өөр харагдах ёстой: бүгд ижил байвал
+  /// ширээн дээрх төрхийн систем ажиллаж байгаа эсэхийг шалгах
+  /// боломжгүй.
+  String get _look {
+    const List<String> keys = <String>[
+      'punk', 'hoodie', 'worker', 'casual', 'suit', 'swat',
+    ];
+    return '${keys[index % keys.length]}/${(index * 3) % 6}';
+  }
+
+  void createRoom() => _send('createRoom', <String, Object?>{
+        'name': name,
+        'isPublic': true,
+        'avatarId': _look,
+      });
+  void joinRoom(String code) => _send('joinRoom',
+      <String, Object?>{'code': code, 'name': name, 'avatarId': _look});
   void ready() => _send('setReady', <String, Object?>{'ready': true});
   void start() => _send('startGame', const <String, Object?>{});
   void close() => ch.sink.close();

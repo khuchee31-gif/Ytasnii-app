@@ -211,6 +211,12 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	lobby.remove_bot_pressed.connect(func() -> void: net.remove_bot())
 	lobby.option_toggled.connect(func(k: String, v: bool) -> void:
 		net.set_option(k, v))
+	# ТӨРХ. Апп нь зөвхөн сонголтыг санана; сервер түүнийг бусдад
+	# дамжуулна. Дүртэй ямар ч холбоогүй тул нууц зүйл байхгүй.
+	lobby.look_changed.connect(func(v: String) -> void:
+		net.avatar_id = v
+		_remember("avatar", v))
+	lobby.set_avatar_id(_remembered("avatar", "punk/0"))
 	lobby.set_name_text(_remembered_name(name_v))
 	lobby.set_server_text(_remembered("server", url))
 	# Лобби нээлттэй үед тоглоомын дэлгэц харагдах ёсгүй — хоёр давхар

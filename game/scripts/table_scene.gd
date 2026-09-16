@@ -75,6 +75,26 @@ const FOV := 33.0
 ## true бол ширээг дээрээс харна (хөгжүүлэлтийн шалгалт).
 @export var overview: bool = false
 
+## Дүрийн загварууд. `avatarId`-ийн эхний хэсэг эдгээрийн НЭРИЙГ заана.
+##
+## ТОГЛООМЫН ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ. Тоглогч өөрөө лоббид сонгоно,
+## дүр нь хожим САНАМСАРГҮЙ тарагдана — тиймээс төрхөөс дүрийг таах
+## зам байхгүй. Хэрэв «хар хувцастай нь мафи» гэсэн ямар нэг хамаарал
+## үүсвэл тоглоом тэр дор нь үхнэ.
+const LOOKS := {
+	"punk": "res://models/Punk.glb",
+	"hoodie": "res://models/Casual_Hoodie.glb",
+	"worker": "res://models/Worker.glb",
+	"casual": "res://models/Casual_2.glb",
+	"suit": "res://models/Suit.glb",
+	"swat": "res://models/Swat.glb",
+}
+
+## Сонголтын ДАРААЛАЛ — лобби, ширээ хоёулаа үүнийг уншина.
+const LOOK_KEYS: Array[String] = [
+	"punk", "hoodie", "worker", "casual", "suit", "swat",
+]
+
 var _models: Array[String] = [
 	"res://models/Punk.glb",
 	"res://models/Casual_Hoodie.glb",
@@ -83,6 +103,27 @@ var _models: Array[String] = [
 	"res://models/Suit.glb",
 	"res://models/Swat.glb",
 ]
+
+## seat → тоглогчийн сонгосон `avatarId`.
+var _avatars: Dictionary = {}
+
+
+## `avatarId` → загварын зам. Танихгүй бол суудлаас гаргана.
+func _model_for(seat: int) -> String:
+	var id := str(_avatars.get(seat, ""))
+	var key := id.split("/")[0]
+	if LOOKS.has(key):
+		return str(LOOKS[key])
+	return _models[(seat * 5) % _models.size()]
+
+
+## `avatarId` → чимэглэлийн өнгөний индекс. Танихгүй бол суудлаас.
+func _accent_index(seat: int) -> int:
+	var id := str(_avatars.get(seat, ""))
+	var parts := id.split("/")
+	if parts.size() >= 2 and parts[1].is_valid_int():
+		return int(parts[1]) % _accent.size()
+	return seat % _accent.size()
 
 ## Хувцасны өнгө. ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ.
 ##
@@ -436,7 +477,7 @@ func _build_seats() -> void:
 		# тусад нь нэмнэ).
 		if i == viewer_seat and not overview:
 			continue
-		var who := Humanoid.load_glb(_models[(i * 5) % _models.size()])
+		var who := Humanoid.load_glb(_model_for(i))
 		if who == null:
 			continue
 		pivot.add_child(who)
@@ -468,7 +509,7 @@ func _build_seats() -> void:
 
 		if _arg("verbose", 0.0) > 0.5:
 			print("  PERSON seat=%d %-13s meas=%.3f scale=%.3f lean=%.2f spine=%.3f→%.3f" % [
-				i, _models[(i * 5) % _models.size()].get_file(), h, who.scale.y,
+				i, _model_for(i).get_file(), h, who.scale.y,
 				lean, pre, post])
 		if i == viewer_seat:
 			_capture_eye(who, sk)
@@ -490,7 +531,10 @@ func _build_seats() -> void:
 ## өөрчлөгдөж, найман хүн дахин ижил болно.
 func _dress(root: Node, seat: int) -> void:
 	var cloth: Color = _cloth[seat % _cloth.size()]
-	var accent: Color = _accent[seat % _accent.size()]
+	# ЧИМЭГЛЭЛИЙН ӨНГӨ нь тоглогчийн сонголт. Хувцасны үндсэн өнгө,
+	# арьсны өнгө хоёр нь СУУДЛААС — бүгд бараан гудамжны хүмүүс байх
+	# аяс тэднээр хадгалагдана.
+	var accent: Color = _accent[_accent_index(seat)]
 	var skin: Color = _skin[seat % _skin.size()]
 
 	# ХОЁР АЛХАМ. Эхлээд бүх гадаргууг цуглуулж, дараа нь будна.
@@ -1279,14 +1323,21 @@ func set_roster(players: Array, my_seat: int) -> void:
 	var names: Dictionary = {}
 	var alive: Dictionary = {}
 	var bots: Dictionary = {}
+	var looks: Dictionary = {}
 	for i in range(seated.size()):
 		var d: Dictionary = seated[i]
 		names[i] = str(d.get("name", ""))
 		alive[i] = bool(d.get("alive", true))
 		bots[i] = bool(d.get("isBot", false))
+		looks[i] = str(d.get("avatarId", ""))
 
 	var viewer: int = clampi(my_seat - 1, 0, seated.size() - 1)
-	var changed := seated.size() != seat_count or viewer != viewer_seat
+	# ТӨРХ СОЛИГДВОЛ тайзыг ДАХИН барина. Лоббид хүмүүс төрхөө сольж
+	# байдаг; тайз нь зөвхөн суудлын тоо өөрчлөгдөхөд дахин баригддаг
+	# байсан тул сонголт нь тоглолт эхлэх хүртэл харагдахгүй байв.
+	var changed := seated.size() != seat_count or viewer != viewer_seat \
+		or looks != _avatars
+	_avatars = looks
 	_names = names
 	_bots = bots
 	seat_count = seated.size()

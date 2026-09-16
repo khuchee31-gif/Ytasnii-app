@@ -25,6 +25,9 @@ signal remove_bot_pressed()
 ## Эзэн нэмэлт дүрийг асаав/унтраав.
 signal option_toggled(key: String, on: bool)
 
+## Тоглогч төрхөө сольсон.
+signal look_changed(avatar_id: String)
+
 enum State { NAME, JOIN, ROOM }
 
 const AMBER := Color(0.92, 0.66, 0.34)
@@ -199,6 +202,44 @@ func _build_name() -> Control:
 	_server_field.add_theme_font_size_override("font_size", 24)
 	_server_field.custom_minimum_size = Vector2(0, 62)
 	box.add_child(_server_field)
+
+	# --- ТӨРХ СОНГОХ ---------------------------------------------------------
+	#
+	# ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ. Тоглогч өөрөө сонгоно, дүр нь хожим
+	# САНАМСАРГҮЙ тарагдана. Тиймээс «хар хувцастай нь мафи» гэсэн
+	# хамаарал үүсэх боломж БАЙХГҮЙ — сонголт нь зөвхөн «энэ бол би»
+	# гэдгийг ширээнд хэлэх хэрэгсэл.
+	box.add_child(_spacer(6))
+	box.add_child(_small("Ширээн дээр яаж харагдах вэ", 20))
+	var looks := HBoxContainer.new()
+	looks.add_theme_constant_override("separation", 6)
+	for i in range(LOOK_NAMES.size()):
+		var b := _style(Button.new())
+		b.toggle_mode = true
+		b.text = str(LOOK_NAMES[i])
+		b.add_theme_font_size_override("font_size", 19)
+		b.custom_minimum_size = Vector2(0, 52)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var idx := i
+		b.pressed.connect(func() -> void: _pick_look(idx))
+		looks.add_child(b)
+		_look_btns.append(b)
+	box.add_child(looks)
+
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 6)
+	for i in range(ACCENTS.size()):
+		var c := Button.new()
+		c.toggle_mode = true
+		c.custom_minimum_size = Vector2(0, 44)
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.focus_mode = Control.FOCUS_NONE
+		_paint_swatch(c, Color(ACCENTS[i]), false)
+		var ci := i
+		c.pressed.connect(func() -> void: _pick_colour(ci))
+		cols.add_child(c)
+		_colour_btns.append(c)
+	box.add_child(cols)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
@@ -376,6 +417,71 @@ func go(state: int) -> void:
 
 func hide_all() -> void:
 	visible = false
+
+
+## Сонгож болох ТӨРХҮҮД. `table_scene.LOOK_KEYS`-тэй ЯГ ижил дараалал.
+const LOOK_NAMES: Array[String] = [
+	"ПАНК", "БҮРХҮҮЛ", "АЖИЛЧИН", "ЭНГИЙН", "КОСТЮМ", "МАСК",
+]
+const LOOK_KEYS: Array[String] = [
+	"punk", "hoodie", "worker", "casual", "suit", "swat",
+]
+
+## Чимэглэлийн өнгө. `table_scene._accent`-тэй ЯГ ижил дараалал.
+const ACCENTS: Array[Color] = [
+	Color(0.62, 0.14, 0.32), Color(0.10, 0.52, 0.56), Color(0.66, 0.34, 0.08),
+	Color(0.32, 0.56, 0.16), Color(0.46, 0.20, 0.58), Color(0.66, 0.52, 0.10),
+]
+
+var _look_btns: Array[Button] = []
+var _colour_btns: Array[Button] = []
+var _look := 0
+var _colour := 0
+
+
+func _paint_swatch(b: Button, c: Color, on: bool) -> void:
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = c
+		box.border_color = INK if on else Color(0.24, 0.23, 0.22)
+		box.set_border_width_all(4 if on else 2)
+		box.set_corner_radius_all(6)
+		b.add_theme_stylebox_override(state, box)
+
+
+func _pick_look(i: int) -> void:
+	_look = i
+	_sync_look()
+
+
+func _pick_colour(i: int) -> void:
+	_colour = i
+	_sync_look()
+
+
+func _sync_look() -> void:
+	for i in range(_look_btns.size()):
+		_look_btns[i].set_pressed_no_signal(i == _look)
+	for i in range(_colour_btns.size()):
+		_colour_btns[i].set_pressed_no_signal(i == _colour)
+		_paint_swatch(_colour_btns[i], Color(ACCENTS[i]), i == _colour)
+	look_changed.emit(avatar_id())
+
+
+## Сонгосон төрхийн дугаар: «punk/0».
+func avatar_id() -> String:
+	return "%s/%d" % [LOOK_KEYS[_look % LOOK_KEYS.size()], _colour]
+
+
+func set_avatar_id(v: String) -> void:
+	var parts := v.split("/")
+	if parts.size() >= 1:
+		var k := LOOK_KEYS.find(parts[0])
+		if k >= 0:
+			_look = k
+	if parts.size() >= 2 and parts[1].is_valid_int():
+		_colour = int(parts[1]) % ACCENTS.size()
+	_sync_look()
 
 
 func set_name_text(v: String) -> void:
