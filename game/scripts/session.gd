@@ -1038,8 +1038,16 @@ func _refresh() -> void:
 		left = int(ceil(float(_ends_at_ms - Time.get_ticks_msec()) / 1000.0))
 		left = maxi(left, 0)
 
+	# ҮХСЭН ХҮНД ТОВЧ ГАРАХГҮЙ.
+	#
+	# Өмнө нь хасагдсан тоглогч «САНАЛ ӨГӨХ» товчийг харсаар байсан:
+	# дарахад сервер `notYourTurn` буцааж, дэлгэц дээр алдаа гарна.
+	# Тоглоомоос гарсан хүнд ажиллахгүй товч үзүүлэх нь түүнийг
+	# «эвдэрсэн юм болов уу» гэж бодуулна.
 	var label := ""
-	if _phase == "vote":
+	if not _am_alive():
+		label = ""
+	elif _phase == "vote":
 		label = "САНАЛ ӨГӨХ"
 	elif ACTS_IN.get(_my_role, "") == _phase:
 		label = ACT_LABEL.get(_my_role, "СОНГОХ")
@@ -1101,6 +1109,12 @@ func _can_emote_now() -> bool:
 func _hint() -> String:
 	if Time.get_ticks_msec() < _notice_until and not _notice.is_empty():
 		return _notice
+	# ҮХСЭН ХҮН тоглоомыг ХАРНА. Түүнд «хэнийг сонгох вэ?» гэж
+	# асуух нь утгагүй; харин «яагаад товч алга болов» гэдгийг
+	# тайлбарлах ёстой.
+	if _my_seat > 0 and not _am_alive() and _phase != "lobby" \
+			and _phase != "dealing" and _phase != "gameOver":
+		return "Чи хасагдсан. Одоо зөвхөн хараад сууна — дуугарч болохгүй."
 	if _submitted:
 		return "Сонголт илгээгдлээ. Бусдыг хүлээж байна."
 	match _phase:

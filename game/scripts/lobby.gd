@@ -32,7 +32,7 @@ signal look_changed(avatar_id: String)
 ## орж ирнэ — тиймээс энэ нь нуусан тохиргоо БИШ, эхний дэлгэц дээр.
 signal sound_toggled(on: bool)
 
-enum State { NAME, JOIN, ROOM }
+enum State { NAME, JOIN, ROOM, RULES }
 
 const AMBER := Color(0.92, 0.66, 0.34)
 const INK := Color(0.90, 0.88, 0.85)
@@ -102,6 +102,7 @@ func _ready() -> void:
 	_pages[State.NAME] = _build_name()
 	_pages[State.JOIN] = _build_join()
 	_pages[State.ROOM] = _build_room()
+	_pages[State.RULES] = _build_rules()
 	for k in _pages:
 		add_child(_pages[k])
 	go(State.NAME)
@@ -317,6 +318,15 @@ func _build_name() -> Control:
 		go(State.JOIN)
 		refresh_pressed.emit())
 	acts.add_child(jn)
+
+	# ДҮРЭМ. Ангид тоглох хүүхдүүдийн ихэнх нь мафи тоглож үзээгүй
+	# байх бөгөөд «хэн нэгэн тайлбарлаж өгнө» гэж найдах нь тэр нэг
+	# хүнийг сургагч болгоно. Тоглоом өөрөө хэлэх ёстой.
+	var rl := _style(Button.new())
+	rl.text = "ДҮРЭМ"
+	rl.custom_minimum_size = Vector2(220, 0)
+	rl.pressed.connect(func() -> void: go(State.RULES))
+	acts.add_child(rl)
 	box.add_child(acts)
 
 	box.add_child(_note_label())
@@ -470,6 +480,87 @@ func _build_room() -> Control:
 	return p
 
 
+## ДҮРМИЙН ХУУДАС.
+##
+## Гурван багана, БҮГД нэг дэлгэцэнд. Гүйлгэх хэсэг БОЛОХГҮЙ: гүйлгэх
+## шаардлагатай заавар бол уншигдахгүй заавар. Хэрэв багтахгүй бол
+## бичвэр нь хэт урт байна гэсэн үг — тайлбарыг богиносгоно, хуудсыг
+## уртасгахгүй.
+##
+## АНГИД ТОГЛОХ ХҮҮХДЭД ЗОРИУЛСАН: нэр томьёо байхгүй, богино
+## өгүүлбэр, бүх зүйл нэг харцаар.
+const RULES: Array[Dictionary] = [
+	{
+		"title": "ХЭН ХЭНИЙ ЭСРЭГ",
+		"parts": [
+			"Ширээн дээр МАФИ хоёр-гурав байна. Тэд бие биенээ мэднэ.",
+			"Бусад нь ХОТЫНХОН. Тэд хэн ч гэдгээ мэдэхгүй.",
+			"Мафи шөнө бүр нэг хүнийг ална. Хотынхон өдөр бүр нэг хүнийг хасна.",
+			"Мафи бүгд хасагдвал ХОТЫНХОН ялна. Мафи хотынхонтой тэнцвэл МАФИ ялна.",
+		],
+	},
+	{
+		"title": "ШӨНӨ",
+		"parts": [
+			"Бүгд нүдээ анина. Утас чинь хэн болохыг чинь мэднэ.",
+			"Алуурчид сэрж, нэг хүнийг сонгоно. ТЭД Л бие биенээ сонсоно — бусдад юу ч сонсогдохгүй.",
+			"Дараа нь эмч, мөрдөгч — дүр бүр ээлжээрээ.",
+			"Чадваргүй бол хэн нэгнийг СЭЖИГЛЭНЭ. Хамгийн олон сэжиг авсан хоёр суудал үүрээр зарлагдана.",
+		],
+	},
+	{
+		"title": "ӨДӨР",
+		"parts": [
+			"Шөнө хэн алагдсаныг зарлана.",
+			"Бүгд ярина. Микрофон нээлттэй — хэн ярьж байгаа нь ширээн дээр гэрэлтэнэ.",
+			"Дараа нь САНАЛ. Хамгийн олон санал авсан хүн хасагдана. Тэнцвэл хоёулангийн хооронд дахин санал.",
+			"Хасагдсан хүний дүр ИЛ БОЛОХГҮЙ — тоглоом дуустал.",
+		],
+	},
+]
+
+## Дүрмийн нэг баганын өргөн (цэгээр).
+##
+## ТОГТМОЛ өргөн + автомат мөр таслалт. Урьд нь мөрүүдийг ГАРААР
+## таслаад `SIZE_EXPAND_FILL` тавьсан байв: шошгоны доод хэмжээ нь
+## бичвэрийнхээ өргөнтэй тэнцдэг тул багана 467 цэгт багтахгүй,
+## гурав дахь багана дэлгэцнээс ГАРЧ байв (зураг авч олов).
+const RULE_COL := 448
+
+
+func _build_rules() -> Control:
+	var p := _page()
+	var box := _card(RULE_COL * 3 + 64)
+	box.add_theme_constant_override("separation", 12)
+	box.add_child(_title("ЯАЖ ТОГЛОХ ВЭ", 44))
+
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 32)
+	for blk in RULES:
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 10)
+		col.custom_minimum_size = Vector2(RULE_COL, 0)
+		var h := _small(str(blk["title"]), 24, AMBER)
+		h.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		col.add_child(h)
+		for part in (blk["parts"] as Array):
+			var l := _small(str(part), 19)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.custom_minimum_size = Vector2(RULE_COL, 0)
+			col.add_child(l)
+		cols.add_child(col)
+	box.add_child(cols)
+
+	var back := _style(Button.new(), true)
+	back.text = "ОЙЛГОЛОО"
+	back.custom_minimum_size = Vector2(0, 66)
+	back.pressed.connect(func() -> void: go(State.NAME))
+	box.add_child(back)
+	p.add_child(box)
+	return p
+
+
 ## Хуудас бүр ӨӨРИЙН мэдэгдлийн мөртэй.
 ##
 ## Өмнө нь ганц хувьсагчид хадгалдаг байсан: `_ready()` нь НЭР, ОРОХ,
@@ -547,6 +638,11 @@ func set_sound(on: bool) -> void:
 		return
 	_sound_toggle.set_pressed_no_signal(on)
 	_sound_toggle.text = "ДУУ: %s" % ("ТИЙМ" if on else "ҮГҮЙ")
+
+
+## Дүрмийн хуудсыг нээнэ. Хөгжүүлэлтэд зураг авахад бас хэрэгтэй.
+func show_rules() -> void:
+	go(State.RULES)
 
 
 func hide_all() -> void:

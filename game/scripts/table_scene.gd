@@ -304,6 +304,10 @@ func _ready() -> void:
 				"3-р суудал · %s" % str(c["sub"]),
 				"Хамтрагч: 7-р суудал" if rc == "killer" else "",
 				Color(c["tone"]))
+	# Хөгжүүлэлтийн шалгалт: дүрмийн хуудсыг харах.
+	#   tools/render.sh -- rules=1 hold=1 out=r.png
+	if _arg("rules", 0.0) > 0.5 and _sess != null and _sess.lobby != null:
+		_sess.lobby.show_rules()
 	# Хөгжүүлэлтийн шалгалт: ярьж байгаа хүний тэмдгийг харах.
 	#   tools/render.sh -- talk=4 hold=1 out=t.png
 	_dev_talk = int(_arg("talk", -1.0))
