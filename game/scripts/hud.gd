@@ -64,6 +64,10 @@ const EMOTES: Array[Dictionary] = [
 ## гэж мэдрэгдэнэ. Тиймээс энд ч барина.
 const EMOTE_GAP_MS := 1200
 
+## Санал хураалтын тоолол — толгой бүрийн дээрх тоо.
+var _tally_root := Control.new()
+var _tally: Array[Label] = []
+
 var _emote_bar := HBoxContainer.new()
 var _emote_btns: Array[Button] = []
 var _emote_cool_until := 0
@@ -118,6 +122,10 @@ func _ready() -> void:
 	_name.size = Vector2(440, 34)
 	_name.visible = false
 	root.add_child(_name)
+
+	_tally_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_tally_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_tally_root)
 
 	# --- Доод: микрофон ба үйлдэл --------------------------------------------
 	_mic.add_theme_font_size_override("font_size", 24)
@@ -272,6 +280,40 @@ func apply(state: Dictionary) -> void:
 
 	_can_emote = bool(state.get("can_emote", false))
 	_sync_emotes()
+
+
+## Санал хураалтын ТООЛОЛ — толгой бүрийн дээр.
+##
+## ЯАГААД 3D-Д БИШ, ДЭЛГЭЦЭН ДЭЭР ВЭ: ширээн дээрх тоо нь өнцгөөс
+## хамаарч хазайж, харанхуйд уншигдахгүй. Толгойн дээр хөвөх тоо нь
+## ямар ч зайд ижил хэмжээтэй.
+##
+## `items` нь `{"text": "3", "pos": Vector2, "hot": bool}` жагсаалт.
+func show_tally(items: Array) -> void:
+	while _tally.size() < items.size():
+		var l := Label.new()
+		l.add_theme_font_size_override("font_size", 26)
+		l.add_theme_constant_override("outline_size", 9)
+		l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.size = Vector2(80, 36)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tally_root.add_child(l)
+		_tally.append(l)
+	for i in range(_tally.size()):
+		var lab: Label = _tally[i]
+		if i >= items.size():
+			lab.visible = false
+			continue
+		var it: Dictionary = items[i]
+		lab.visible = true
+		lab.text = str(it.get("text", ""))
+		lab.add_theme_color_override("font_color",
+			AMBER if bool(it.get("hot", false)) else INK)
+		var p: Vector2 = it.get("pos", Vector2.ZERO)
+		# ТОЛГОЙН ЯГ ДЭЭР. Эхний утга (-148) нь дээд зурвас руу гарч,
+		# «санал» биш «цэс» мэт харагдаж байв (зураг авч шалгасан).
+		lab.position = Vector2(p.x - lab.size.x * 0.5, p.y - 88.0)
 
 
 ## Сонгосон хүний нэрийг толгой дээр нь байрлуулна.

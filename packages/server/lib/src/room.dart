@@ -92,6 +92,17 @@ class GameRoom {
   /// Хэн хэзээ сүүлд дохио гаргав (мс). Хурдны хязгаарт.
   final Map<PlayerId, int> _lastEmoteMs = <PlayerId, int>{};
 
+  /// ДАХИН САНАЛ. Хоосон бол чөлөөт санал; эс бөгөөс зөвхөн эдгээр
+  /// суудлын нэгийг сонгож болно.
+  ///
+  /// Өмнө нь тэнцвэл ХЭН Ч хасагдахгүй байв. Тэр нь зөв дүрэм боловч
+  /// ширээнд «юу ч болсонгүй» гэсэн хоосон мэдрэмж үлдээдэг. Нэг удаа
+  /// дахин санал авбал шийдвэр гарах магадлал өндөр, мөн хоёр
+  /// нэрийн хооронд ХУРЦ маргаан үүснэ — тоглоомын хамгийн сайн хэсэг.
+  List<int> _revoteSeats = const <int>[];
+
+  List<int> get revoteSeats => _revoteSeats;
+
   /// Өдрийн санал хураалт: хэн хэн рүү.
   final Map<PlayerId, int> _votes = <PlayerId, int>{};
 
@@ -504,6 +515,10 @@ class GameRoom {
       if (target == null || !(_players[target]?.alive ?? false)) {
         return <Outbound>[_err(id, ErrCode.invalidTarget)];
       }
+      // ДАХИН САНАЛ: зөвхөн тэнцсэн хоёрын нэг.
+      if (_revoteSeats.isNotEmpty && !_revoteSeats.contains(targetSeat)) {
+        return <Outbound>[_err(id, ErrCode.invalidTarget)];
+      }
       _votes[id] = targetSeat;
     }
     return <Outbound>[_voteState()];
@@ -702,6 +717,7 @@ class GameRoom {
       allyPicks: picks,
       liveVotes: votes,
       iAmRevealed: _revealed.contains(me.seat),
+      voteCandidates: _revoteSeats,
       mem: b.mem,
     );
   }
@@ -814,6 +830,7 @@ class GameRoom {
 
       case NetPhase.day:
         _votes.clear();
+        _revoteSeats = const <int>[];
         _enter(NetPhase.vote, nowMs, _ms(PhaseMs.vote), out);
 
       case NetPhase.vote:
@@ -987,16 +1004,36 @@ class GameRoom {
       tally[e.value] = (tally[e.value] ?? 0) + voteWeightOf(from);
     }
     int? outSeat;
+    List<int> tied = const <int>[];
     if (tally.isNotEmpty) {
       final int top = tally.values.reduce((int a, int b) => a > b ? a : b);
-      final List<int> tied = tally.entries
+      tied = tally.entries
           .where((MapEntry<int, int> e) => e.value == top)
           .map((MapEntry<int, int> e) => e.key)
-          .toList();
-      // Тэнцвэл ХЭН Ч ХӨӨГДӨХГҮЙ. Санамсаргүй сонголт хийхгүй —
-      // «апп шийдчихлээ» гэсэн мэдрэмж тоглоомыг үхүүлнэ.
+          .toList()
+        ..sort();
       if (tied.length == 1) outSeat = tied.first;
     }
+
+    // ТЭНЦВЭЛ НЭГ УДАА ДАХИН САНАЛ АВНА.
+    //
+    // Санамсаргүй сонголт хийхгүй — «апп шийдчихлээ» гэсэн мэдрэмж
+    // тоглоомыг үхүүлнэ. Харин тэнцсэн нэрсийн хооронд дахин санал
+    // авах нь ширээнд ХУРЦ маргаан үүсгэдэг бөгөөд шийдвэр гарах
+    // магадлалыг өсгөнө. Хоёр дахь тэнцэлд хэн ч хасагдахгүй.
+    if (outSeat == null && tied.length >= 2 && _revoteSeats.isEmpty) {
+      _revoteSeats = tied;
+      _votes.clear();
+      out.add(Outbound.all(Envelope(S2C.eliminated, <String, Object?>{
+        'seat': null,
+        'tally': tally.map((int k, int v) => MapEntry<String, int>('$k', v)),
+        'revote': tied,
+      })));
+      _enter(NetPhase.vote, nowMs, _ms(PhaseMs.vote), out);
+      out.add(_voteState());
+      return;
+    }
+    _revoteSeats = const <int>[];
 
     if (outSeat != null) {
       final PlayerId? id = _bySeat[outSeat];
@@ -1153,6 +1190,8 @@ class GameRoom {
           'weights': <String, Object?>{
             for (final int s in _revealed) '$s': voteWeightOf(s),
           },
+          // Хоосон бол чөлөөт санал. Эс бөгөөс ЗӨВХӨН эдгээрээс.
+          'candidates': _revoteSeats,
         }),
       );
 

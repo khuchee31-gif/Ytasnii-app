@@ -104,6 +104,9 @@ var _watch_seen: Array = []
 
 ## Өөрийгөө илчилсэн даргын суудлууд (0-ээс, тайзных). НИЙТИЙН.
 var _revealed: Array = []
+
+## Дахин саналын нэрс (СЕРВЕРИЙН дугаар). Хоосон бол чөлөөт санал.
+var _candidates: Array = []
 var _players: Array = []                 # нийтийн мэдээлэл, ДҮРГҮЙ
 var _votes: Dictionary = {}
 var _can_speak := false
@@ -412,9 +415,17 @@ func _on_phase(d: Dictionary) -> void:
 	_phase = str(d.get("phase", _phase))
 	if _phase == "nightFalls":
 		_watch_seen.clear()
+	# Шинэ үе шат бүрд дахин саналын хязгаар арилна — сервер шинээр
+	# зарлавал `eliminated`-аар дахин ирнэ.
+	if _phase != "vote":
+		_candidates = []
+		if table != null:
+			table.set_candidates([])
 	_ends_at_ms = Time.get_ticks_msec() + int(d.get("endsInMs", 0))
 	_submitted = false
 	_votes.clear()
+	if table != null:
+		table.set_votes({}, {})
 	if verbose:
 		print("NET phase=", _phase, " endsInMs=", d.get("endsInMs", 0))
 	if table != null:
@@ -424,6 +435,10 @@ func _on_phase(d: Dictionary) -> void:
 
 func _on_vote_state(d: Dictionary) -> void:
 	_votes = d.get("votes", {}) if d.get("votes") is Dictionary else {}
+	var weights: Dictionary = d.get("weights", {}) \
+		if d.get("weights") is Dictionary else {}
+	if table != null:
+		table.set_votes(_votes, weights)
 	_refresh()
 
 
@@ -474,8 +489,18 @@ func _on_game_over(d: Dictionary) -> void:
 
 func _on_eliminated(d: Dictionary) -> void:
 	var seat: Variant = d.get("seat")
-	if seat == null:
-		_notify("Санал тэнцлээ. Хэн ч хасагдсангүй.")
+	var revote: Array = d.get("revote", []) if d.get("revote") is Array else []
+	if not revote.is_empty():
+		var names: Array = []
+		for x in revote:
+			names.append("%d" % int(x))
+		_candidates = revote
+		if table != null:
+			table.set_candidates(revote)
+			table.select_seat(-1)
+		_notify("ТЭНЦЛЭЭ. %s дугаарын хооронд ДАХИН САНАЛ." % " ба ".join(names))
+	elif seat == null:
+		_notify("Санал дахин тэнцлээ. Хэн ч хасагдсангүй.")
 	else:
 		_notify("%d-р суудал хасагдлаа." % int(seat))
 
@@ -543,6 +568,9 @@ func _on_act() -> void:
 	# Суудал 1-ээс эхэлдэг (`packages/protocol`: `Seat`), тайзны индекс
 	# 0-ээс — нэгийг нэмнэ.
 	if _phase == "vote":
+		if not _candidates.is_empty() and not _candidates.has(seat + 1):
+			_notify("Дахин саналд зөвхөн тэнцсэн хоёроос сонгоно.")
+			return
 		net.vote(seat + 1)
 	elif _phase.begins_with("night"):
 		net.night_action(seat + 1)

@@ -61,6 +61,7 @@ class BotView {
     this.allyPicks = const <int, int>{},
     this.liveVotes = const <int, int>{},
     this.iAmRevealed = false,
+    this.voteCandidates = const <int>[],
   });
 
   final int mySeat;
@@ -87,6 +88,9 @@ class BotView {
 
   /// Би аль хэдийн илчилсэн үү. НИЙТИЙН мэдээлэл (`roomState.revealed`).
   final bool iAmRevealed;
+
+  /// ДАХИН САНАЛ. Хоосон бол чөлөөт. НИЙТИЙН (`voteState.candidates`).
+  final List<int> voteCandidates;
 
   final BotMemory mem;
 }
@@ -345,8 +349,14 @@ int? _detectivePick(BotView v, eng.Rng rng) {
 /// тэргүүлэгчийг ДАГАХ нь заавал байх ёстой дүрэм — эс бөгөөс санамсаргүй
 /// саналууд хэзээ ч нийлэхгүй, өдөр бүр тэнцэж, тоглоом урагшлахгүй.
 int? _votePick(BotView v, eng.Rng rng) {
-  final List<int> cands =
-      v.aliveSeats.where((int s) => s != v.mySeat).toList();
+  List<int> cands = v.aliveSeats.where((int s) => s != v.mySeat).toList();
+  // ДАХИН САНАЛ: зөвхөн тэнцсэн нэрсээс. Сервер ч шалгана — энэ нь
+  // зөвхөн бот дэмий татгалзал авахгүйн тулд.
+  if (v.voteCandidates.isNotEmpty) {
+    cands = cands.where(v.voteCandidates.contains).toList();
+    // Бот өөрөө нэр дэвшсэн бол өөрийгөө өгөхгүй — сонголтгүй үлдэнэ.
+    if (cands.isEmpty) return null;
+  }
   if (cands.isEmpty) return null;
 
   final Map<int, int> here = <int, int>{};

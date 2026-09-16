@@ -141,6 +141,9 @@ var _buzz := -1                   # сая эмоци гаргасан хүн
 var _buzz_t := 0.0
 var _emote_at: Dictionary = {}    # суудал → хэн рүү заасан
 var _revealed: Dictionary = {}    # илчилсэн даргын суудлууд
+var _tally: Dictionary = {}       # суудал → ирсэн саналын жин
+var _candidates: Dictionary = {}  # дахин саналын нэрс (хоосон = чөлөөт)
+var _tally_top := 0               # хамгийн их нь
 var _mayor_marks: Dictionary = {} # суудал → ширээн дээрх тэмдэг
 # Зөвхөн хөгжүүлэлт: зураг авахад эмоци дуусчихсан байдаг тул давтана.
 var _dev_emote: Array = []
@@ -189,6 +192,21 @@ func _ready() -> void:
 		_apply_alive()
 	if _arg("pick", -1.0) >= 0.0:
 		select_seat(int(_arg("pick", 0.0)))
+	# Хөгжүүлэлтийн шалгалт: саналын тоололыг харах.
+	#   tools/render.sh -- votes=1:4,2:4,3:6 weights=1:3
+	var vs := _arg_str("votes", "")
+	if not vs.is_empty():
+		var vd: Dictionary = {}
+		for pair in vs.split(","):
+			var kv := pair.split(":")
+			if kv.size() == 2:
+				vd[kv[0]] = int(kv[1])
+		var wd: Dictionary = {}
+		for pair2 in _arg_str("weights", "").split(","):
+			var kv2 := pair2.split(":")
+			if kv2.size() == 2:
+				wd[kv2[0]] = int(kv2[1])
+		set_votes(vd, wd)
 	# Хөгжүүлэлтийн шалгалт: илчилсэн даргын тэмдгийг харах.
 	var rev := int(_arg("reveal", -1.0))
 	if rev >= 0:
@@ -763,6 +781,8 @@ func _build_camera() -> Camera3D:
 ## зэрэг нь ХАРАНХУЙ ӨРӨӨНИЙ мэдрэмжийг эвдэнэ. Ширээн дээрх тэмдэг нь
 ## бодит эд зүйл мэт: тэнд гэрэл тусав гэсэн үг.
 func select_seat(seat: int) -> void:
+	if seat >= 0 and not _candidates.is_empty() and not _candidates.has(seat):
+		return
 	_selected = seat
 	if _ring == null:
 		var t := TorusMesh.new()
@@ -868,6 +888,7 @@ func _process(delta: float) -> void:
 	# Найман нэрийг зэрэг харуулбал ширээ шошгоор дүүрч, харанхуй өрөөний
 	# мэдрэмж алга болно. Толгой эргүүлэхэд нэр нь өөрөө гарч ирэх нь
 	# бодит амьдралд ойр: хэн рүү харж байна, түүнийг л «таньж» байна.
+	_show_tally()
 	var seat := _selected if _selected >= 0 else _looking
 	if seat < 0 or not _heads.has(seat):
 		_hud.show_name("", Vector2.ZERO, false)
@@ -875,6 +896,27 @@ func _process(delta: float) -> void:
 	var w: Vector3 = _heads[seat]
 	_hud.show_name(_seat_name(seat), _cam.unproject_position(w),
 		not _cam.is_position_behind(w))
+
+
+## Тоололыг толгой бүрийн дээр байрлуулна.
+func _show_tally() -> void:
+	if _tally.is_empty():
+		_hud.show_tally([])
+		return
+	var items: Array = []
+	for seat in _tally:
+		if not _heads.has(seat):
+			continue
+		var wp: Vector3 = _heads[seat]
+		if _cam.is_position_behind(wp):
+			continue
+		var n: int = int(_tally[seat])
+		items.append({
+			"text": "●".repeat(mini(n, 5)) if n <= 5 else "%d" % n,
+			"pos": _cam.unproject_position(wp),
+			"hot": n >= _tally_top and _tally_top > 0,
+		})
+	_hud.show_tally(items)
 
 
 # --- Амьд хөдөлгөөн ----------------------------------------------------------
@@ -1004,6 +1046,39 @@ func _seat_name(seat: int) -> String:
 	if _revealed.has(seat):
 		tag += " · ДАРГА ×3"
 	return "%d. %s%s" % [seat + 1, n, tag]
+
+
+## ДАХИН САНАЛЫН нэрс (СЕРВЕРИЙН дугаар). Хоосон бол чөлөөт санал.
+##
+## Тэнцсэн хоёроос ӨӨР хүнийг товшиход сонголт болохгүй — сервер ч
+## татгалзана, гэхдээ тоглогч «дарлаа, юу ч болсонгүй» гэж бодохгүйн
+## тулд энд бас барина.
+func set_candidates(seats: Array) -> void:
+	_candidates.clear()
+	for x in seats:
+		_candidates[int(x) - 1] = true
+
+
+## Санал хураалтын ЖИНТЭЙ тоолол.
+##
+## `votes` нь «саналлагчийн суудал → бай» (СЕРВЕРИЙН дугаар, 1-ээс),
+## `weights` нь «суудал → жин» (зөвхөн нэгээс ялгаатай нь).
+##
+## ЯАГААД ШИРЭЭН ДЭЭР ХАРУУЛАХ ЁСТОЙ ВЭ: санал хураалт бол тоглоомын
+## гол мөч боловч хэн хэдэн саналтай байгааг зөвхөн сервер мэддэг
+## байв. Тоглогчид толгойгоороо тоолж чадахгүй — ялангуяа даргын гурван
+## санал орж ирэхэд.
+func set_votes(votes: Dictionary, weights: Dictionary) -> void:
+	_tally.clear()
+	_tally_top = 0
+	for k in votes:
+		var from := int(str(k)) - 1
+		var to := int(votes[k]) - 1
+		if to < 0:
+			continue
+		var w := int(weights.get(str(from + 1), 1))
+		_tally[to] = int(_tally.get(to, 0)) + maxi(w, 1)
+		_tally_top = maxi(_tally_top, int(_tally[to]))
 
 
 ## Өөрийгөө илчилсэн даргын суудлууд (СЕРВЕРИЙН дугаар, 1-ээс).
