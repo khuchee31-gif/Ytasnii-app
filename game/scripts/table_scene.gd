@@ -21,6 +21,7 @@ extends Node3D
 const MatLib := preload("res://scripts/mat_lib.gd")
 const Props := preload("res://scripts/props.gd")
 const Humanoid := preload("res://scripts/humanoid.gd")
+const Actor := preload("res://scripts/actor.gd")
 const TableCamera := preload("res://scripts/table_camera.gd")
 const Hud := preload("res://scripts/hud.gd")
 const Session := preload("res://scripts/session.gd")
@@ -133,6 +134,14 @@ var _alive: Dictionary = {}
 var _looking := -1
 ## seat → {root, skel}
 var _people: Dictionary = {}
+var _actors: Dictionary = {}      # суудал → Actor (амьд хөдөлгөөн)
+var _clock := 0.0                 # тайзны нэгдсэн цаг (секунд)
+var _focus := -1                  # бүгд хэн рүү харах вэ (-1 = чөлөөтэй)
+var _buzz := -1                   # сая эмоци гаргасан хүн
+var _buzz_t := 0.0
+var _emote_at: Dictionary = {}    # суудал → хэн рүү заасан
+# Зөвхөн хөгжүүлэлт: зураг авахад эмоци дуусчихсан байдаг тул давтана.
+var _dev_emote: Array = []
 
 
 ## Тушаалын мөрөөс тохиргоо авна: `-- overview=1 key=3.2 shaft=0`.
@@ -142,6 +151,14 @@ var _people: Dictionary = {}
 static func _arg(key: String, def: float) -> float:
 	var got := _arg_str(key, "")
 	return got.to_float() if not got.is_empty() else def
+
+
+## «x,y,z» → Vector3.
+static func _vec(txt: String, def: Vector3) -> Vector3:
+	var parts := txt.split(",")
+	if parts.size() != 3:
+		return def
+	return Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float())
 
 
 static func _arg_str(key: String, def: String) -> String:
@@ -170,6 +187,13 @@ func _ready() -> void:
 		_apply_alive()
 	if _arg("pick", -1.0) >= 0.0:
 		select_seat(int(_arg("pick", 0.0)))
+	# Хөгжүүлэлтийн шалгалт: эмоцийг ЗУРАГ дээр харах.
+	#   tools/render.sh -- emote=point from=2 at=6 hold=1 out=a.png
+	var em := _arg_str("emote", "")
+	if not em.is_empty():
+		_dev_emote = [int(_arg("from", 0.0)), em, int(_arg("at", -1.0))]
+		emote(_dev_emote[0], em, _dev_emote[2])
+		focus_seat(int(_arg("focus", -1.0)))
 	print("BUILD ms=", Time.get_ticks_msec() - t0)
 	await get_tree().process_frame
 	_report_framing(_cam)
@@ -322,6 +346,7 @@ func _rebuild_stage() -> void:
 	add_child(_stage)
 	_heads.clear()
 	_people.clear()
+	_actors.clear()
 	_ring = null
 	_eye_found = false
 
@@ -403,6 +428,12 @@ func _build_seats() -> void:
 		_heads[i] = hw
 		_people[i] = {"root": who, "skel": sk}
 		_mark("seat%d_head" % i, hw)
+
+		# 5. АМЬД болгоно. Суух байрлалыг тооцсоны ДАРАА — `Actor` түүнийг
+		#    суурь болгон хадгалж, кадр тутам дээр нь л нэмнэ.
+		var act: Actor = Actor.new()
+		act.setup(who, sk, i)
+		_actors[i] = act
 
 
 ## Дүрийн материалыг хуулж, бага зэрэг өнгө нэмнэ.
@@ -672,6 +703,21 @@ func _build_env() -> void:
 # --- Камер -------------------------------------------------------------------
 
 func _build_camera() -> Camera3D:
+	# Хөгжүүлэлтийн камер: дурын цэгээс дурын цэг рүү.
+	#   tools/render.sh -- eye=0.3,1.4,0.2 look=-0.5,1.05,0.95 zoom=24
+	# Гар, нүүр зэрэг ЖИЖИГ зүйлийг шалгахад хэрэгтэй — тоглоомын
+	# камераар 15 цэгээр харагдах зүйлийг «болж байна» гэж бодох амархан.
+	var eye_s := _arg_str("eye", "")
+	if not eye_s.is_empty():
+		var free := Camera3D.new()
+		free.fov = _arg("zoom", 40.0)
+		free.near = 0.02
+		free.far = 24.0
+		_stage.add_child(free)
+		free.current = true
+		free.look_at_from_position(_vec(eye_s, Vector3(0, 1.5, 0)),
+			_vec(_arg_str("look", ""), Vector3(0, TABLE_H, 0)), Vector3.UP)
+		return free
 	if overview:
 		var top := Camera3D.new()
 		top.fov = 58.0
@@ -801,7 +847,9 @@ func _build_hud() -> void:
 	sess.setup(self, _hud, url, _arg_str("name", ""))
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_clock += delta
+	_drive_actors(delta)
 	if _hud == null or _cam == null:
 		return
 	_looking = _seat_at_centre()
@@ -817,6 +865,104 @@ func _process(_delta: float) -> void:
 	var w: Vector3 = _heads[seat]
 	_hud.show_name(_seat_name(seat), _cam.unproject_position(w),
 		not _cam.is_position_behind(w))
+
+
+# --- Амьд хөдөлгөөн ----------------------------------------------------------
+#
+# Найман хүн ширээ тойрон ЧУЛУУ мэт суувал тоглоом үхсэн харагдана.
+# Хөдөлгөөн нь тайзны ГОЛ хэсэг — гэрэл, загвараас дутуугүй.
+#
+# ДҮРИЙН ТУХАЙ: энд бичсэн бүх зүйл СУУДАЛ, ЦАГ хоёроос л хамаарна.
+# Алуурчин илүү ихээр хөдөлдөг, эмч цөөн харцаг гэх мэт ялгаа ГАРГАХГҮЙ —
+# ажиглагч тоглогч түүнийг уншиж чадна.
+
+## Хэн рүү бүгд харах вэ. -1 бол чөлөөт харц.
+func focus_seat(seat: int) -> void:
+	_focus = seat
+
+
+## Суудал `seat` эмоци гаргана. `target` нь зөвхөн «заах»-д хэрэгтэй.
+func emote(seat: int, name_v: String, target: int = -1) -> void:
+	if not _actors.has(seat):
+		return
+	var a: Actor = _actors[seat]
+	if a.dead:
+		return
+	var at := Vector3.ZERO
+	if target >= 0 and _heads.has(target):
+		at = _heads[target]
+	a._dbg = _arg("verbose", 0.0) > 0.5
+	a.freeze = _arg("efreeze", 0.5 if not _dev_emote.is_empty() else -1.0)
+	a.play(name_v, at)
+	_emote_at[seat] = target
+	if a._dbg:
+		print("EMOTE seat=%d name=%s target=%d at=%s" % [seat, name_v, target, at])
+	# Ширээн дэх БУСАД хүн эргэж харна. Энэ нь эмоцийг «хувийн
+	# хөдөлгөөн»-өөс «нийтийн явдал» болгоно: хэн нэг нь хуруугаа өргөхөд
+	# бүх толгой тийш эргэх нь өрөөнд ЮМ БОЛЖ БАЙГААГ хэлнэ.
+	_buzz = seat
+	_buzz_t = 2.2
+
+
+func _drive_actors(delta: float) -> void:
+	if _actors.is_empty():
+		return
+	# Хөгжүүлэлтийн давталт: `emote=` өгсөн бол дуусах бүрд дахин эхэлнэ.
+	# Толгойгүй орчинд нэг кадр ~0.16 сек тул 20 кадр хүлээхэд эмоци
+	# аль хэдийн дуусчихсан байдаг — зураг дээр юу ч харагдахгүй.
+	if not _dev_emote.is_empty() and _actors.has(_dev_emote[0]):
+		var da: Actor = _actors[_dev_emote[0]]
+		if not da.emoting():
+			emote(int(_dev_emote[0]), str(_dev_emote[1]), int(_dev_emote[2]))
+	if _buzz_t > 0.0:
+		_buzz_t -= delta
+		if _buzz_t <= 0.0:
+			_buzz = -1
+	var focus := _focus
+	if focus < 0:
+		focus = _buzz
+	for seat in _actors:
+		var a: Actor = _actors[seat]
+		if a.dead:
+			continue
+		_aim_gaze(a, int(seat), focus)
+		a.tick(_clock, delta)
+
+
+## Нэг дүр хэн рүү харахыг шийднэ.
+func _aim_gaze(a: Actor, seat: int, focus: int) -> void:
+	# 1. Заасан хүн рүү заагч нь ӨӨРӨӨ бас харна — эс бөгөөс гар нь нэг
+	#    тийш, нүүр нь өөр тийш харсан хачин зураг гарна.
+	var pointed: int = int(_emote_at.get(seat, -1))
+	if a.emoting() and pointed >= 0 and _heads.has(pointed):
+		a.look_at_world(_heads[pointed])
+		return
+	if focus >= 0 and focus != seat and _heads.has(focus) and bool(_alive.get(focus, true)):
+		a.look_at_world(_heads[focus])
+		return
+	# 2. Чөлөөт харц: хэдэн секунд тутам хажуугийнхаа хэн нэг рүү.
+	#    САНАМСАРГҮЙ тоо ашиглахгүй — суудал, цагаас гаргана. Ингэснээр
+	#    бүх утсан дээр ЯГ ижил харагдана.
+	var slot := int(_clock / 5.3 + float(seat) * 0.61)
+	var pick := _gaze_pick(seat, slot)
+	if pick < 0:
+		a.look_forward()
+	else:
+		a.look_at_world(_heads[pick])
+
+
+func _gaze_pick(seat: int, slot: int) -> int:
+	var h: int = (seat * 7919 + slot * 104729) % 100
+	if h < 26:
+		return -1              # хааяа ширээ рүүгээ ширтэнэ
+	var live: Array = []
+	for s in _heads:
+		if int(s) != seat and bool(_alive.get(s, true)):
+			live.append(int(s))
+	if live.is_empty():
+		return -1
+	live.sort()
+	return int(live[h % live.size()])
 
 
 ## Дэлгэцийн ТӨВД хамгийн ойр байгаа суудал.
@@ -897,6 +1043,12 @@ func _apply_alive() -> void:
 		if bool(e.get("dead", false)) == dead:
 			continue
 		e["dead"] = dead
+		if _actors.has(seat):
+			# Хөдөлгөөнийг УНТРААНА. Эс бөгөөс ширээн дээр унасан хүн
+			# амьсгалж, хажуу тийш харсаар байх бөгөөд энэ нь эвгүйгээс
+			# гадна ТОГЛООМЫГ эвдэнэ: «үхсэн» гэдэг нь харагдахаа болино.
+			var a: Actor = _actors[seat]
+			a.dead = dead
 		if not dead:
 			continue        # үхсэн хүн эргэж босохгүй — буцах зам хэрэггүй
 		var root: Node3D = e["root"]

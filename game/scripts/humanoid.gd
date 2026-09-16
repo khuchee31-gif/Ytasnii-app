@@ -214,7 +214,12 @@ static func _apply(sk: Skeleton3D, bi: int, g: Transform3D) -> void:
 ##
 ## Тэнхлэгийн нэрийг ТААХГҮЙ: одоогийн чиглэлээс хүссэн чиглэл рүү
 ## хамгийн богино эргэлтийг бодно. Ямар ч ригт ажиллана.
-static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3) -> void:
+##
+## `weight` нь эргэлтийг ХЭСЭГЧЛЭН хийнэ (0 = хөдлөхгүй, 1 = бүрэн).
+## Эмоцид хэрэгтэй: гар нь тэр дороо байрандаа үсэрвэл робот мэт болно;
+## 0 → 1 → 0 гэж оруулбал зөөлөн гарч, зөөлөн буцна.
+static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3,
+		weight := 1.0) -> void:
 	var bi := sk.find_bone(bone)
 	var ci := sk.find_bone(child)
 	if bi < 0 or ci < 0:
@@ -225,6 +230,9 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3) -> vo
 		return
 	cur = cur.normalized()
 	var want := dir.normalized()
+	var w := clampf(weight, 0.0, 1.0)
+	if w < 0.001:
+		return
 	var d := clampf(cur.dot(want), -1.0, 1.0)
 	if d > 0.99999:
 		return
@@ -236,7 +244,7 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3) -> vo
 		axis = axis.normalized()
 	else:
 		axis = cur.cross(want).normalized()
-	bg.basis = Basis(Quaternion(axis, acos(d))) * bg.basis
+	bg.basis = Basis(Quaternion(axis, acos(d) * w)) * bg.basis
 	_apply(sk, bi, bg)
 
 
