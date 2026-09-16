@@ -25,7 +25,24 @@ class Hub {
   final int _maxRooms;
   final Map<String, GameRoom> _rooms = <String, GameRoom>{};
 
+  /// Хэзээнээс хойш нэг ч хүн холбоогүй байна (мс).
+  final Map<String, int> _emptySinceMs = <String, int>{};
+
+  /// Бүх хүн салсны дараа өрөөг хэр удаан хадгалах вэ.
+  ///
+  /// Ангийн Wi-Fi нэг мөчид тасарч болно. Тэр дороо устгавал бүх
+  /// тоглолт алга болно. Гурван минут нь «сүлжээ саатав» ба «бүгд явлаа»
+  /// хоёрыг ялгахад хангалттай.
+  static const int graceMs = 180000;
+
   int get roomCount => _rooms.length;
+
+  /// Бүх өрөө. Сервер цагийг ЭНДЭЭС урагшлуулна.
+  ///
+  /// Өмнө нь холболтоос гаргадаг байв (`_conns.map((c) => c.room)`).
+  /// Тэгэхэд сүүлчийн хүн нь салсан тоглолт цаашид ХЭЗЭЭ Ч алхахгүй,
+  /// `gameOver` хүрэхгүй, цэвэрлэгдэхгүй үлддэг байв.
+  Iterable<GameRoom> get rooms => _rooms.values;
 
   GameRoom? byCode(String code) => _rooms[code.toUpperCase()];
 
@@ -56,20 +73,42 @@ class Hub {
   }
 
   /// Нэг өрөөг шууд устгана. Үүсгэх үйлдэл бүтэлгүйтэхэд хэрэгтэй.
-  void drop(String code) => _rooms.remove(code.toUpperCase());
+  void drop(String code) {
+    _rooms.remove(code.toUpperCase());
+    _emptySinceMs.remove(code.toUpperCase());
+  }
 
-  /// Хоосон болсон өрөөг устгана. Сервер үүнийг тогтмол дуудна.
-  int sweepEmpty() {
-    final List<String> dead = _rooms.entries
-        // ХҮНЭЭР тоолно, тоглогчоор БИШ. Бот `_players` дотор үлддэг тул
-        // эзэн нь гарсан ботон өрөө ХЭЗЭЭ Ч цэвэрлэгдэхгүй байсан: өрөө
-        // үүсгээд бот нэмээд гарахыг 500 удаа давтвал сервер дээр шинэ
-        // өрөө үүсэхээ болино (`_maxRooms`).
-        .where((MapEntry<String, GameRoom> e) => e.value.humanCount == 0)
-        .map((MapEntry<String, GameRoom> e) => e.key)
-        .toList();
+  /// Хүнгүй болсон өрөөг устгана. Сервер үүнийг тогтмол дуудна.
+  ///
+  /// ХОЛБООТОЙ хүнээр тоолно.
+  ///
+  /// Өмнө нь `humanCount`-оор тоолдог байсан бөгөөд тэр нь `_players`
+  /// дотор ҮЛДСЭН хүнийг ч тоолдог: `leave` нь тоглолт эхэлсний дараа
+  /// суудлыг хадгалдаг (эргэж орох эрх). Иймд сүүлчийн хүн нь тоглолт
+  /// дунд салсан өрөө `humanCount == 1` хэвээр үүрд үлдэнэ.
+  ///
+  /// Гараар шалгасан халдлага: нэг сокетоор «өрөө үүсгэ → 5 бот нэм →
+  /// эхлүүл → сокетоо тасал» гэдгийг 505 удаа давтахад сервер дахин
+  /// хэзээ ч өрөө үүсгэж чадахгүй болсон (`roomFull`, дахин асаах
+  /// хүртэл). Нийт зардал нь ~30 секунд.
+  int sweepEmpty({int nowMs = 0}) {
+    final List<String> dead = <String>[];
+    for (final MapEntry<String, GameRoom> e in _rooms.entries) {
+      if (e.value.connectedHumans > 0) {
+        _emptySinceMs.remove(e.key);
+        continue;
+      }
+      // Лоббид хүнгүй бол шууд — эргэж орох тоглолт байхгүй.
+      if (e.value.inLobby) {
+        dead.add(e.key);
+        continue;
+      }
+      final int since = _emptySinceMs.putIfAbsent(e.key, () => nowMs);
+      if (nowMs - since >= graceMs) dead.add(e.key);
+    }
     for (final String c in dead) {
       _rooms.remove(c);
+      _emptySinceMs.remove(c);
     }
     return dead.length;
   }

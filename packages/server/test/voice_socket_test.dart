@@ -16,6 +16,14 @@ import 'package:protocol/protocol.dart';
 import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+/// Тестийн НУУЦ түлхүүр.
+///
+/// Жинхэнэ апп санамсаргүй 16 байт үүсгэдэг. Тестэд дугаараас нь
+/// гаргах нь хангалттай: чухал нь ӨӨР дугаар ӨӨР түлхүүртэй байх, мөн
+/// нэг дугаар дахин холбогдоход ИЖИЛ түлхүүр өгөх хоёр.
+String _token(String id) => 'token-for-$id-0123456789';
+
+
 class _Client {
   _Client(this.id, this.channel);
 
@@ -85,7 +93,7 @@ void main() {
         if (f != null) c.heard.add(f);
       }
     });
-    c.send(C2S.hello, <String, Object?>{'playerId': id});
+    c.send(C2S.hello, <String, Object?>{'playerId': id, 'token': _token(id)});
     return c;
   }
 

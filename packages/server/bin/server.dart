@@ -12,7 +12,6 @@ import 'dart:typed_data';
 
 import 'package:protocol/protocol.dart';
 import 'package:server/server.dart';
-import 'package:server/src/hub.dart';
 import 'package:server/src/voice_relay.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -44,8 +43,11 @@ void main(List<String> args) async {
   final Stopwatch clock = Stopwatch()..start();
   Timer.periodic(kTickEvery, (_) => server.tickAll(clock.elapsedMilliseconds));
 
-  // Хоосон өрөөг цэвэрлэх.
-  Timer.periodic(const Duration(seconds: 30), (_) => hub.sweepEmpty());
+  // Хоосон өрөө, хуучирсан түлхүүрийг цэвэрлэх.
+  Timer.periodic(const Duration(seconds: 30), (_) {
+    hub.sweepEmpty(nowMs: clock.elapsedMilliseconds);
+    server.forgetOldTokens(clock.elapsedMilliseconds);
+  });
 
   final Handler handler = webSocketHandler(
     (WebSocketChannel socket, String? _) => server.attach(socket, clock),
@@ -94,6 +96,14 @@ class Server {
 
   /// Тоглогчийн дугаар → холболт. Хаяглагдсан мессеж илгээхэд.
   final Map<PlayerId, _Conn> _byPlayer = <PlayerId, _Conn>{};
+
+  /// Дугаар → НУУЦ түлхүүр. Утас өөрөө үүсгэж, өөртөө хадгална.
+  ///
+  /// Сервер санах ойд л барина: нэг оройн ангийн тоглолтод файл хэрэггүй.
+  /// Сервер дахин асахад бүгд шинээр холбогдоно — тоглолт ямар ч
+  /// тохиолдолд серверийг дагадаг.
+  final Map<PlayerId, String> _tokens = <PlayerId, String>{};
+  final Map<PlayerId, int> _tokenSeenMs = <PlayerId, int>{};
 
   void attach(WebSocketChannel socket, Stopwatch clock) {
     final _Conn c = _Conn(socket);
@@ -196,12 +206,40 @@ class Server {
         c.send(const Envelope(S2C.pong, <String, Object?>{}));
 
       case C2S.hello:
-        final String? id = e.data['playerId'] as String?;
-        if (id == null || id.isEmpty) {
+        final String? id = _asStr(e.data['playerId']);
+        final String token = _asStr(e.data['token']) ?? '';
+        if (id == null || id.isEmpty || id.length > 64) {
           c.send(const Envelope(
               S2C.error, <String, Object?>{'code': ErrCode.malformed}));
           return;
         }
+        // БОТЫН ДУГААРЫГ ХЭН Ч НЭХЭЖ БОЛОХГҮЙ.
+        //
+        // `roomState` нь тоглогч бүрийн `id`-г нийтэд цацдаг (апп
+        // өөрийгөө таних хэрэгтэй). Иймд ботын дугаарыг ТААХ шаардлага
+        // байхгүй — зүгээр хуулна. Ботод сокет байхгүй тул хулгай нь
+        // ЧИМЭЭГҮЙ: хохирогч юу ч анзаарахгүй.
+        if (id.startsWith(kBotIdPrefix)) {
+          c.send(const Envelope(
+              S2C.error, <String, Object?>{'code': ErrCode.badToken}));
+          return;
+        }
+        if (token.length < kMinTokenLength) {
+          c.send(const Envelope(
+              S2C.error, <String, Object?>{'code': ErrCode.badToken}));
+          return;
+        }
+        // Дугаарыг ТҮЛХҮҮРТЭЙ нь хослуулна. Эхний удаа холбоно, дараа
+        // нь зөрвөл татгалзана. Түлхүүр нь зөвхөн тухайн утсанд байдаг
+        // тул өөр хүн тэр дугаарыг нэхэж чадахгүй.
+        final String? bound = _tokens[id];
+        if (bound != null && bound != token) {
+          c.send(const Envelope(
+              S2C.error, <String, Object?>{'code': ErrCode.badToken}));
+          return;
+        }
+        _tokens[id] = token;
+        _tokenSeenMs[id] = nowMs;
         // Нэг дугаараар хоёр удаа орвол хуучин холболтыг таслана.
         _byPlayer[id]?.socket.sink.close();
         c.playerId = id;
@@ -215,7 +253,7 @@ class Server {
         final PlayerId? id = c.playerId;
         if (id == null) return;
         final GameRoom? r =
-            _hub.create(id, isPublic: e.data['isPublic'] as bool? ?? true);
+            _hub.create(id, isPublic: _asBool(e.data['isPublic']) ?? true);
         if (r == null) {
           c.send(const Envelope(
               S2C.error, <String, Object?>{'code': ErrCode.roomFull}));
@@ -226,8 +264,8 @@ class Server {
         // гэж тоомсоргүй орхигдох — жинхэнэ мафийн заль.
         _dispatch(
           r,
-          r.join(id, e.data['name'] as String? ?? '',
-              e.data['avatarId'] as String? ?? 'punk_01'),
+          r.join(id, _asStr(e.data['name']) ?? '',
+              _asStr(e.data['avatarId']) ?? 'punk_01'),
         );
         // Нэр буруу бол `join` татгалзана. Тэр үед холболтыг өрөөнд
         // хавсаргавал хүн ороогүй атлаа `setReady`, `startGame` нь тэр
@@ -241,7 +279,7 @@ class Server {
       case C2S.joinRoom:
         final PlayerId? id = c.playerId;
         if (id == null) return;
-        final GameRoom? r = _hub.byCode(e.data['code'] as String? ?? '');
+        final GameRoom? r = _hub.byCode(_asStr(e.data['code']) ?? '');
         if (r == null) {
           c.send(const Envelope(
               S2C.error, <String, Object?>{'code': ErrCode.roomNotFound}));
@@ -249,8 +287,8 @@ class Server {
         }
         _dispatch(
           r,
-          r.join(id, e.data['name'] as String? ?? '',
-              e.data['avatarId'] as String? ?? 'punk_01'),
+          r.join(id, _asStr(e.data['name']) ?? '',
+              _asStr(e.data['avatarId']) ?? 'punk_01'),
         );
         if (r.has(id)) c.room = r;
 
@@ -263,7 +301,7 @@ class Server {
 
       case C2S.setReady:
         _withRoom(c, (GameRoom r, PlayerId id) =>
-            r.setReady(id, e.data['ready'] as bool? ?? false));
+            r.setReady(id, _asBool(e.data['ready']) ?? false));
 
       case C2S.addBots:
         _withRoom(c, (GameRoom r, PlayerId id) =>
@@ -282,8 +320,17 @@ class Server {
             c, (GameRoom r, PlayerId id) => r.nightAction(id, target, nowMs));
 
       case C2S.vote:
-        _withRoom(c,
-            (GameRoom r, PlayerId id) => r.vote(id, e.data['targetSeat'] as int?));
+        // `as int?` БИШ: JSON-д 1.0 гэж ирвэл тэр нь `double` болж
+        // хөрвүүлэлт шидэгдэн, сокетын сонсогч дотор баригдаагүй алдаа
+        // болж СЕРВЕР БҮХЭЛДЭЭ унана. `nightAction`-д яг ингэж унаж
+        // байсан. Сүлжээнээс ирсэн ямар ч байт ИТГЭЛГҮЙ.
+        final int? pick = _asInt(e.data['targetSeat']);
+        _withRoom(c, (GameRoom r, PlayerId id) => r.vote(id, pick));
+
+      case C2S.emote:
+        final String kind = _asStr(e.data['kind']) ?? '';
+        final int? at = _asInt(e.data['targetSeat']);
+        _withRoom(c, (GameRoom r, PlayerId id) => r.emote(id, kind, at, nowMs));
 
       default:
         // Танихгүй төрөл — алгасна. Шинэ үйлчлүүлэгч хуучин серверт
@@ -322,13 +369,32 @@ class Server {
   }
 
   /// Бүх өрөөний цагийг урагшлуулна.
+  ///
+  /// БҮРТГЭЛЭЭС гүйлгэнэ, ХОЛБОЛТООС БИШ. Өмнө нь холболтоос авдаг
+  /// байсан: сүүлчийн хүн нь салсан тоглолт цаашид нэг ч алхам хийхгүй,
+  /// `gameOver`-т хүрэхгүй, тиймээс цэвэрлэгдэх ч боломжгүй байв.
   void tickAll(int nowMs) {
     // Хуулбар дээр гүйлгэнэ — `tick` дотор өрөө устаж болно.
-    final Set<GameRoom> rooms =
-        _conns.map((_Conn c) => c.room).whereType<GameRoom>().toSet();
-    for (final GameRoom r in rooms) {
+    for (final GameRoom r in _hub.rooms.toList(growable: false)) {
       _dispatch(r, r.tick(nowMs));
     }
+  }
+
+  /// Хуучирсан түлхүүрийг мартана.
+  ///
+  /// Эс бөгөөс хүснэгт нь холбогдсон утас бүрээр ӨСӨӨД байна. Хагас
+  /// хоног холбогдоогүй бол шинээр эхэлсэнтэй адил.
+  int forgetOldTokens(int nowMs, {int olderThanMs = 43200000}) {
+    final List<PlayerId> old = _tokenSeenMs.entries
+        .where((MapEntry<PlayerId, int> e) => nowMs - e.value > olderThanMs)
+        .map((MapEntry<PlayerId, int> e) => e.key)
+        .where((PlayerId id) => _byPlayer[id] == null)
+        .toList();
+    for (final PlayerId id in old) {
+      _tokens.remove(id);
+      _tokenSeenMs.remove(id);
+    }
+    return old.length;
   }
 }
 
@@ -339,6 +405,17 @@ class Server {
 /// алдаа болж, БҮХ өрөөтэй хамт серверийг унагана. Нэг хүн ганц мессежээр
 /// ангийн тоглолтыг зогсоож болохгүй.
 int? _asInt(Object? v) => v is int ? v : null;
+
+/// Тэмдэгт мөрийг АЮУЛГҮЙ уншина.
+///
+/// Шидэгдэх хөрвүүлэлт нь `createRoom`-д ӨРӨӨГ УНАГААДАГ байв:
+/// `_hub.create(...)` аль хэдийн өрөө үүсгэсэн байхад нэрийн
+/// хөрвүүлэлт шидэгдэж, `r.has(id)` шалгалт хүртэл хүрэхгүй тул өрөө
+/// бүртгэлд ЭЗЭНГҮЙ үлддэг. Зургаан сокетоор давтвал сервер дахин өрөө
+/// үүсгэхээ болино.
+String? _asStr(Object? v) => v is String ? v : null;
+
+bool? _asBool(Object? v) => v is bool ? v : null;
 
 int? _intArg(List<String> args, String name) {
   final int i = args.indexOf(name);

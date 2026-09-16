@@ -70,6 +70,7 @@ const ERR_TEXT := {
 	"invalidTarget": "Энэ хүнийг сонгож болохгүй.",
 	"tooFewPlayers": "Хүн цөөн байна.",
 	"nameTaken": "Энэ нэр аль хэдийн байна.",
+	"badToken": "Энэ дугаарыг өөр төхөөрөмж эзэмшиж байна.",
 	"rateLimited": "Хэт хурдан дарж байна.",
 	"malformed": "Мессеж гажсан байна.",
 }
@@ -111,6 +112,15 @@ var _solo_done := false
 ## тэр кодтой өрөөнд орно.
 var room_code := ""
 
+## Орсон өрөөний код. Сүлжээ тасарч дахин холбогдоход ЭНД буцна.
+##
+## ОЛДСОН АЛДАА: сокет дахин нээгдэхэд `_on_open` ажилладаг ч жинхэнэ
+## тоглогчийн хувьд `room_code` хоосон байдаг тул ЮУ Ч ХИЙХГҮЙ байв.
+## Сервер талын «дахин холбогдов» бүх ажил (суудал, дүрээ буцааж авах)
+## хүрэх аргагүй байсан гэсэн үг: Wi-Fi нэг мөч тасарсан хүн тоглолтоос
+## ҮҮРД унана.
+var _joined_code := ""
+
 ## Хөгжүүлэлтийн лог.
 ##
 ## АНХААР: энэ нь ТОГЛОГЧИЙН ӨӨРИЙН дүрийг шууд бусаар илчилнэ —
@@ -144,8 +154,10 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 	net.server_error.connect(_on_error)
 	net.eliminated.connect(_on_eliminated)
 	net.mafia_pick.connect(_on_mafia_pick)
+	net.emote.connect(_on_emote)
 	if hud != null:
 		hud.acted.connect(_on_act)
+		hud.emoted.connect(_on_emoted)
 
 	lobby = Lobby.new()
 	add_child(lobby)
@@ -185,6 +197,14 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 # --- Серверээс ирэх ----------------------------------------------------------
 
 func _on_open() -> void:
+	# ДАХИН ХОЛБОГДОЛТ эхэлж шалгагдана. Аль хэдийн өрөөнд орсон бол
+	# тэр өрөө рүүгээ буцна — сервер биднийг «эргэж ирлээ» гэж таньж,
+	# суудал, дүрийг буцааж өгнө.
+	if not _joined_code.is_empty():
+		net.join_room(_joined_code)
+		if verbose:
+			print("NET reopen -> rejoin ", _joined_code)
+		return
 	# `room_code` нь ЗӨВХӨН хөгжүүлэлтийн товчлол (`tools/play.sh`).
 	# Жинхэнэ тоглогч лоббигоор дамжина.
 	if not _pending.is_empty():
@@ -292,6 +312,9 @@ func _on_room_list(d: Dictionary) -> void:
 
 
 func _on_room_state(d: Dictionary) -> void:
+	var code := str(d.get("code", ""))
+	if not code.is_empty():
+		_joined_code = code
 	_phase = str(d.get("phase", _phase))
 	_players = d.get("players", []) if d.get("players") is Array else []
 
@@ -404,6 +427,15 @@ func _on_mafia_pick(d: Dictionary) -> void:
 		_notify("Хамтрагч %d-р суудлыг сонгов." % target)
 
 
+## Хэн нэг дохио гаргав. НИЙТИЙНХ — бүгд ижил зүйл харна.
+##
+## Серверийн суудал 1-ээс эхэлдэг, тайзных 0-ээс.
+func _on_emote(seat: int, kind: String, target_seat: int) -> void:
+	if table == null or seat <= 0:
+		return
+	table.emote(seat - 1, kind, target_seat - 1 if target_seat > 0 else -1)
+
+
 func _on_voice(d: Dictionary) -> void:
 	_can_speak = bool(d.get("canSpeak", false))
 	# Микрофоныг СЕРВЕР нээнэ. Апп өөрөө шийддэггүй — эс бөгөөс
@@ -445,6 +477,25 @@ func _on_act() -> void:
 	_refresh()
 
 
+## Дохионы товч дарагдав.
+##
+## «Заах» нь БАЙ шаарддаг. Тусдаа «хэн рүү заах вэ» гэсэн дэлгэц
+## гаргахгүй: тоглогч аль хэдийн хүн товшиж сонгодог (тэр нь санал
+## өгөхөд ч хэрэгтэй). Сонгосон хүн рүү заана — нэг ойлголт, хоёр
+## хэрэглээ.
+func _on_emoted(kind: String) -> void:
+	if net == null or not net.is_open():
+		return
+	var target := 0
+	if kind == "point":
+		var seat: int = table.selected_seat() if table != null else -1
+		if seat < 0:
+			_notify("Эхлээд хэн рүү заахаа товш.")
+			return
+		target = seat + 1
+	net.send_emote(kind, target)
+
+
 # --- Дэлгэц ------------------------------------------------------------------
 
 func _notify(text: String) -> void:
@@ -482,7 +533,36 @@ func _refresh() -> void:
 		"can_speak": _can_speak,
 		"action": "" if _submitted else label,
 		"action_ready": table != null and table.selected_seat() >= 0,
+		"can_emote": _can_emote_now(),
 	})
+
+
+## Би амьд байна уу.
+##
+## Нийтийн жагсаалтаас уншина — сервер «чи үхсэн» гэж ТУСДАА хэлдэггүй
+## бөгөөд хэлэх ч шаардлагагүй: амьд эсэх нь бүгдэд ил мэдээлэл
+## (`PublicPlayer.alive`). Дүр нь ил БИШ, амьд эсэх нь ил.
+func _am_alive() -> bool:
+	if net == null:
+		return false
+	for p in _players:
+		var d: Dictionary = p
+		if str(d.get("id", "")) == net.player_id:
+			return bool(d.get("alive", true))
+	return false
+
+
+## Дохио гаргаж болох үе шат мөн үү.
+##
+## СЕРВЕРТЭЙ ИЖИЛ жагсаалт (`GameRoom._emotesAllowed`). Шөнө хаалттай:
+## тэр үед дохио явбал «энэ хүн сэрүүн байна» гэдэг нь ил болно. Апп
+## талын шалгалт нь зөвхөн ХАРАГДАХ байдлын төлөө — жинхэнэ хамгаалалт
+## сервер дээр.
+func _can_emote_now() -> bool:
+	if not _am_alive():
+		return false
+	return _phase == "dawn" or _phase == "day" or _phase == "vote" \
+		or _phase == "elimination"
 
 
 func _hint() -> String:

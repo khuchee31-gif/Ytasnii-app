@@ -16,6 +16,14 @@ import 'package:protocol/protocol.dart';
 import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+/// Тестийн НУУЦ түлхүүр.
+///
+/// Жинхэнэ апп санамсаргүй 16 байт үүсгэдэг. Тестэд дугаараас нь
+/// гаргах нь хангалттай: чухал нь ӨӨР дугаар ӨӨР түлхүүртэй байх, мөн
+/// нэг дугаар дахин холбогдоход ИЖИЛ түлхүүр өгөх хоёр.
+String _token(String id) => 'token-for-$id-0123456789';
+
+
 /// Нэг хуурамч утас.
 class _Client {
   _Client(this.id, this.channel);
@@ -71,7 +79,24 @@ void main() {
         if (e != null) c.inbox.add(e);
       }
     });
-    c.send(C2S.hello, <String, Object?>{'playerId': id});
+    c.send(C2S.hello, <String, Object?>{'playerId': id, 'token': _token(id)});
+    return c;
+  }
+
+  /// `hello`-г ӨӨРӨӨ бичих холболт. Түлхүүрийн шалгалтыг шалгахад
+  /// хэрэгтэй — `connect` нь үргэлж зөв түлхүүр илгээдэг.
+  Future<_Client> connectRaw(String id, Map<String, Object?> hello) async {
+    final WebSocketChannel ch =
+        WebSocketChannel.connect(Uri.parse('ws://127.0.0.1:$port'));
+    await ch.ready;
+    final _Client c = _Client(id, ch);
+    ch.stream.listen((Object? raw) {
+      if (raw is String) {
+        final Envelope? e = Envelope.decode(raw);
+        if (e != null) c.inbox.add(e);
+      }
+    });
+    c.send(C2S.hello, hello);
     return c;
   }
 
@@ -252,6 +277,161 @@ void main() {
     await settle();
     expect(a.ofType(S2C.roomState), isEmpty,
         reason: 'ороогүй атлаа өрөөний төлөв авчээ');
+    await a.close();
+  });
+
+  // --- Дүр хулгайлах оролдлогууд ---------------------------------------------
+  //
+  // ЭНЭ БҮЛЭГ ХАМГИЙН ЧУХАЛ. Гүнзгий шалгалтаар олсон бодит халдлага:
+  // `roomState` нь тоглогч бүрийн `id`-г нийтэд цацдаг. Өмнө нь тэр
+  // дугаарыг хуулж `hello` + `joinRoom` илгээхэд сервер «дахин
+  // холбогдов» гэж үзээд ТҮҮНИЙ `yourRole`-ыг буцаадаг байв. Ботод
+  // сокет байхгүй тул хохирогч юу ч анзаарахгүй: найман суудлын бүх
+  // дүрийг чимээгүйхэн цуглуулж болно.
+
+  test('түлхүүргүй `hello` татгалзагдана', () async {
+    final _Client a = await connectRaw('notoken1',
+        <String, Object?>{'playerId': 'notoken1'});
+    await settle();
+    expect(a.ofType(S2C.error).last.data['code'], ErrCode.badToken);
+    // Дугаар нь холбогдоогүй тул цаашид юу ч хийж чадахгүй.
+    a.send(C2S.createRoom, <String, Object?>{'name': 'Хулгайч'});
+    await settle();
+    expect(a.ofType(S2C.roomState), isEmpty);
+    await a.close();
+  });
+
+  test('хэт богино түлхүүр татгалзагдана', () async {
+    final _Client a = await connectRaw('shorttok',
+        <String, Object?>{'playerId': 'shorttok', 'token': 'abc'});
+    await settle();
+    expect(a.ofType(S2C.error).last.data['code'], ErrCode.badToken);
+    await a.close();
+  });
+
+  test('өөр түлхүүрээр бусдын дугаарыг нэхэж чадахгүй', () async {
+    final _Client real = await connect('victim1');
+    await settle();
+    final _Client thief = await connectRaw('victim1',
+        <String, Object?>{'playerId': 'victim1', 'token': 'WRONG-0123456789'});
+    await settle();
+    expect(thief.ofType(S2C.error).last.data['code'], ErrCode.badToken);
+    // ХОХИРОГЧ ТАСРАХГҮЙ. Эс бөгөөс хэн ч хэнийг ч гаргаж чадна.
+    real.send(C2S.ping);
+    await settle();
+    expect(real.ofType(S2C.pong), isNotEmpty,
+        reason: 'хулгайч хохирогчийг таслав');
+    await thief.close();
+    await real.close();
+  });
+
+  test('БОТЫН дугаарыг нэхэхэд дүр гарахгүй', () async {
+    final _Client host = await connect('bh1');
+    await settle();
+    host.send(C2S.createRoom, <String, Object?>{'name': 'Эзэн'});
+    await settle();
+    final String code =
+        host.ofType(S2C.roomState).last.data['code']! as String;
+    host.send(C2S.addBots, <String, Object?>{'count': 7});
+    await settle();
+    host.send(C2S.startGame);
+    await settle(700);
+
+    // Ботын дугаарыг НИЙТИЙН мессежээс шууд хуулна.
+    final List<Object?> players =
+        host.ofType(S2C.roomState).last.data['players']! as List<Object?>;
+    final List<String> botIds = players
+        .cast<Map<String, Object?>>()
+        .where((Map<String, Object?> p) => p['isBot'] == true)
+        .map((Map<String, Object?> p) => p['id']! as String)
+        .toList();
+    expect(botIds.length, 7, reason: 'ботын дугаар нийтэд харагдсаар байна');
+
+    for (final String id in botIds.take(3)) {
+      final _Client thief = await connectRaw(id,
+          <String, Object?>{'playerId': id, 'token': 'ANY-TOKEN-0123456789'});
+      await settle(120);
+      thief.send(C2S.joinRoom,
+          <String, Object?>{'code': code, 'name': 'Хулгайч', 'avatarId': 'x'});
+      await settle(120);
+      expect(thief.ofType(S2C.yourRole), isEmpty,
+          reason: '$id-ийн дүр хулгайлагдлаа');
+      expect(thief.ofType(S2C.error).first.data['code'], ErrCode.badToken);
+      await thief.close();
+    }
+
+    // Тоглолт эвдрээгүй.
+    host.send(C2S.ping);
+    await settle();
+    expect(host.ofType(S2C.pong), isNotEmpty);
+    await host.close();
+  });
+
+  test('ХҮНИЙ дугаарыг нэхэхэд ч дүр гарахгүй', () async {
+    final _Client host = await connect('hh1');
+    final _Client mate = await connect('hh2');
+    await settle();
+    host.send(C2S.createRoom, <String, Object?>{'name': 'Эзэн'});
+    await settle();
+    final String code =
+        host.ofType(S2C.roomState).last.data['code']! as String;
+    mate.send(C2S.joinRoom,
+        <String, Object?>{'code': code, 'name': 'Хоёр', 'avatarId': 'x'});
+    await settle();
+
+    final _Client thief = await connectRaw('hh2',
+        <String, Object?>{'playerId': 'hh2', 'token': 'STOLEN-0123456789'});
+    await settle(120);
+    thief.send(C2S.joinRoom,
+        <String, Object?>{'code': code, 'name': 'Хулгайч', 'avatarId': 'x'});
+    await settle(150);
+    expect(thief.ofType(S2C.yourRole), isEmpty);
+    expect(thief.ofType(S2C.roomState), isEmpty);
+    await thief.close();
+    await mate.close();
+    await host.close();
+  });
+
+  test('НЭГ утас дахин холбогдоход суудалдаа ЭРГЭЖ ОРНО', () async {
+    // Түлхүүр нь хулгайг зогсоох ёстой, ЖИНХЭНЭ дахин холболтыг биш.
+    final _Client host = await connect('rj1');
+    await settle();
+    host.send(C2S.createRoom, <String, Object?>{'name': 'Эзэн'});
+    await settle();
+    final String code =
+        host.ofType(S2C.roomState).last.data['code']! as String;
+    await host.close();
+    await settle(200);
+
+    final _Client again = await connect('rj1');
+    await settle(150);
+    again.send(C2S.joinRoom,
+        <String, Object?>{'code': code, 'name': 'Эзэн', 'avatarId': 'x'});
+    await settle(200);
+    expect(again.ofType(S2C.roomState), isNotEmpty,
+        reason: 'жинхэнэ эзэн эргэж орж чадсангүй');
+    await again.close();
+  });
+
+  test('нэрийн оронд тоо явуулахад ӨРӨӨ ЭЗЭНГҮЙ ҮЛДЭХГҮЙ', () async {
+    // `createRoom` нь эхлээд өрөө үүсгэдэг. Нэрийн хөрвүүлэлт шидэгдвэл
+    // `r.has(id)` шалгалт хүртэл хүрэхгүй тул өрөө бүртгэлд үлдэнэ.
+    // Зургаан сокетоор давтвал сервер дахин өрөө үүсгэхээ болино.
+    final _Client a = await connect('badname1');
+    await settle();
+    for (int i = 0; i < 4; i++) {
+      a.channel.sink.add(jsonEncode(<String, Object?>{
+        'v': kProtocolVersion,
+        't': C2S.createRoom,
+        'd': <String, Object?>{'name': 12345, 'avatarId': 'punk_01'},
+      }));
+      await settle(100);
+    }
+    // Сервер амьд, өрөө үүсгэх боломжтой хэвээр.
+    a.send(C2S.createRoom, <String, Object?>{'name': 'Зөв'});
+    await settle();
+    expect(a.ofType(S2C.roomState), isNotEmpty,
+        reason: 'өрөө үүсгэх боломжгүй болжээ');
     await a.close();
   });
 }

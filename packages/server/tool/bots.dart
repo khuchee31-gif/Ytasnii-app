@@ -58,7 +58,8 @@ class Bot {
       _handle(t, d);
       onMsg(this, t, d);
     }, onError: (Object e) => print('bot$index error $e'));
-    _send('hello', <String, Object?>{'playerId': id, 'name': name});
+    _send('hello',
+        <String, Object?>{'playerId': id, 'token': 'tok-$id-0123456789', 'name': name});
   }
 
   void _handle(String t, Map<String, Object?> d) {

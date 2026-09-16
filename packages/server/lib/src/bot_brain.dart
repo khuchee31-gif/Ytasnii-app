@@ -98,6 +98,13 @@ class BotVote extends BotCommand {
   final int targetSeat;
 }
 
+/// Дохио. `targetSeat` нь зөвхөн заалтад утгатай.
+class BotEmote extends BotCommand {
+  const BotEmote(this.kind, this.targetSeat);
+  final String kind;
+  final int? targetSeat;
+}
+
 /// Нэг ботын хувийн байдал — өрөө үүнийг хадгална.
 class BotSeat {
   BotSeat(this.id, this.rng);
@@ -109,6 +116,11 @@ class BotSeat {
   int seat = -1;
   int actAtMs = -1;
   bool acted = false;
+
+  /// Дохионы хуваарь нь гол үйлдлээс ТУСДАА: гол үйлдэл нь шөнө, дохио
+  /// нь өдөр болдог тул нэг цонхонд багтахгүй.
+  int emoteAtMs = -1;
+  bool emoted = true;
 
   /// Үе шат эхлэхэд хэзээ үйлдэхээ шийднэ.
   ///
@@ -122,9 +134,17 @@ class BotSeat {
     final int wanted = nowMs + 800 + jitter;
     actAtMs = wanted > latest ? latest : wanted;
     acted = false;
+
+    // Дохиог үе шат бүрд гаргахгүй — таван удаагийн гурав нь. Бот бүр
+    // үе шат бүрд дохивол ширээ цирк болно.
+    emoted = rng.below(5) >= 3;
+    final int espan = phaseMs - 1500;
+    emoteAtMs = nowMs + 600 + (espan > 1 ? rng.below(espan) : 0);
   }
 
   bool due(int nowMs) => !acted && seat > 0 && nowMs >= actAtMs;
+
+  bool dueEmote(int nowMs) => !emoted && seat > 0 && nowMs >= emoteAtMs;
 }
 
 // --- Шийдвэр -----------------------------------------------------------------
@@ -156,6 +176,38 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
     default:
       return null;
   }
+}
+
+/// Бот ямар дохио гаргах вэ. Гаргахгүй бол `null`.
+///
+/// ЭНЭ ФУНКЦ ДҮРИЙГ ОГТ УНШИХГҮЙ — `v.myRole`, `v.myAllies` хоёрт
+/// хүрэхгүй. Яагаад гэвэл дохио нь БҮХ тоглогчид харагдана: хэрэв мафи
+/// бот хамтрагч руугаа хэзээ ч заадаггүй бол хэдхэн өдрийн дараа
+/// ажиглагч хүн «хэзээ ч бие бие рүүгээ заадаггүй хоёр» гэж мафиг
+/// ялгана. Санамсаргүй заалт нь ХУУРАЛТ — жинхэнэ хүн ч мөн адил
+/// хийдэг — бөгөөд ямар ч мэдээлэл алддаггүй.
+BotEmote? decideEmote(BotView v, eng.Rng rng) {
+  if (!v.aliveSeats.contains(v.mySeat)) return null;
+  if (v.phase != NetPhase.day &&
+      v.phase != NetPhase.vote &&
+      v.phase != NetPhase.dawn) {
+    return null;
+  }
+
+  final List<int> others =
+      v.aliveSeats.where((int s) => s != v.mySeat).toList()..sort();
+  // Таван удаагийн хоёр нь заалт — бусад нь ерөнхий дохио.
+  if (others.isNotEmpty && rng.below(5) < 2) {
+    return BotEmote(Emote.point, others[rng.below(others.length)]);
+  }
+  const List<String> plain = <String>[
+    Emote.yes,
+    Emote.no,
+    Emote.shrug,
+    Emote.hand,
+    Emote.laugh,
+  ];
+  return BotEmote(plain[rng.below(plain.length)], null);
 }
 
 /// Мафи ХАМТАРНА.

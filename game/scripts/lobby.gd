@@ -336,8 +336,14 @@ func set_name_text(v: String) -> void:
 	_name_field.text = v
 
 
+## Хэрэглэгчийн бичсэн нэр.
+##
+## Өмнө нь `return player_name()` гэж бичигдсэн байв — ӨӨРИЙГӨӨ дуудна.
+## Энэ нь хязгааргүй рекурс: «ӨРӨӨ ҮҮСГЭХ» дарсан хүн бүрд тоглоом тэр
+## дор нь унана. Ширээ зурагдаж байсан тул хөгжүүлэлтэд харагдаагүй —
+## лоббиос цааш гарч чадахгүй байхыг зөвхөн БОДИТ дараалал шалгана.
 func player_name() -> String:
-	return player_name()
+	return _name_field.text.strip_edges()
 
 
 func set_server_text(v: String) -> void:

@@ -32,10 +32,20 @@ signal eliminated(data: Dictionary)
 ## ЗӨВХӨН мафид: хамтрагч хэн рүү чиглэв.
 signal mafia_pick(data: Dictionary)
 
+## Хэн нэг дохио гаргав. НИЙТИЙНХ.
+signal emote(seat: int, kind: String, target_seat: int)
+
 ## Протоколын хувилбар. `packages/protocol/lib/src/messages.dart`-тай
 ## ЯГ тэнцүү байх ёстой. Зөрвөл сервер шууд татгалзана — «хагас
 ## ойлголцсон» тоглолт бол хамгийн муу төрлийн алдаа.
-const PROTOCOL_VERSION := 1
+## `packages/protocol`-той ТААРАХ ёстой. Зөрвөл сервер `badVersion`
+## буцаана — «хагас ойлголцсон» тоглолтоос тодорхой алдаа хавьгүй дээр.
+##
+## 2 — `hello` нь нууц түлхүүр шаардана.
+const PROTOCOL_VERSION := 2
+
+## Нууц түлхүүрийн урт (байт). 16 байт = 128 бит.
+const TOKEN_BYTES := 16
 
 const PING_EVERY := 10.0
 
@@ -45,6 +55,9 @@ const BACKOFF := [1.0, 2.0, 4.0, 8.0, 16.0, 30.0]
 
 var url := ""
 var player_id := ""
+
+## НУУЦ. Утсанд л үлдэнэ, дэлгэцэнд ч гарахгүй.
+var _token := ""
 var player_name := ""
 var avatar_id := "punk_01"
 
@@ -67,16 +80,40 @@ func _ready() -> void:
 ## ёстой — эс бөгөөс тоглолтын дунд гарсан хүн буцаж орж чадахгүй.
 ## Дугаарыг утсанд хадгална; нэр биш, учир нь нэр давхардаж болно.
 func _stable_id() -> String:
+	_load_identity()
+	return player_id
+
+
+## Дугаар БА НУУЦ ТҮЛХҮҮРийг хамт уншина, байхгүй бол үүсгэнэ.
+##
+## ТҮЛХҮҮР ЯАГААД ХЭРЭГТЭЙ ВЭ: сервер `roomState`-д тоглогч бүрийн
+## дугаарыг НИЙТЭД цацдаг (апп өөрийгөө таних, дахин холбогдоход
+## хэрэгтэй). Хэрэв `hello` зөвхөн дугаар шаарддаг байсан бол өрөөнд
+## байгаа хэн ч бусдын дугаарыг хуулж, «дахин холбогдлоо» гэж хэлэхэд
+## сервер ТҮҮНИЙ дүрийг буцаана. Ботод сокет байхгүй тул хулгай нь
+## бүрэн чимээгүй: найман суудлын бүх дүрийг цуглуулна.
+##
+## Түлхүүр нь ЗӨВХӨН энэ утсанд байна, хэзээ ч цацагдахгүй.
+func _load_identity() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load("user://identity.cfg") == OK:
-		var got: String = cfg.get_value("me", "id", "")
-		if not got.is_empty():
-			return got
-	var rng := Crypto.new().generate_random_bytes(16)
-	var id := rng.hex_encode()
-	cfg.set_value("me", "id", id)
-	cfg.save("user://identity.cfg")
-	return id
+	var ok := cfg.load("user://identity.cfg") == OK
+	if ok:
+		player_id = str(cfg.get_value("me", "id", ""))
+		_token = str(cfg.get_value("me", "token", ""))
+	var dirty := false
+	if player_id.is_empty():
+		player_id = Crypto.new().generate_random_bytes(16).hex_encode()
+		cfg.set_value("me", "id", player_id)
+		dirty = true
+	# Хуучин суулгацад түлхүүр байхгүй — нэмж өгнө. Дугаар нь ХЭВЭЭР
+	# үлдэнэ: эс бөгөөс тоглолт дунд шинэчилсэн хүн өөр хүн болж,
+	# суудалдаа эргэж орж чадахгүй.
+	if _token.length() < TOKEN_BYTES * 2:
+		_token = Crypto.new().generate_random_bytes(TOKEN_BYTES).hex_encode()
+		cfg.set_value("me", "token", _token)
+		dirty = true
+	if dirty:
+		cfg.save("user://identity.cfg")
 
 
 func open(server_url: String, name_v: String, avatar := "punk_01") -> void:
@@ -134,7 +171,11 @@ func _process(delta: float) -> void:
 				_ping_in = PING_EVERY
 				# ЭХНИЙ мессеж заавал `hello` — сервер үүнээс өмнө өөр
 				# юуг ч хүлээж авахгүй.
-				send("hello", {"playerId": player_id, "name": player_name})
+				send("hello", {
+					"playerId": player_id,
+					"token": _token,
+					"name": player_name,
+				})
 				opened.emit()
 			while _ws.get_available_packet_count() > 0:
 				# Бичвэр хүрээ = удирдлага (JSON). Хоёртын = дуу.
@@ -223,6 +264,18 @@ func remove_bot() -> void:
 	send("removeBot", {})
 
 
+## Дохио илгээнэ. `target_seat` нь зөвхөн «заах»-д утгатай.
+##
+## Хурдны хязгаарыг СЕРВЕР барина. Апп талд ч барих нь зөв (дэмий
+## багц явуулахгүй) боловч тэр нь ЗӨВХӨН эелдэг байдал — засварласан
+## апп хязгаарыг алгасаж чадна, сервер чадахгүй.
+func send_emote(kind: String, target_seat := 0) -> void:
+	var d: Dictionary = {"kind": kind}
+	if target_seat > 0:
+		d["targetSeat"] = target_seat
+	send("emote", d)
+
+
 # --- Хүлээн авах -------------------------------------------------------------
 
 ## `[tag][seq lo][seq hi][seat][μ-law…]`
@@ -253,6 +306,8 @@ func _receive(raw: String) -> void:
 		"voiceGrant": voice_grant.emit(d)
 		"eliminated": eliminated.emit(d)
 		"mafiaPick": mafia_pick.emit(d)
+		"emote": emote.emit(int(d.get("seat", 0)), str(d.get("kind", "")),
+			int(d.get("targetSeat", 0)) if d.get("targetSeat") != null else 0)
 		"error": server_error.emit(str(d.get("code", "")), d)
 		"pong", "ack": pass
 		_: pass          # Танихгүй төрөл — шинэ сервер, хуучин апп. Алгасна.

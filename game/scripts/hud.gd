@@ -4,8 +4,9 @@
 #   • Дунд хэсэг бол ТАЙЗ. Түүн дээр юу ч байрлуулахгүй — тоглогч нүүр
 #     рүү харах ёстой.
 #   • Хөндлөн барихад эрхий хуруу ХОЁР ДООД БУЛАНд байна. Тиймээс:
-#       зүүн доод  — микрофоны төлөв (зөвхөн харах, дарахгүй)
+#       зүүн доод  — дохионы зурвас (дарна), түүн дээр микрофоны төлөв
 #       баруун доод — гол товч (дарна)
+#     Хоёр эрхий хоёулаа ажилтай: нэг нь ярианы дохио, нөгөө нь шийдвэр.
 #   • Дээд зурвас — үе шат, цаг. Хүн эхлээд тийш хардаг.
 #   • Товч нь дэлгэцийн өргөнийг ГҮЙЦЭД эзлэхгүй: хөндлөн дэлгэц 1600
 #     цэг өргөн бөгөөд бүтэн өргөнтэй товч нь ширээг далдалж, эрхий
@@ -20,6 +21,9 @@ extends CanvasLayer
 ## Гол товч дарагдав.
 signal acted
 
+## Дохионы товч дарагдав.
+signal emoted(kind: String)
+
 const PAD := 24
 const AMBER := Color(0.92, 0.66, 0.34)
 const COLD := Color(0.42, 0.78, 0.86)
@@ -32,6 +36,30 @@ var _mic := Label.new()
 var _name := Label.new()
 var _act := Button.new()
 var _rule := ColorRect.new()
+
+## Дохионы товчлуурууд.
+##
+## БИЧВЭРЭЭР, зургаар БИШ. Шалтгаан нь: тэмдэгтийн (☞, 👍) фонтод
+## байгаа эсэх нь утас бүрд өөр бөгөөд байхгүй бол хоосон дөрвөлжин
+## гарна. Монгол богино үг нь ямар ч төхөөрөмж дээр уншигдана.
+const EMOTES: Array[Dictionary] = [
+	{"kind": "point", "text": "ЗААХ"},
+	{"kind": "yes", "text": "ТИЙМ"},
+	{"kind": "no", "text": "ҮГҮЙ"},
+	{"kind": "shrug", "text": "МЭДЭХГҮЙ"},
+	{"kind": "hand", "text": "ЯРЬЯ"},
+	{"kind": "laugh", "text": "ИНЭЭХ"},
+]
+
+## Сервертэй ИЖИЛ завсар (`Emote.minGapMs`). Хэрэв апп илүү түргэн
+## илгээвэл сервер чимээгүй хаяна — тоглогчид «товч ажиллахгүй байна»
+## гэж мэдрэгдэнэ. Тиймээс энд ч барина.
+const EMOTE_GAP_MS := 1200
+
+var _emote_bar := HBoxContainer.new()
+var _emote_btns: Array[Button] = []
+var _emote_cool_until := 0
+var _can_emote := false
 
 
 func _ready() -> void:
@@ -88,8 +116,27 @@ func _ready() -> void:
 	_mic.add_theme_constant_override("outline_size", 6)
 	_mic.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	_mic.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_band(_mic, Control.PRESET_BOTTOM_LEFT, PAD, -56, PAD + 700, -22)
+	# Дохионы зурвасын ДЭЭР. Хөндлөн барихад зүүн эрхий нь доод зүүн
+	# буланд байх тул тэр газрыг ДАРДАГ зүйлд өгнө, зөвхөн харагддаг
+	# бичвэрт биш.
+	_band(_mic, Control.PRESET_BOTTOM_LEFT, PAD, -116, PAD + 700, -84)
 	root.add_child(_mic)
+
+	# --- Доод зүүн: дохионы зурвас -------------------------------------------
+	_emote_bar.add_theme_constant_override("separation", 8)
+	_band(_emote_bar, Control.PRESET_BOTTOM_LEFT, PAD, -74, PAD + 760, -20)
+	_emote_bar.visible = false
+	root.add_child(_emote_bar)
+	for e in EMOTES:
+		var b := Button.new()
+		b.text = str(e["text"])
+		b.add_theme_font_size_override("font_size", 20)
+		b.focus_mode = Control.FOCUS_NONE
+		var kind: String = str(e["kind"])
+		b.pressed.connect(func() -> void: _on_emote(kind))
+		_style(b, 8, 10)
+		_emote_bar.add_child(b)
+		_emote_btns.append(b)
 
 	_act.text = ""
 	_act.add_theme_font_size_override("font_size", 30)
@@ -113,32 +160,69 @@ func _band(c: Control, preset: int, l: float, t: float, r: float, b: float) -> v
 
 
 func _style_button() -> void:
+	_style(_act, 14, 18)
+
+
+## Товчийг нэг загвараар будна.
+##
+## `pad_y`, `pad_x` нь хүрэх талбайг тодорхойлно. Утсан дээр 44 цэгээс
+## жижиг товчийг эрхийгээрээ оносон гэж хэлэхэд хэцүү — тиймээс жижиг
+## дохионы товч ч босоо 54 цэг байна.
+func _style(b: Button, pad_y: int, pad_x: int) -> void:
 	for state in ["normal", "hover", "focus"]:
 		var box := StyleBoxFlat.new()
 		box.bg_color = Color(0.13, 0.10, 0.075, 0.92)
 		box.border_color = AMBER
 		box.set_border_width_all(2)
 		box.set_corner_radius_all(6)
-		box.content_margin_top = 14
-		box.content_margin_bottom = 14
-		_act.add_theme_stylebox_override(state, box)
+		box.content_margin_top = pad_y
+		box.content_margin_bottom = pad_y
+		box.content_margin_left = pad_x
+		box.content_margin_right = pad_x
+		b.add_theme_stylebox_override(state, box)
 	var down := StyleBoxFlat.new()
 	down.bg_color = Color(0.34, 0.22, 0.10, 0.96)
 	down.border_color = AMBER
 	down.set_border_width_all(2)
 	down.set_corner_radius_all(6)
-	_act.add_theme_stylebox_override("pressed", down)
+	b.add_theme_stylebox_override("pressed", down)
 
 	var off := StyleBoxFlat.new()
 	off.bg_color = Color(0.08, 0.08, 0.085, 0.75)
 	off.border_color = Color(0.30, 0.29, 0.28)
 	off.set_border_width_all(2)
 	off.set_corner_radius_all(6)
-	_act.add_theme_stylebox_override("disabled", off)
+	b.add_theme_stylebox_override("disabled", off)
 
-	_act.add_theme_color_override("font_color", INK)
-	_act.add_theme_color_override("font_pressed_color", Color(1, 1, 1))
-	_act.add_theme_color_override("font_disabled_color", Color(0.45, 0.44, 0.42))
+	b.add_theme_color_override("font_color", INK)
+	b.add_theme_color_override("font_pressed_color", Color(1, 1, 1))
+	b.add_theme_color_override("font_disabled_color", Color(0.45, 0.44, 0.42))
+
+
+## Дохио дарагдав.
+##
+## Хүлээлтийг ЭНД барина: товч бүр саарал болж, хэдэн зуун
+## миллисекундын дараа эргэж асна. Эс бөгөөс тоглогч дарж дарж байгаад
+## «ажиллахгүй байна» гэж бодно — үнэндээ сервер хаяж байгаа.
+func _on_emote(kind: String) -> void:
+	if Time.get_ticks_msec() < _emote_cool_until:
+		return
+	_emote_cool_until = Time.get_ticks_msec() + EMOTE_GAP_MS
+	_sync_emotes()
+	emoted.emit(kind)
+
+
+func _sync_emotes() -> void:
+	var cool: bool = Time.get_ticks_msec() < _emote_cool_until
+	_emote_bar.visible = _can_emote
+	for b in _emote_btns:
+		b.disabled = cool
+
+
+func _process(_delta: float) -> void:
+	# Хүлээлт дуусахад товчийг эргүүлж асаана.
+	if _emote_bar.visible:
+		_sync_emotes()
 
 
 ## Дэлгэцийг шинэчилнэ.
@@ -160,6 +244,9 @@ func apply(state: Dictionary) -> void:
 	_act.text = label
 	_act.visible = not label.is_empty()
 	_act.disabled = not bool(state.get("action_ready", false))
+
+	_can_emote = bool(state.get("can_emote", false))
+	_sync_emotes()
 
 
 ## Сонгосон хүний нэрийг толгой дээр нь байрлуулна.

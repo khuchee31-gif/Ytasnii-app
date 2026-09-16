@@ -77,6 +77,9 @@ class GameRoom {
   final List<eng.Intent> _intents = <eng.Intent>[];
   int _seq = 0;
 
+  /// Хэн хэзээ сүүлд дохио гаргав (мс). Хурдны хязгаарт.
+  final Map<PlayerId, int> _lastEmoteMs = <PlayerId, int>{};
+
   /// Өдрийн санал хураалт: хэн хэн рүү.
   final Map<PlayerId, int> _votes = <PlayerId, int>{};
 
@@ -173,9 +176,11 @@ class GameRoom {
       _players[id] = _players[id]!.copyWith(connected: true);
       // ТОГЛОЛТ ЯВЖ БАЙХАД НЭР ХӨЛДӨНӨ. Эс бөгөөс үхсэн Батын дараа
       // мафи «Бат» болж, өдрийн яриа утгагүй болно.
-      if (_phase == NetPhase.lobby && nameProblem(clean) == null) {
-        _players[id] =
-            _players[id]!.renamed(uniqueName(clean, _takenKeys(except: id)));
+      if (_phase == NetPhase.lobby &&
+          nameProblem(clean, allowReserved: isBot) == null) {
+        _players[id] = _players[id]!.renamed(uniqueName(
+            clean, _takenKeys(except: id),
+            allowReserved: isBot));
       }
       return <Outbound>[..._stateForAll(), ..._privateResend(id)];
     }
@@ -192,7 +197,10 @@ class GameRoom {
 
     _players[id] = PublicPlayer(
       id: id,
-      name: uniqueName(clean, _takenKeys()),
+      // `allowReserved`-ыг ДАМЖУУЛНА. Үгүй бол `uniqueName` нь ботын
+      // өөрийнх нь нэрийг «нөөцлөгдсөн» гэж үзээд «Бот 1» → «Бот 1 2»
+      // болгоно.
+      name: uniqueName(clean, _takenKeys(), allowReserved: isBot),
       avatarId: avatarId,
       isBot: isBot,
     );
@@ -225,6 +233,15 @@ class GameRoom {
   int get humanCount =>
       _players.values.where((PublicPlayer p) => !p.isBot).length;
 
+  /// ЯГ ОДОО холбоотой байгаа хүн хэд вэ.
+  ///
+  /// `humanCount` нь тоглолт эхэлсний дараа гарсан хүнийг ч тоолдог
+  /// (`leave` нь суудлыг үлдээдэг — эргэж орж болно). Тиймээс түүгээр
+  /// цэвэрлэвэл сүүлчийн хүн нь тоглолт дунд гарсан өрөө ҮҮРД үлдэнэ.
+  int get connectedHumans => _players.values
+      .where((PublicPlayer p) => !p.isBot && p.connected)
+      .length;
+
   /// Өрөөнд бот нэмнэ. ЗӨВХӨН эзэн, ЗӨВХӨН лоббид.
   ///
   /// Ботыг `_players` руу ШУУД бичихгүй, `join`-оор оруулна: тэгж байж
@@ -237,8 +254,11 @@ class GameRoom {
     }
     final int room = kMaxPlayers - _players.length;
     final int n = count < 0 ? 0 : (count > room ? room : count);
-    int next = _nextBotNumber();
     for (int i = 0; i < n; i++) {
+      // Давталт БҮРД дахин асууна: нэр бүртгэгдсэний дараа дараагийн
+      // чөлөөт дугаар өөрчлөгдөнө.
+      final int next = _nextBotNumber();
+      if (next < 0) return <Outbound>[_err(by, ErrCode.roomFull)];
       final PlayerId id = _botId(next);
       // `join` алдаа буцаавал тэр нь БОТЫН хаягаар явна — ботод сокет
       // байхгүй тул чимээгүй алга болно. Тиймээс шалгаад эзэн рүү дахин
@@ -253,7 +273,6 @@ class GameRoom {
       }
       _bots[id] = BotSeat(id, eng.Rng(eng.streamKey(_seed, 'BOT:$next')));
       setReady(id, true);
-      next++;
     }
     return _stateForAll();
   }
@@ -274,26 +293,39 @@ class GameRoom {
     return _stateForAll();
   }
 
+  /// Дараагийн ЧӨЛӨӨТ ботын дугаар. Чөлөөт дугаар байхгүй бол `-1`.
+  ///
+  /// ХАРАГДАХ НЭРЭЭР ХАЙХГҮЙ. Өмнө нь `p.name == botName(n)` гэж хайдаг
+  /// байв. Хоёр хүн «бот» гэж бичихэд `uniqueName` хоёр дахийг нь
+  /// «бот 2» болгодог; дараа нь хоёрдугаар бот «Бот 2 2» болж нэрлэгдэх
+  /// тул хайлт «Бот 2»-ыг ОЛОХОО БОЛЬЖ, дугаар 2 дээр ҮҮРД гацдаг байв
+  /// — эзний «+ БОТ НЭМЭХ» товч чимээгүй үхнэ (гараар шалгахад 6 удаа
+  /// дарахад нэг ч бот нэмэгдээгүй).
+  ///
+  /// Одоо ДУГААР (хаяг) ба НЭР хоёулаа чөлөөтэй эсэхийг шалгана.
   int _nextBotNumber() {
-    int top = 0;
-    for (int n = 1; n <= kMaxPlayers + 2; n++) {
-      if (_players.values.any((PublicPlayer p) => p.name == botName(n))) {
-        top = n;
-      }
+    final Set<String> taken = _takenKeys();
+    for (int n = 1; n <= kMaxPlayers * 4; n++) {
+      if (_players.containsKey(_botId(n))) continue;
+      if (taken.contains(nameKey(botName(n)))) continue;
+      return n;
     }
-    return top + 1;
+    return -1;
   }
 
   /// Ботын дугаарыг ӨРӨӨНИЙ ҮРЭЭС гаргана, КОДООС БИШ.
   ///
-  /// Код нь нээлттэй өрөөний жагсаалтаар нийтэд ил явдаг. Хэрэв ботын
-  /// дугаар кодоос гардаг байсан бол хэн ч `hello` илгээж тэр ботын
-  /// нэрээр орж, түүний `yourRole`-ыг цуглуулах байсан.
+  /// Код нь нээлттэй өрөөний жагсаалтаар нийтэд ил явдаг.
+  ///
+  /// ГЭХДЭЭ ЭНЭ НЬ ХАНГАЛТГҮЙ: `roomState` нь тоглогч бүрийн `id`-г
+  /// нийтэд цацдаг тул ботын дугаарыг ТААХ шаардлагагүй, зүгээр л
+  /// хуулна. Жинхэнэ хамгаалалт нь `kBotIdPrefix`: сервер энэ
+  /// угтвартай дугаарыг `hello`-д ХЭЗЭЭ Ч хүлээж авахгүй.
   PlayerId _botId(int n) {
     final List<int> key = eng.streamKey(_seed, 'BOTID:$n');
     final String hex =
         key.take(8).map((int b) => b.toRadixString(16).padLeft(2, '0')).join();
-    return 'bot-$hex';
+    return '$kBotIdPrefix$hex';
   }
 
   List<Outbound> leave(PlayerId id) {
@@ -412,6 +444,57 @@ class GameRoom {
     return <Outbound>[_voteState()];
   }
 
+  /// Дохио (эмоци) гаргах.
+  ///
+  /// НИЙТИЙНХ: өрөөнд байгаа бүх хүн үүнийг НҮДЭЭРЭЭ харах ёстой зүйл
+  /// тул `Outbound.all`. Дүрийн ул мөр агуулахгүй — `kind` нь бүх
+  /// тоглогчид нээлттэй НЭГ жагсаалтаас гарна (`Emote.all`).
+  ///
+  /// Буруу хүсэлтэд алдаа БУЦААХГҮЙ, чимээгүй хаяна. Алдааны хариу нь
+  /// «яагаад болохгүй байна» гэдгээр дамжуулан үе шат, амьд эсэхийг
+  /// тандах суваг болно.
+  List<Outbound> emote(PlayerId id, String kind, int? targetSeat, int nowMs) {
+    final PublicPlayer? p = _players[id];
+    if (p == null || !p.alive || p.seat == null) return const <Outbound>[];
+    if (!_emotesAllowed || !Emote.valid(kind)) return const <Outbound>[];
+
+    // Хурдны хязгаар. БҮХ хүнд ИЖИЛ — хэн нэгэнд илүү түргэн зөвшөөрвөл
+    // тэр нь ялгарах тэмдэг болно.
+    final int? last = _lastEmoteMs[id];
+    if (last != null && nowMs - last < Emote.minGapMs) {
+      return const <Outbound>[];
+    }
+    _lastEmoteMs[id] = nowMs;
+
+    // Бай нь ЗӨВХӨН заалтад утгатай. Бусад дохионы бай чимээгүй
+    // хаягдана: «толгой дохилоо, гэхдээ 4 руу» гэсэн нууц суваг
+    // үүсгэхгүйн тулд.
+    int? at;
+    if (kind == Emote.point && targetSeat != null && targetSeat != p.seat) {
+      final PlayerId? who = _bySeat[targetSeat];
+      if (who != null && (_players[who]?.alive ?? false)) at = targetSeat;
+    }
+    return <Outbound>[
+      Outbound.all(Envelope(S2C.emote, <String, Object?>{
+        'seat': p.seat,
+        'kind': kind,
+        'targetSeat': at,
+      })),
+    ];
+  }
+
+  /// Дохио зөвшөөрөгдөх үе шатууд.
+  ///
+  /// ШӨНӨ ЗӨВШӨӨРӨХГҮЙ. Шөнө бүх дэлгэц харанхуй, хүн бүр «унтсан»
+  /// байх ёстой. Хэрэв тэр үед дохио дамжвал «энэ хүн сэрүүн байна»
+  /// гэдэг нь ил болж, мафи хэн болох нь тэр дороо тодорно. Энэ бол
+  /// гоо сайхны биш, ТОГЛООМЫН шийдвэр.
+  bool get _emotesAllowed =>
+      _phase == NetPhase.dawn ||
+      _phase == NetPhase.day ||
+      _phase == NetPhase.vote ||
+      _phase == NetPhase.elimination;
+
   /// Цаг хэмжигч. Сервер үүнийг тогтмол дуудна.
   List<Outbound> tick(int nowMs) {
     if (_phase == NetPhase.lobby || _phase == NetPhase.gameOver) {
@@ -449,9 +532,22 @@ class GameRoom {
           out.addAll(nightAction(b.id, targetSeat, nowMs));
         case BotVote(:final int targetSeat):
           out.addAll(vote(b.id, targetSeat));
+        case BotEmote(:final String kind, :final int? targetSeat):
+          out.addAll(emote(b.id, kind, targetSeat, nowMs));
         case null:
           break;
       }
+    }
+
+    // Дохио нь ТУСДАА хуваарьтай: гол үйлдэл нь шөнө, дохио нь өдөр
+    // болдог тул нэг цонхонд багтахгүй. Мөн дохиогүй бол бот нь
+    // хөшсөн харагдаж, «энэ бол бот» гэдэг нь нэг харцаар тодорно.
+    for (final BotSeat b in _bots.values.toList()
+      ..sort((BotSeat a, BotSeat c) => a.seat.compareTo(c.seat))) {
+      if (!b.dueEmote(nowMs)) continue;
+      b.emoted = true;
+      final BotEmote? em = decideEmote(_botView(b), b.rng);
+      if (em != null) out.addAll(emote(b.id, em.kind, em.targetSeat, nowMs));
     }
     return out;
   }
@@ -621,6 +717,19 @@ class GameRoom {
     return out;
   }
 
+  /// Тухайн суудал энэ шөнө ХЭНИЙГ шалгасан бэ.
+  int? _askedSeat(int actorSeat) {
+    for (final eng.Intent i in _intents) {
+      if (i.actor == actorSeat &&
+          i.night == _nightNo &&
+          i.ability == eng.Ability.investigate) {
+        return i.target;
+      }
+    }
+    return null;
+  }
+
+
   void _beginNight(int nowMs, List<Outbound> out) {
     _nightNo++;
     _intents.clear();
@@ -680,9 +789,20 @@ class GameRoom {
     for (final MapEntry<int, List<eng.Msg>> e in r.privateMsgs.entries) {
       final PlayerId? who = _bySeat[e.key];
       if (who == null) continue;
+      // ХЭНИЙГ асуусныг ТУХАЙН ШӨНИЙН САНААНААС уншина.
+      //
+      // Өмнө нь ботын САНАХ ОЙгоос уншдаг байв (`b?.mem.lastCheck`).
+      // Тэр нь ботод ажиллаж, ХҮНД ажиллахгүй: хүн мөрдөгчид
+      // `_bots[who]` нь `null` тул `targetSeat` нь үргэлж хоосон явдаг
+      // байв — яг тэр алдааг «зассан» гэж бичсэн хэрнээ. Мөн энэ нь
+      // буруу тал руугаа: ботын мэдлэг нь мессежээс БИШ, серверийн
+      // дотоод төлөвөөс гардаг болно.
+      //
+      // Одоо хоёулаа НЭГ эх сурвалжтай: ботын санах ой нь утас руу
+      // явсан мессежийн ТУСГАЛ.
+      final int? asked = _askedSeat(e.key);
       for (final eng.Msg m in e.value) {
         final BotSeat? b = _bots[who];
-        final int? asked = b?.mem.lastCheck;
         if (b != null && asked != null) {
           if (m.code == eng.MsgCode.traceFound) {
             b.mem.traceFound.add(asked);

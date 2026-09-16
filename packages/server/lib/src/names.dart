@@ -96,8 +96,19 @@ const Map<int, int> _kHomoglyphs = <int, int>{
 
 final RegExp _kAlnum = RegExp(r'[\p{L}\p{N}]', unicode: true);
 
-/// «Бот 3», «Бот3» — системийн эзэмшдэг нэр.
-final RegExp _kBotPattern = RegExp(r'^бот ?\d+$');
+/// «Бот», «Бот 3», «Бот3» — системийн эзэмшдэг нэр.
+///
+/// ДУГААРГҮЙ «бот»-ыг БАС нөөцөлнө. Хоёр шалтгаан:
+///
+///   1. Тоглогч «бот» гэж нэрлэгдвэл өдрийн яриан дээр түүнийг жинхэнэ
+///      бот гэж тоомсоргүй орхино — жинхэнэ мафийн заль.
+///   2. Түүнээс ч ноцтой нь: «бот» эзэмшсэн хоёр дахь хүнийг
+///      `uniqueName` «бот 2» болгох гэж оролдоно. Тэр нь нөөцлөгдсөн,
+///      «бот 3», «бот 4» … бүгд нөөцлөгдсөн тул дугаарлалт ДУУСАЖ,
+///      `StateError` шидэгдэнэ — сүлжээний сонсогч дотор, өөрөөр
+///      хэлбэл СЕРВЕР УНАНА. Ганц хүн нэр бичээд серверийг унагаах
+///      боломж байж болохгүй.
+final RegExp _kBotPattern = RegExp(r'^бот ?\d*$');
 
 // --- Цэвэрлэх ----------------------------------------------------------------
 
@@ -189,8 +200,13 @@ String? nameProblem(String cleaned, {bool allowReserved = false}) {
 /// ХАРЬЦУУЛАХ ТҮЛХҮҮР. Татгалзал нь зөвхөн шударга хүнд дахин бичүүлж,
 /// цаг алдуулна. Харин дугаарлалт нь тогтвортой цэггүй — үргэлж чөлөөтэй
 /// дугаар олдоно.
-String uniqueName(String cleaned, Set<String> takenKeys) {
-  if (!takenKeys.contains(nameKey(cleaned))) return cleaned;
+String uniqueName(String cleaned, Set<String> takenKeys,
+    {bool allowReserved = false}) {
+  bool ok(String c) =>
+      !takenKeys.contains(nameKey(c)) &&
+      nameProblem(c, allowReserved: allowReserved) == null;
+
+  if (ok(cleaned)) return cleaned;
   for (int n = 2; n <= _kMaxSuffix; n++) {
     final String tail = ' $n';
     final List<int> base = cleaned.runes.toList();
@@ -202,9 +218,19 @@ String uniqueName(String cleaned, Set<String> takenKeys) {
       }
     }
     final String candidate = String.fromCharCodes(base) + tail;
-    if (!takenKeys.contains(nameKey(candidate))) return candidate;
+    // ГАРАЛТЫГ БАС ШАЛГАНА, зөвхөн оролтыг биш.
+    //
+    // Хоёр хүн «бот» гэж бичихэд хоёр дахь нь «бот 2» болно — тэр нь
+    // ЯГ хоёрдугаар ботын түлхүүр. Тэгээд ботын дугаарлалт гацаж,
+    // «+ БОТ НЭМЭХ» товч чимээгүй үхдэг байв. Огтлолт нь мөн хэт
+    // богино («Аа» → «А 2») нэр төрүүлж чадна.
+    if (ok(candidate)) return candidate;
   }
-  throw StateError('нэр дугаарлаж дууслаа');
+  // ЭНД ХҮРЭХ ЁСГҮЙ: өрөөнд 14 хүн, дугаарлалт 40 хүртэл явдаг.
+  // Гэхдээ ШИДЭХГҮЙ. Нэрийн улмаас сервер унах нь давхардсан нэрээс
+  // хэдэн зуу дахин муу: `join` нь сүлжээний сонсогч дотор дуудагддаг
+  // тул шидэгдсэн алдаа БҮХ өрөөг унагана.
+  return cleaned;
 }
 
 /// Ботын нэр. `nameProblem` үүнийг хүнд эзэмшүүлэхгүй.

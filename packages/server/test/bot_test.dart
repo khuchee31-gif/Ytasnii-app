@@ -12,6 +12,7 @@
 //      тэнцэж, хэн ч хасагдахгүй, тоглоом мөнхөрнө.
 
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:engine/engine.dart' as eng;
@@ -48,27 +49,79 @@ List<Envelope> _playOut(GameRoom r, {int limitMs = 900000}) {
   return broadcasts;
 }
 
+/// Эх кодыг ТАЙЛБАРГҮЙГЭЭР уншина.
+///
+/// Мөрийн (`//`) ба блокийн (`/* */`) тайлбарыг хоёуланг нь хасна.
+/// Зөвхөн мөрийнхийг хассан нь блок тайлбарт бичсэн үгэнд ХУДАЛ
+/// унадаг байв.
+///
+/// Файлыг `package:` хаягаар олно, ажлын хавтсаар БИШ: `dart test`-ийг
+/// репогийн язгуураас ажиллуулахад харьцангуй зам олдохгүй бөгөөд тест
+/// нь «алдаа олсонгүй» гэж бус, шидэгдэж унадаг байв.
+Future<String> _code(String packageUri) async {
+  final Uri? u = await Isolate.resolvePackageUri(Uri.parse(packageUri));
+  if (u == null) throw StateError('$packageUri олдсонгүй');
+  String src = File.fromUri(u).readAsStringSync();
+  src = src.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+  return src
+      .split('\n')
+      .map((String l) {
+        final int i = l.indexOf('//');
+        return i < 0 ? l : l.substring(0, i);
+      })
+      .join('\n');
+}
+
+const String _brain = 'package:server/src/bot_brain.dart';
+
+/// `import '...'` жагсаалт.
+Set<String> _imports(String code) => RegExp(r"import\s+'([^']+)'")
+    .allMatches(code)
+    .map((RegExpMatch m) => m.group(1)!)
+    .toSet();
+
+/// Нэрлэсэн ангийн их биеийг (эхний `{`-ээс тэнцүү `}` хүртэл) авна.
+String _classBody(String code, String name) {
+  final int at = code.indexOf(RegExp('class\\s+$name\\b'));
+  if (at < 0) throw StateError('$name анги олдсонгүй');
+  final int open = code.indexOf('{', at);
+  int depth = 0;
+  for (int i = open; i < code.length; i++) {
+    if (code[i] == '{') depth++;
+    if (code[i] == '}') {
+      depth--;
+      if (depth == 0) return code.substring(open + 1, i);
+    }
+  }
+  throw StateError('$name анги хаагдаагүй');
+}
+
+/// `final <төрөл> <нэр>;` бүрийг нэр → төрөл болгож цуглуулна.
+Map<String, String> _finalFields(String body) {
+  final Map<String, String> out = <String, String>{};
+  // Эхлүүлэгчтэй талбарыг БАС барина (`final X y = ...;`). Эхний
+  // хувилбар нь зөвхөн `;`-ээр төгссөнийг барьдаг байсан тул
+  // `final Map<int, eng.Role> table = const <int, eng.Role>{};` гэсэн
+  // бүх дүрийн хүснэгтийг чимээгүй өнгөрөөж байв (шалгаж үзсэн).
+  final RegExp re =
+      RegExp(r'(?:final|late final|var)\s+([\w.<>,\s?]+?)\s+(\w+)\s*(?:=[^;]*)?;');
+  for (final RegExpMatch m in re.allMatches(body)) {
+    out[m.group(2)!] = m.group(1)!.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+  return out;
+}
+
+
 void main() {
   group('Бот хуурч чадахгүй', () {
-    test('ботын тархи ӨРӨӨГ хардаггүй', () {
+    test('ботын тархи ӨРӨӨГ хардаггүй', () async {
       // ЭХ КОДЫН шалгалт. Хэн нэгэн хожим өрөөг тархи руу оруулбал энэ
-      // тест тэр дор нь унана — дараагийн `dart test` дээр.
-      //
-      // ЗӨВХӨН КОД дээр шалгана: тайлбар дотор «GameRoom» гэж бичих нь
-      // зөв (яг энэ файлын толгойд тэгж бичсэн). Хориотой нь түүн рүү
-      // ХАНДАХ явдал.
-      final String src = File('lib/src/bot_brain.dart')
-          .readAsLinesSync()
-          .map((String l) {
-            final int i = l.indexOf('//');
-            return i < 0 ? l : l.substring(0, i);
-          })
-          .join('\n');
+      // тест тэр дор нь унана.
+      final String src = await _code(_brain);
       for (final String banned in <String>[
         'GameRoom',
         '_secrets',
         'debugRoleOf',
-        'Map<Seat, Role>',
         'dart:io',
         'DateTime.',
         'Random(',
@@ -76,6 +129,65 @@ void main() {
         expect(src.contains(banned), isFalse,
             reason: 'bot_brain.dart дотор «$banned» байна — '
                 'тархи зөвхөн BotView-ээс уншина');
+      }
+    });
+
+    test('тархи ЗӨВХӨН хөдөлгүүр, протоколыг оруулна', () async {
+      // Тусдаа файл оруулж, түүгээрээ өрөөнд хүрэх зам БАЙХГҮЙ.
+      final Set<String> got = _imports(await _code(_brain));
+      expect(got, <String>{
+        'package:engine/engine.dart',
+        'package:protocol/protocol.dart',
+      });
+    });
+
+    test('BotView-ийн талбарууд ЯГ мэдэгдсэн жагсаалттай таарна', () async {
+      // ЯАГААД БИЧВЭР ХАЙХАА БОЛИВ:
+      //
+      // Өмнө нь «`Map<Seat, Role>` гэж бичихийг хориглов» гэсэн шалгалт
+      // байв. Тэр нь ХООСОН: `protocol` нь `typedef Seat = int` гэж
+      // зарладаг тул `Map<int, eng.Role>` гэж бичихэд ЯГ ижил зүйл
+      // болох атлаа шалгалт өнгөрнө. Бүх дүрийн хүснэгтийг ингэж
+      // нэмээд шалгуулж үзэхэд — өнгөрсөн.
+      //
+      // Одоо ТАЛБАР БҮРИЙГ нэрээр нь, төрлөөр нь тоолно. Ямар ч шинэ
+      // талбар — хэрхэн нэрлэсэн ч, ямар төрөлтэй ч — энэ тестийг
+      // унагана. Тэгээд хүн «энэ талбар дүрийг задлах уу?» гэж бодох
+      // ёстой болно. Яг тэр л бодол хэрэгтэй.
+      expect(_finalFields(_classBody(await _code(_brain), 'BotView')),
+          <String, String>{
+            'mySeat': 'int',
+            // ЦОРЫН ГАНЦ дүр — ӨӨРИЙНХ нь. Ганц утга тул цуглуулга
+            // болгож ӨРГӨТГӨХ боломжгүй.
+            'myRole': 'eng.Role',
+            'phase': 'NetPhase',
+            'aliveSeats': 'List<int>',
+            'myAllies': 'Set<int>',
+            'allyPicks': 'Map<int, int>',
+            'liveVotes': 'Map<int, int>',
+            'mem': 'BotMemory',
+          });
+    });
+
+    test('BotView-д `Role` ТӨРӨЛ ЯГ НЭГ УДАА гарна', () async {
+      // Талбарын жагсаалтаас ГАДНА тоолно: нэрлэсэн параметр, getter,
+      // метод, эхлүүлэгч — дүрийг тархи руу зөөх зам олон бий.
+      //
+      // ЗӨВХӨН ТӨРЛИЙГ тоолно: `myRole` гэсэн НЭР нь бас «Role» гэсэн
+      // үсгүүдийг агуулдаг тул урд нь үсэг байгааг хасна. Ингэснээр
+      // `eng.Role`, `Map<int, Role>` гэх мэт ТӨРЛИЙН хэрэглээ л
+      // тоологдоно.
+      final String body = _classBody(await _code(_brain), 'BotView');
+      expect(RegExp(r'(?<![A-Za-z_])Role').allMatches(body).length, 1,
+          reason: body);
+    });
+
+    test('BotMemory-д ч дүр байхгүй', () async {
+      final Map<String, String> got =
+          _finalFields(_classBody(await _code(_brain), 'BotMemory'));
+      for (final MapEntry<String, String> e in got.entries) {
+        expect(e.value.contains('Role'), isFalse,
+            reason: 'BotMemory.${e.key} нь дүр агуулж байна');
       }
     });
 
