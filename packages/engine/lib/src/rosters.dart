@@ -69,6 +69,9 @@ class Roster {
   /// v2 — Хотын дарга гарах уу. Мөн нэг ИРГЭНИЙ суудлыг орлоно.
   final bool mayor;
 
+  /// v3 — Саатуулагч гарах уу. Мөн нэг ИРГЭНИЙ суудлыг орлоно.
+  final bool blocker;
+
   /// v3 — Манаач гарах уу. Мөн нэг ИРГЭНИЙ суудлыг орлоно.
   ///
   /// БАЛАНСАД НӨЛӨӨЛНӨ: хотод хоёр сум нэмэгдэнэ, гэхдээ буруу
@@ -93,6 +96,7 @@ class Roster {
     this.watcher = false,
     this.mayor = false,
     this.vigilante = false,
+    this.blocker = false,
   });
 
   /// Нэг иргэнийг нэмэлт дүр болгоно. Иргэн үлдэхгүй бол ӨӨРЧЛӨХГҮЙ.
@@ -101,7 +105,8 @@ class Roster {
   /// «юу ч хийгээгүй хүн» гэсэн ойлголт алга болж, шөнийн жигд хуурмаг
   /// эвдэрнэ: чимээгүй суудал байхгүй бол дуугүй хүн нь тэр дороо
   /// сэжигтэй болно.
-  Roster _swapCitizen({bool? watcher, bool? mayor, bool? vigilante}) {
+  Roster _swapCitizen(
+      {bool? watcher, bool? mayor, bool? vigilante, bool? blocker}) {
     if (citizens < 2) return this;
     return Roster(
       n: n,
@@ -114,6 +119,7 @@ class Roster {
       watcher: watcher ?? this.watcher,
       mayor: mayor ?? this.mayor,
       vigilante: vigilante ?? this.vigilante,
+      blocker: blocker ?? this.blocker,
     );
   }
 
@@ -124,12 +130,15 @@ class Roster {
   Roster withVigilante() =>
       vigilante ? this : _swapCitizen(vigilante: true);
 
+  Roster withBlocker() => blocker ? this : _swapCitizen(blocker: true);
+
   /// Мафийн дотор хэдэн энгийн Алуурчин байх вэ (Ахлагч суудлыг хассан).
   int get killers => mafia - (boss ? 1 : 0);
 
   @override
   String toString() => 'Roster(n: $n, M: $mafia, boss: $boss, '
-      'watcher: $watcher, mayor: $mayor, vigilante: $vigilante, b: $b)';
+      'watcher: $watcher, mayor: $mayor, vigilante: $vigilante, '
+      'blocker: $blocker, b: $b)';
 }
 
 /// GDD-04 §2-ын шилжүүлэх хүснэгт, үг үсгээр. **15 мөр, N = 6…20.**
@@ -161,7 +170,10 @@ const Map<int, Roster> _kRosterTable = <int, Roster>{
 /// хөдлөхгүй тул GDD-04 §2-ын хүснэгт, `deal_test`-ийн алтан векторууд
 /// хүчинтэй хэвээр.
 Roster rosterFor(int n,
-    {bool watcher = false, bool mayor = false, bool vigilante = false}) {
+    {bool watcher = false,
+    bool mayor = false,
+    bool vigilante = false,
+    bool blocker = false}) {
   Roster? r = _kRosterTable[n];
   if (r == null) {
     throw ArgumentError.value(n, 'n', 'Суудлын тоо $kMinSeats..$kMaxSeats байх ёстой');
@@ -169,6 +181,7 @@ Roster rosterFor(int n,
   if (watcher) r = r.withWatcher();
   if (mayor) r = r.withMayor();
   if (vigilante) r = r.withVigilante();
+  if (blocker) r = r.withBlocker();
   return r;
 }
 
@@ -195,6 +208,7 @@ List<Role> deckFor(Roster r) {
   if (r.watcher) deck.add(Role.watcher);
   if (r.mayor) deck.add(Role.mayor);
   if (r.vigilante) deck.add(Role.vigilante);
+  if (r.blocker) deck.add(Role.blocker);
   for (var i = 0; i < r.citizens; i++) {
     deck.add(Role.citizen);
   }

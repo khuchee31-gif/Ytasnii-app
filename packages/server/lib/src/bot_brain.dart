@@ -47,6 +47,9 @@ class BotMemory {
   /// Шивнээнд гарсан суудлууд. НИЙТИЙН мэдээлэл — `nightResult` нь
   /// үүнийг бүх утас руу илгээдэг.
   final Set<int> whispered = <int>{};
+
+  /// Саатуулагч: сүүлд хэнийг барьсан. Дараалан давтахаас сэргийлнэ.
+  int? lastBlock;
 }
 
 /// Бот юу ХАРАХ вэ.
@@ -188,9 +191,16 @@ BotCommand? decideBot(BotView v, eng.Rng rng) {
       return null;
 
     case NetPhase.nightDoctor:
-      if (v.myRole != eng.Role.doctor) return null;
-      final int? t = _doctorPick(v, rng);
-      return t == null ? null : BotNight(t);
+      // Эмч ба Саатуулагч НЭГ үе шатанд сэрнэ.
+      if (v.myRole == eng.Role.doctor) {
+        final int? t = _doctorPick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
+      if (v.myRole == eng.Role.blocker) {
+        final int? t = _blockerPick(v, rng);
+        return t == null ? null : BotNight(t);
+      }
+      return null;
 
     case NetPhase.nightDetective:
       // Мөрдөгч ба Ажиглагч НЭГ үе шатанд сэрнэ.
@@ -279,6 +289,27 @@ int? _vigilantePick(BotView v, eng.Rng rng) {
 /// ӨӨРИЙН ДҮРЭЭС өөр юу ч уншихгүй — `myAllies`, `allyPicks` хоёрт
 /// хүрэхгүй (Ажиглагч хэзээ ч мафи биш тул тэд хоосон боловч дүрмээ
 /// кодоор барих нь дээр).
+/// СААТУУЛАГЧ: сэжигтэй хүнийг барина.
+///
+/// Түүний эрсдэл нь хотынхныг саатуулах — эмчийг барьвал хохирогч үхнэ.
+/// Тиймээс өчигдөр УСТГАГДААГҮЙ, гэвч шивнээнд гарсан хүнийг эхэлж
+/// авна: шивнээ бол нийтийн мэдээлэл тул бот давуу эрх эдлэхгүй.
+///
+/// НЭГ ХҮНИЙГ ДАВТАЖ БАРИХГҮЙ: хоёр шөнө дараалан нэг хүн «болсонгүй»
+/// гэсэн мессеж авбал тэр хүн өөрийгөө чадвартай гэдгээ мэдээд зогсохгүй
+/// хэн саатуулж байгааг таах хүрээ нарийсна.
+int? _blockerPick(BotView v, eng.Rng rng) {
+  final List<int> cands = v.aliveSeats
+      .where((int s) => s != v.mySeat && s != v.mem.lastBlock)
+      .toList()
+    ..sort();
+  if (cands.isEmpty) return null;
+  final List<int> hot = v.mem.whispered.where(cands.contains).toList()..sort();
+  final int pick =
+      hot.isNotEmpty ? hot[rng.below(hot.length)] : cands[rng.below(cands.length)];
+  return pick;
+}
+
 int? _watcherPick(BotView v, eng.Rng rng) {
   final List<int> cands =
       v.aliveSeats.where((int s) => s != v.mySeat).toList()..sort();

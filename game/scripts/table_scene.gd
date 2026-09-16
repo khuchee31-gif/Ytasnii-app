@@ -978,6 +978,7 @@ func _build_hud() -> void:
 	sess.solo_watcher = _arg("watcher", 0.0) > 0.5
 	sess.solo_mayor = _arg("mayor", 0.0) > 0.5
 	sess.solo_vigilante = _arg("vigilante", 0.0) > 0.5
+	sess.solo_blocker = _arg("blocker", 0.0) > 0.5
 	# Нэрийг ХООСОН-оор эхлүүлнэ. Утсан дээр тушаалын мөр байхгүй тул
 	# үндсэн утга ҮРГЭЛЖ ялдаг — талбарт бичээстэй «Зочин» нь хэн
 	# нэгний нэр мэт харагдаж, хэрэглэгчийг эргэлзүүлж байв.

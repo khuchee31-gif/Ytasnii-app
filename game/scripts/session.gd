@@ -25,7 +25,13 @@ const PHASE_NAME := {
 	"dealing": "ХӨЗӨР ТАРААЖ БАЙНА",
 	"nightFalls": "ХОТ УНТЛАА",
 	"nightMafia": "АЛУУРЧИД СЭРЛЭЭ",
-	"nightDoctor": "ЭМЧ СЭРЛЭЭ",
+	# «Хүрэгчид» гэдэг нь Эмч, Саатуулагч ХОЁУЛАНГ багтаана — нэг нь
+	# аварч, нөгөө нь барина, хоёулаа ГАР ХҮРНЭ.
+	#
+	# Дүрээр нэрлэвэл Саатуулагч энэ шатанд үйлдэл хийхдээ «ЭМЧ СЭРЛЭЭ»
+	# гэсэн гарчиг харах бөгөөд тэр нь зөвхөн будлиантай биш: ширээн
+	# дээр чангаар уншигдвал Саатуулагчийн байгаа эсэхийг зарлана.
+	"nightDoctor": "ХҮРЭГЧИД СЭРЛЭЭ",
 	# «Харагчид» гэдэг нь Мөрдөгч, Ажиглагч ХОЁУЛАНГ багтаана.
 	#
 	# Дүрээр нэрлэвэл шинэ дүр бүрд шинэ үе шат, шинэ нэр хэрэгтэй
@@ -44,7 +50,7 @@ const PHASE_NAME := {
 const PHASE_SUB := {
 	"nightFalls": "Бүгд нүдээ ань",
 	"nightMafia": "Хэн ч хөдөлж болохгүй",
-	"nightDoctor": "Нэг хүн аврагдана",
+	"nightDoctor": "Нэг хүнд гар хүрнэ",
 	"nightDetective": "Нэг нэр шалгагдана",
 	"dawn": "Хот сэрлээ",
 	"day": "Ярилц",
@@ -94,6 +100,12 @@ const ROLE_CARD := {
 			+ "ГЭХДЭЭ: хотын хүнийг буудвал маргааш гэмшлээсээ үхнэ.",
 		"tone": Color(0.90, 0.52, 0.22),
 	},
+	"blocker": {
+		"name": "СААТУУЛАГЧ",
+		"sub": "Шөнө нэг хүнийг барина. Тэр хүний тэр шөнийн үйлдэл "
+			+ "БОЛОХГҮЙ. Өөрийгөө барьж болохгүй.",
+		"tone": Color(0.72, 0.56, 0.90),
+	},
 	"citizen": {
 		"name": "ИРГЭН",
 		"sub": "Шөнө чадвар байхгүй. Өдөр чиний үг л зэвсэг.",
@@ -109,6 +121,9 @@ const ACTS_IN := {
 	"detective": "nightDetective",
 	"watcher": "nightDetective",
 	"vigilante": "nightMafia",
+	# Саатуулагч нь ЭМЧТЭЙ нэг үе шатанд сэрнэ. Сервер (`_mayActNow`)
+	# энэ хоёрыг ЗАДЛААД хамгаална — энд зөвхөн товчийг гаргана.
+	"blocker": "nightDoctor",
 	# Дарга ШӨНӨ юу ч хийхгүй — иргэнтэй яг адил. Түүний хүч бол ӨДӨР.
 }
 
@@ -120,6 +135,7 @@ const ACT_LABEL := {
 	"detective": "ШАЛГАХ",
 	"watcher": "АЖИГЛАХ",
 	"vigilante": "БУУДАХ",
+	"blocker": "БАРИХ",
 }
 
 ## Тоглолт эхлэх доод хязгаар. СЕРВЕР шийднэ (`kMinPlayers`, `room.dart`)
@@ -195,6 +211,7 @@ var solo_bots := 0
 var solo_watcher := false
 var solo_mayor := false
 var solo_vigilante := false
+var solo_blocker := false
 var _solo_asked := false
 var _solo_done := false
 
@@ -465,6 +482,8 @@ func _on_room_state(d: Dictionary) -> void:
 				net.set_option("mayor", true)
 			if solo_vigilante:
 				net.set_option("vigilante", true)
+			if solo_blocker:
+				net.set_option("blocker", true)
 			net.add_bots(solo_bots)
 		elif _players.size() >= MIN_PLAYERS:
 			_solo_done = true
@@ -607,6 +626,10 @@ func _on_investigate(d: Dictionary) -> void:
 		"watchNobody":
 			_watch_seen.clear()
 			_notify("%d-р суудал руу хэн ч очсонгүй." % at)
+		"roleblocked":
+			# ХЭН барьсныг СЕРВЕР ч илгээдэггүй. Хэлбэл Саатуулагч
+			# эхний шөнөдөө илчлэгдэж, мафийн эхний бай болно.
+			_notify("Чамайг хэн нэгэн барив. Энэ шөнө чиний үйлдэл болсонгүй.")
 		_:
 			_notify("Хариу: %s" % code)
 

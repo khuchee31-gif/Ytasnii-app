@@ -72,7 +72,8 @@ RejectCode? validate(Intent i, NightState s) {
       }
     } else if (i.ability == Ability.investigate ||
         i.ability == Ability.suspect ||
-        i.ability == Ability.watch) {
+        i.ability == Ability.watch ||
+        i.ability == Ability.roleblock) {
       // Ажиглагч өөрийгөө ажиглаж БОЛОХГҮЙ: тэгвэл «хэн над руу очив»
       // гэсэн үнэгүй хамгаалалт болж, эмч, мөрдөгчийн хоёуланг нь
       // нэг шөнөд илчилнэ.

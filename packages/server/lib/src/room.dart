@@ -127,6 +127,15 @@ class GameRoom {
 
   bool get optVigilante => _optVigilante;
 
+  /// Саатуулагчтай тоглох уу.
+  ///
+  /// Нэг ИРГЭНИЙ суудлыг орлоно. ЭМЧТЭЙ НЭГ үе шатанд сэрнэ (хоёулаа
+  /// «хэн юу хийхийг өөрчлөх» дүр), суваг нь `selfOnly` тул хэн ч хэнийг
+  /// сонсохгүй.
+  bool _optBlocker = false;
+
+  bool get optBlocker => _optBlocker;
+
   /// Манаач тус бүрийн үлдсэн сум, дараагийн шөнө гэмшлээсээ үхэх нар.
   /// Хоёулаа ШӨНӨӨС ШӨНӨД дамжина.
   Map<int, int> _bullets = const <int, int>{};
@@ -435,6 +444,8 @@ class GameRoom {
         _optMayor = on;
       case 'vigilante':
         _optVigilante = on;
+      case 'blocker':
+        _optBlocker = on;
       default:
         return const <Outbound>[];
     }
@@ -502,6 +513,7 @@ class GameRoom {
     final BotSeat? bot = _bots[id];
     if (bot != null) {
       if (ability == eng.Ability.heal) bot.mem.lastHeal = targetSeat;
+      if (ability == eng.Ability.roleblock) bot.mem.lastBlock = targetSeat;
       if (ability == eng.Ability.investigate) {
         bot.mem.lastCheck = targetSeat;
         bot.mem.checked.add(targetSeat);
@@ -751,7 +763,12 @@ class GameRoom {
         // Дуут суваг нь мафийнх хэвээр тул Манаач тэднийг СОНСОХГҮЙ.
         NetPhase.nightMafia => eng.factionOf(r) == eng.Faction.mafi ||
             r == eng.Role.vigilante,
-        NetPhase.nightDoctor => r == eng.Role.doctor,
+        // СААТУУЛАГЧ нь ЭМЧТЭЙ НЭГ үе шатанд сэрнэ. Түүний үйлдэл
+        // 60-р хувинд, эмчийнх 90-д шийдэгддэг тул дараалал нь
+        // товшсон мөчөөс БУС, хувингаас хамаарна — нэг үе шатанд
+        // байрлуулах нь шөнийг богино байлгана.
+        NetPhase.nightDoctor =>
+          r == eng.Role.doctor || r == eng.Role.blocker,
         // Ажиглагч нь МӨРДӨГЧТЭЙ НЭГ үе шатанд сэрнэ.
         //
         // Дүр бүрд тусдаа үе шат нэмэх нь хоёр зүйлийг эвдэнэ: шөнө
@@ -766,7 +783,10 @@ class GameRoom {
   List<Outbound> _deal(int nowMs) {
     final int n = _players.length;
     final eng.Roster roster = eng.rosterFor(n,
-        watcher: _optWatcher, mayor: _optMayor, vigilante: _optVigilante);
+        watcher: _optWatcher,
+        mayor: _optMayor,
+        vigilante: _optVigilante,
+        blocker: _optBlocker);
     final List<eng.Role> deck = eng.deckFor(roster);
 
     final eng.DealResult d = eng.deal(
@@ -993,10 +1013,18 @@ class GameRoom {
       final int? asked = _askedSeat(e.key);
       for (final eng.Msg m in e.value) {
         final BotSeat? b = _bots[who];
+        // ЗӨВХӨН МӨРДӨГЧИЙН ХОЁР ХАРИУГ бүртгэнэ.
+        //
+        // Өмнө нь `else` нь БҮХ бусад кодыг «мөр олдсонгүй» гэж
+        // бичдэг байв. Ажиглагчийн `watchSaw`, саатуулагдсаны
+        // `roleblocked` хоёр ч энэ замаар орох тул бот юу ч
+        // мэдээгүй атлаа «тэр суудал цэвэр» гэж дүгнэдэг байв —
+        // Саатуулагч орсноор мафи ҮНЭГҮЙ цайруулалт худалдаж
+        // авах болно (мөрдөгчийг барих л хэрэгтэй).
         if (b != null && asked != null) {
           if (m.code == eng.MsgCode.traceFound) {
             b.mem.traceFound.add(asked);
-          } else {
+          } else if (m.code == eng.MsgCode.traceNotFound) {
             b.mem.traceNotFound.add(asked);
           }
         }
@@ -1190,6 +1218,7 @@ class GameRoom {
           if (_optWatcher) eng.Role.watcher.name,
           if (_optMayor) eng.Role.mayor.name,
           if (_optVigilante) eng.Role.vigilante.name,
+          if (_optBlocker) eng.Role.blocker.name,
         ],
         // Илчилсэн суудлууд — НИЙТИЙНХ. Дүрийн нэр агуулахгүй, зөвхөн
         // суудлын дугаар.

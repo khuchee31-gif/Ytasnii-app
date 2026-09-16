@@ -315,16 +315,21 @@ void main() {
 
   // =========================================================================
   group('N13 — хоосон хувингууд ба `powerful`', () {
-    test('Бүх `Ability` нь 90/100/130/135-ын аль нэгэнд буудаг', () {
+    test('Бүх `Ability` нь АМЬД хувинд буудаг', () {
       expect(() => checkInvariants(s0, sealed, base), returnsNormally);
+      // Дүр нэмэгдэх бүрд ЭНЭ ЖАГСААЛТ өснө. 20–50, 70–80, 110,
+      // 140–150 нь ХООСОН хэвээр: тэнд ямар нэг чадвар буувал хэн нэгэн
+      // GDD-05 §3.2-ыг тойрч шинэ шат нээсэн байна.
+      const List<int> live = <int>[60, 90, 100, 130, 135];
       for (final Ability a in Ability.values) {
-        expect(<int>[90, 100, 130, 135].contains(bucketOf(a)), isTrue,
-            reason: a.name);
+        expect(live.contains(bucketOf(a)), isTrue, reason: a.name);
       }
-      // 20–80, 110, 140–150 нь v1-д хоосон.
+      expect(bucketOf(Ability.roleblock), 60);
       expect(bucketOf(Ability.heal), 90);
       expect(bucketOf(Ability.mafiaKill), 100);
+      expect(bucketOf(Ability.vigilanteKill), 100);
       expect(bucketOf(Ability.investigate), 130);
+      expect(bucketOf(Ability.watch), 130);
       expect(bucketOf(Ability.suspect), 135);
       expect(bucketOf(Ability.noAction), 135);
     });

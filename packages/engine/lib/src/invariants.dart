@@ -171,6 +171,13 @@ Map<Seat, int> _rebuildTally(List<Intent> sealed) {
       // ордоггүй байсан бол Манаач буудсан шөнө шивнээ нэгээр дутуу
       // гарч, тэр өөрөө ялгарах байв.
       case Ability.vigilanteKill:
+      // СААТУУЛАГЧИЙН товшилт ч санд орно.
+      //
+      // ЭНЭ НЬ ЗАЙЛШГҮЙ: саатуулагдсан хүний товшилт САНД ҮЛДДЭГ
+      // (доор үз). Хэрэв саатуулагчийнх ордоггүй байсан бол шивнээний
+      // тоо нэгээр дутаж, ажиглагч хүн «өнөөдөр хэн нэгэн саатуулав»
+      // гэдгийг тооноос уншина.
+      case Ability.roleblock:
         t.update(i.target!, (int v) => v + 1, ifAbsent: () => 1);
       case Ability.noAction:
         break;
@@ -259,13 +266,16 @@ void _checkN10(NightState s0, NightReport r) {
 // ---------------------------------------------------------------------------
 
 /// v1-д ажиллах ЦОРЫН ГАНЦ хувингууд. Бусад бүх хувин хоосон.
-const Set<int> _kLiveBuckets = <int>{90, 100, 130, 135};
+const Set<int> _kLiveBuckets = <int>{60, 90, 100, 130, 135};
 
 /// Төлөв (зочлол) БИЧДЭГ хувингууд: 90 `heal`, 100 `mafiaKill`, 130
 /// `investigate`. **135 нь зөвхөн шивнээний санг тэжээнэ** — тэндээс зочлол
 /// гарвал 20–80/110/140–150-ын аль нэг чимээгүйхэн амилсан гэсэн үг
 /// (GDD-13 §4-ийн N17-ийн ах дүү нөхцөл).
 const Set<Ability> _kVisitingAbilities = <Ability>{
+  // Саатуулагч нь байн гэрт ОЧИЖ түүнийг саатуулсан — Ажиглагч түүнийг
+  // харах нь дүрийн жинхэнэ жүжиг.
+  Ability.roleblock,
   Ability.heal,
   Ability.mafiaKill,
   Ability.vigilanteKill,
@@ -357,11 +367,15 @@ const Map<MsgCode, Role> _kMsgOwner = <MsgCode, Role>{
   MsgCode.watchNobody: Role.watcher,
 };
 
+/// `roleblocked` нь ДҮРЭЭС ХАМААРАХГҮЙ: хэн ч саатуулагдаж болно.
+/// Тиймээс `_kMsgOwner`-т ОРОХГҮЙ, тусдаа шалгагдана.
+
 void _checkN15(NightState s0, NightReport r) {
   for (final MapEntry<Seat, List<Msg>> e in r.privateMsgs.entries) {
     _require(s0.alive.contains(e.key), 'N15',
         'лацдах мөчид үхсэн байсан ${e.key} хувийн мессеж авлаа');
     for (final Msg m in e.value) {
+      if (m.code == MsgCode.roleblocked) continue;
       final Role? owner = _kMsgOwner[m.code];
       _require(owner != null, 'N15',
           '`${m.code.name}` мессежийн эзэн дүр тодорхойгүй');
@@ -416,6 +430,11 @@ void _checkN21(NightState s0, List<Intent> sealed, NightReport r) {
   final Map<Seat, List<MsgCode>> want = <Seat, List<MsgCode>>{};
   for (final Intent q in sealed) {
     if (q.ability != Ability.investigate) continue;
+    // Саатуулагдсан Мөрдөгч шалгаагүй — хариу ч байхгүй.
+    if ((r.privateMsgs[q.actor] ?? const <Msg>[])
+        .any((Msg m) => m.code == MsgCode.roleblocked)) {
+      continue;
+    }
     want.putIfAbsent(q.actor, () => <MsgCode>[]).add(infoAnswer(s0, q).code);
   }
 
@@ -453,6 +472,11 @@ void _checkN21(NightState s0, List<Intent> sealed, NightReport r) {
       .toList();
   for (final Intent q in sealed) {
     if (q.ability != Ability.watch) continue;
+    // Саатуулагдсан Ажиглагч юу ч харахгүй — түүнд `roleblocked` л
+    // ирнэ, `watchSaw` ирэхгүй.
+    final bool blocked = (r.privateMsgs[q.actor] ?? const <Msg>[])
+        .any((Msg m) => m.code == MsgCode.roleblocked);
+    if (blocked) continue;
     final List<Msg> want2 = watchAnswer(frozen, q);
     final List<Msg> got = (r.privateMsgs[q.actor] ?? const <Msg>[])
         .where((Msg m) =>
@@ -472,6 +496,9 @@ void _checkN21(NightState s0, List<Intent> sealed, NightReport r) {
     ...want.keys,
     for (final Intent q in sealed)
       if (q.ability == Ability.watch) q.actor,
+    // Саатуулагдсан хүн бүр «болсонгүй» гэсэн мессеж авна.
+    for (final MapEntry<Seat, List<Msg>> e in r.privateMsgs.entries)
+      if (e.value.any((Msg m) => m.code == MsgCode.roleblocked)) e.key,
   };
   for (final Seat k in r.privateMsgs.keys) {
     _require(answered.contains(k), 'N21',

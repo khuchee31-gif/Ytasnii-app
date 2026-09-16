@@ -289,9 +289,41 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
     'intents': <Object?>[for (final Intent i in a) _intentJson(i)],
   });
 
+  // ---- 60 block -----------------------------------------------------------
+  w.enter(60);
+  // СААТУУЛАГЧ НЬ САНААГ УСТГАХГҮЙ, ДАХИН Ч БИЧИХГҮЙ.
+  //
+  // Гурван бие даасан шалтгаан:
+  //
+  //   1. `inputHash` нь БҮХ хувин ажиллахаас ӨМНӨ лацдсан жагсаалтаас
+  //      бодогдсон. Жагсаалтыг засвал оролтын hash нь шийдвэрлэлтийн
+  //      функц болж, GDD-05 §8-ын идемпотент дахин шийдвэрлэлт үхнэ.
+  //   2. Шивнээний сан нь ТОВШИЛТЫГ тоолдог. Саатуулагдсан товшилтыг
+  //      хасвал шивнээний жагсаалт хэн саатуулагдсаныг чимээгүйхэн
+  //      зарлана.
+  //   3. Суудал бүр шөнөдөө ЯГ НЭГ санаа илгээдэг (N22). Саатуулагдсан
+  //      Эмч 7 руу заасан ХЭВЭЭР — зүгээр л хүрээгүй.
+  //
+  // Тиймээс: саатуулагдсан ҮЙЛДЭГЧДИЙН олонлогийг л гаргаж, дараагийн
+  // хувингууд түүнийг АЛГАСАХАД ашиглана.
+  final Set<Seat> blocked = <Seat>{};
+  for (final Intent b in a.where((Intent i) => i.ability == Ability.roleblock)) {
+    // СААТУУЛАГЧИЙГ ӨӨРИЙГ НЬ саатуулж БОЛОХГҮЙ.
+    //
+    // 60-р хувин бүх саатуулалтыг ЗЭРЭГ шийднэ. Хэрэв саатуулагдсан
+    // саатуулагчийн үйлдэл хүчингүй болдог байсан бол хоёр саатуулагч
+    // бие бие рүүгээ чиглэхэд «аль нь түрүүлэв» гэсэн тойрог үүсэх
+    // бөгөөд хариу нь давталтын дараалалаас хамаарна.
+    blocked.add(b.target!);
+    w.addVisit(Visit(b.actor, b.target!, Ability.roleblock, harmful: false));
+  }
+  // Саатуулагч өөрөө саатуулагдсан ч түүний саатуулалт хүчинтэй —
+  // дээрх тайлбарыг үз.
+
   // ---- 90 protect ---------------------------------------------------------
   w.enter(90);
-  for (final Intent h in a.where((Intent i) => i.ability == Ability.heal)) {
+  for (final Intent h in a.where(
+      (Intent i) => i.ability == Ability.heal && !blocked.contains(i.actor))) {
     final Seat t = h.target!;
     w.grantDefense(t, h.actor);
     w.addVisit(Visit(h.actor, t, Ability.heal, harmful: false));
@@ -305,16 +337,19 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   w.enter(100);
   // P13: бүгд ЗЭРЭГ буудна — хамгаалалт энд ХӨЛДӨНӨ, 120-д дахин уншигдахгүй.
   final Map<Seat, DefenseLevel> defSnapshot = w.effectiveDefense();
-  final List<Intent> kills =
-      a.where((Intent i) => i.ability == Ability.mafiaKill).toList();
+  final List<Intent> kills = a
+      .where((Intent i) =>
+          i.ability == Ability.mafiaKill && !blocked.contains(i.actor))
+      .toList();
   final ({Seat actor, Seat target})? hit = pickVictim(s0, kills);
   if (hit != null) {
     w.pending.add(_Pending(hit.actor, hit.target, AttackLevel.basic, DeathTag.mafi));
     w.addVisit(Visit(hit.actor, hit.target, Ability.mafiaKill, harmful: true));
   }
-  for (final Intent k in kills) {
-    // ХАЯГДСАН товшилтууд ч шивнээний санд орно — мафийн санал зөрөх нь
-    // ширээнд дугаар болж гарна.
+  // ШИВНЭЭ нь БҮХ товшилтыг тоолно — саатуулагдсаныг ч. Эс бөгөөс
+  // шивнээний жагсаалт хэн саатуулагдсаныг зарлана.
+  for (final Intent k
+      in a.where((Intent i) => i.ability == Ability.mafiaKill)) {
     w.bump(k.target!);
   }
 
@@ -325,11 +360,14 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   for (final Intent g
       in a.where((Intent i) => i.ability == Ability.vigilanteKill)) {
     final Seat t = g.target!;
+    w.bump(t);
+    if (blocked.contains(g.actor)) continue;
+    // СУМ НЬ ЗӨВХӨН БУУДСАН ҮЕД хасагдана. Саатуулагдсан Манаач
+    // буугаа гаргаж ч амжаагүй.
     w.nextBullets[g.actor] = (w.nextBullets[g.actor] ?? 0) - 1;
     w.pending.add(
         _Pending(g.actor, t, AttackLevel.basic, DeathTag.vigilante));
     w.addVisit(Visit(g.actor, t, Ability.vigilanteKill, harmful: true));
-    w.bump(t);
   }
 
   // ГЭМШИЛ — өчигдөр хотынхны хүнийг буудсан Манаач.
@@ -390,18 +428,20 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   // сайн санаагаар зарлаж, 3 дахь шөнө нь мафи түүнийг алах болно.
   final List<Visit> frozen = w.visitSnapshot();
   for (final Intent q in a.where((Intent i) => i.ability == Ability.investigate)) {
+    w.bump(q.target!);
+    if (blocked.contains(q.actor)) continue;
     final Msg m = infoAnswer(s0, q); // цэвэр, §9.1 — товших мөчийнхтэй ИЖИЛ
     w.msgs.putIfAbsent(q.actor, () => <Msg>[]).add(m);
     w.addVisit(Visit(q.actor, q.target!, Ability.investigate, harmful: false));
-    w.bump(q.target!);
   }
   for (final Intent q in a.where((Intent i) => i.ability == Ability.watch)) {
+    w.bump(q.target!);
+    if (blocked.contains(q.actor)) continue;
     w.msgs.putIfAbsent(q.actor, () => <Msg>[]).addAll(watchAnswer(frozen, q));
     // ЗОЧЛОЛ БИЧИХГҮЙ (§N17): Ажиглагч нь харж байгаа болохоос
     // ОЧООГҮЙ. Бичвэл хоёр Ажиглагч бие биеэ үнэгүй баталгаажуулах
     // бөгөөд 140-өөс доош ямар ч хожмын дүр бүртгэлийг уншмагц
     // бохирдоно.
-    w.bump(q.target!);
   }
 
   // ---- 135 whisper --------------------------------------------------------
@@ -414,12 +454,27 @@ NightReport resolveNight(NightState s0, List<Intent> intents) {
   for (final Intent h in a.where((Intent i) => i.ability == Ability.heal)) {
     w.bump(h.target!);
   }
+  for (final Intent b in a.where((Intent i) => i.ability == Ability.roleblock)) {
+    w.bump(b.target!);
+  }
   if (s0.setup.whisperOn) {
     w.whisper = topWhisper(w.whisperTally, w.alive, s0);
   }
 
   // ---- 160 messages + cues ------------------------------------------------
   w.enter(160);
+  // СААТУУЛАГДСАН ХҮНД «болсонгүй» гэж хэлнэ — ХЭН саатуулсныг БИШ.
+  //
+  // Хэлбэл Саатуулагч эхний шөнөдөө илчлэгдэж, мафийн эхний бай болно.
+  // Зөвхөн ҮЙЛДЭЛТЭЙ дүрд хэлнэ: иргэн «саатуулагдлаа» гэсэн мессеж
+  // авбал өөрийгөө чадвартай гэж эндүүрнэ.
+  for (final Intent i in a) {
+    if (!blocked.contains(i.actor)) continue;
+    if (!kBlockableAbilities.contains(i.ability)) continue;
+    w.msgs
+        .putIfAbsent(i.actor, () => <Msg>[])
+        .add(const Msg(MsgCode.roleblocked));
+  }
   // `narration == false` (Хөтлөгчтэй горим) нь АУДИОГИЙН давхаргын шийдвэр:
   // хөдөлгүүр `cues`-ыг үргэлж гаргана, аппын хоолой л дуугарахгүй.
   // Эс бөгөөс инвариант N14 (2500 мс-ийн блок) шалгагдах зүйлгүй болно.
