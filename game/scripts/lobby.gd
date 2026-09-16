@@ -28,6 +28,10 @@ signal option_toggled(key: String, on: bool)
 ## Тоглогч төрхөө сольсон.
 signal look_changed(avatar_id: String)
 
+## Дуу асаах/унтраах. Ангид тоглоход бүх утас зэрэг дуугарвал багш
+## орж ирнэ — тиймээс энэ нь нуусан тохиргоо БИШ, эхний дэлгэц дээр.
+signal sound_toggled(on: bool)
+
 enum State { NAME, JOIN, ROOM }
 
 const AMBER := Color(0.92, 0.66, 0.34)
@@ -41,7 +45,8 @@ var _pages: Dictionary = {}
 var _name_field := LineEdit.new()
 var _server_field := LineEdit.new()
 var _code_field := LineEdit.new()
-var _public_toggle := CheckBox.new()
+var _public_toggle: Button = null
+var _sound_toggle: Button = null
 ## Нэмэлт дүрүүд. Шинийг нэмэх нь ЭНД нэг мөр нэмэхтэй тэнцүү.
 const EXTRA_ROLES: Array[Dictionary] = [
 	{
@@ -82,6 +87,9 @@ var _bot_add := Button.new()
 var _bot_del := Button.new()
 var _bots_needed := 1
 var _notes: Array[Label] = []
+
+## Дууны систем. `session.gd` өгнө; байхгүй ч лобби ажиллана.
+var sfx: Node = null
 
 
 func _ready() -> void:
@@ -193,15 +201,30 @@ func _field(place: String, max_len := 0, upper := false) -> LineEdit:
 
 # --- Хуудсууд ----------------------------------------------------------------
 
+## Эхний дэлгэц.
+##
+## ХОЁР БАГАНА, нэг урт багана БИШ. Тоглоом ХӨНДЛӨН барина (720 цэг
+## өндөр) — босоо жагсаалт нь «ӨРӨӨ ҮҮСГЭХ» товчийг дэлгэцнээс ГАРГАНА.
+## Зураг авч шалгасан: нэмэлт нэг мөр нэмэхэд гол товч алга болсон.
+## Хэвтээ дэлгэцэнд өргөн нь ЭЛБЭГ, өндөр нь ХОВОР — байрлалыг тэр
+## бодит байдалд тохируулна.
 func _build_name() -> Control:
 	var p := _page()
-	var box := _card(620)
-	box.add_child(_title("ХОТ УНТЛАА", 58))
-	box.add_child(_small("Ангийнхаа мафиг утсаараа"))
-	box.add_child(_spacer(10))
+	var box := _card(1180)
+	box.add_theme_constant_override("separation", 12)
+	box.add_child(_title("ХОТ УНТЛАА", 52))
+	box.add_child(_small("Ангийнхаа мафиг утсаараа", 21))
+
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 34)
+
+	# --- ЗҮҮН: хэн бэ, хаана ---------------------------------------------
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 6)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name_field = _field("Нэрээ энд бич", 16)
-	box.add_child(_name_field)
-	box.add_child(_small("Ангийнхан чинь энэ нэрийг харна", 20))
+	left.add_child(_name_field)
+	left.add_child(_small("Ангийнхан чинь энэ нэрийг харна", 19))
 
 	# СЕРВЕРИЙН ХАЯГ.
 	#
@@ -211,67 +234,90 @@ func _build_name() -> Control:
 	_server_field = _field("Серверийн хаяг, ж: 192.168.1.5", 64)
 	_server_field.add_theme_font_size_override("font_size", 24)
 	_server_field.custom_minimum_size = Vector2(0, 62)
-	box.add_child(_server_field)
+	left.add_child(_server_field)
+	left.add_child(_small("Багштайгаа нэг Wi-Fi дээр байх ёстой", 19))
+	cols.add_child(left)
 
-	# --- ТӨРХ СОНГОХ ---------------------------------------------------------
+	# --- БАРУУН: төрх, тохиргоо ------------------------------------------
 	#
 	# ДҮРТЭЙ ЯМАР Ч ХОЛБООГҮЙ. Тоглогч өөрөө сонгоно, дүр нь хожим
 	# САНАМСАРГҮЙ тарагдана. Тиймээс «хар хувцастай нь мафи» гэсэн
 	# хамаарал үүсэх боломж БАЙХГҮЙ — сонголт нь зөвхөн «энэ бол би»
 	# гэдгийг ширээнд хэлэх хэрэгсэл.
-	box.add_child(_spacer(6))
-	box.add_child(_small("Ширээн дээр яаж харагдах вэ", 20))
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 6)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(_small("Ширээн дээр яаж харагдах вэ", 19))
 	var looks := HBoxContainer.new()
-	looks.add_theme_constant_override("separation", 6)
+	looks.add_theme_constant_override("separation", 5)
 	for i in range(LOOK_NAMES.size()):
 		var b := _style(Button.new())
 		b.toggle_mode = true
 		b.text = str(LOOK_NAMES[i])
-		b.add_theme_font_size_override("font_size", 19)
-		b.custom_minimum_size = Vector2(0, 52)
+		b.add_theme_font_size_override("font_size", 17)
+		b.custom_minimum_size = Vector2(0, 50)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var idx := i
 		b.pressed.connect(func() -> void: _pick_look(idx))
 		looks.add_child(b)
 		_look_btns.append(b)
-	box.add_child(looks)
+	right.add_child(looks)
 
-	var cols := HBoxContainer.new()
-	cols.add_theme_constant_override("separation", 6)
+	var swat := HBoxContainer.new()
+	swat.add_theme_constant_override("separation", 5)
 	for i in range(ACCENTS.size()):
 		var c := Button.new()
 		c.toggle_mode = true
-		c.custom_minimum_size = Vector2(0, 44)
+		c.custom_minimum_size = Vector2(0, 40)
 		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		c.focus_mode = Control.FOCUS_NONE
 		_paint_swatch(c, Color(ACCENTS[i]), false)
 		var ci := i
 		c.pressed.connect(func() -> void: _pick_colour(ci))
-		cols.add_child(c)
+		swat.add_child(c)
 		_colour_btns.append(c)
+	right.add_child(swat)
+
+	# ХОЁР ТОХИРУУЛГА, ХОЁУЛАА ТӨЛӨВӨӨ БИЧВЭРЭЭР ХЭЛНЭ.
+	#
+	# Өмнө нь «Нээлттэй өрөө» нь `CheckBox` байв. Нэмэлт дүрийн
+	# тохируулгад яг тэр алдааг аль хэдийн зассан: Godot-ийн сэдвийн
+	# дөрвөлжин нь харанхуй лоббид харагдахгүй тул тоглогч өрөө
+	# нээлттэй эсэхийг МЭДЭХГҮЙ. Энэ мөр нь хамгийн сүүлчийн
+	# `CheckBox` байв.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_public_toggle = _toggle("НЭЭЛТТЭЙ", true)
+	_public_toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_public_toggle)
+	_sound_toggle = _toggle("ДУУ", true)
+	_sound_toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sound_toggle.toggled.connect(func(v: bool) -> void:
+		sound_toggled.emit(v))
+	row.add_child(_sound_toggle)
+	right.add_child(row)
+	right.add_child(_small("Ангид тоглож байвал дууг унтраа", 19))
+	cols.add_child(right)
 	box.add_child(cols)
 
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
-	_public_toggle.text = "Нээлттэй өрөө"
-	_public_toggle.button_pressed = true
-	_public_toggle.add_theme_font_size_override("font_size", 22)
-	_public_toggle.add_theme_color_override("font_color", DIM)
-	row.add_child(_public_toggle)
-	box.add_child(row)
-
+	# --- ХОЁР ГОЛ ТОВЧ, ЗЭРЭГЦЭЭ -----------------------------------------
+	var acts := HBoxContainer.new()
+	acts.add_theme_constant_override("separation", 14)
 	var mk := _style(Button.new(), true)
 	mk.text = "ӨРӨӨ ҮҮСГЭХ"
+	mk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mk.pressed.connect(func() -> void:
 		create_pressed.emit(player_name(), _public_toggle.button_pressed))
-	box.add_child(mk)
+	acts.add_child(mk)
 
 	var jn := _style(Button.new())
 	jn.text = "ӨРӨӨНД ОРОХ"
+	jn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	jn.pressed.connect(func() -> void:
 		go(State.JOIN)
 		refresh_pressed.emit())
-	box.add_child(jn)
+	acts.add_child(jn)
+	box.add_child(acts)
 
 	box.add_child(_note_label())
 	p.add_child(box)
@@ -311,81 +357,109 @@ func _build_join() -> Control:
 	return p
 
 
+## Өрөөний хуудас.
+##
+## ХОЁР БАГАНА, нэрийн хуудастай ижил шалтгаанаар. Нэмэлт дүр нэг
+## нэмэгдэх бүрд босоо жагсаалт 54 цэгээр уртсана: дөрөв дэх дүрийг
+## нэмэхэд «БЭЛЭН», «ЭХЛҮҮЛЭХ» хоёулаа 720 цэгийн дэлгэцнээс ГАРСАН —
+## өрөө үүсгэсэн хүн тоглоомоо ЭХЛҮҮЛЖ ЧАДАХГҮЙ болсон. Зураг авч
+## шалгаж олов.
 func _build_room() -> Control:
 	var p := _page()
-	var box := _card(800)
-	box.add_child(_small("ӨРӨӨНИЙ КОД", 22))
+	var box := _card(1240)
+	box.add_theme_constant_override("separation", 10)
+
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 34)
+
+	# --- ЗҮҮН: код ба хэн орсон ------------------------------------------
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 4)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_child(_small("ӨРӨӨНИЙ КОД", 20))
 	_room_code.text = "····"
-	_room_code.add_theme_font_size_override("font_size", 72)
+	_room_code.add_theme_font_size_override("font_size", 64)
 	_room_code.add_theme_color_override("font_color", AMBER)
 	_room_code.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(_room_code)
-	box.add_child(_small("Найзууддаа хэлээрэй", 20))
+	left.add_child(_room_code)
+	left.add_child(_small("Найзууддаа хэлээрэй", 19))
 
 	# ХОЁР БАГАНА. Өрөө 14 хүн хүртэл багтдаг; нэг баганаар жагсаавал
 	# хөндлөн дэлгэцэнд таван хүн л харагдаж, үлдсэн нь гүйлгэх хэсэгт
 	# нуугдана — хэн орсныг нэг харцаар мэдэх боломжгүй болно.
 	_roster.columns = 2
-	_roster.add_theme_constant_override("h_separation", 40)
-	_roster.add_theme_constant_override("v_separation", 6)
+	_roster.add_theme_constant_override("h_separation", 30)
+	_roster.add_theme_constant_override("v_separation", 4)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 196)
-	_roster.custom_minimum_size = Vector2(760, 0)
+	scroll.custom_minimum_size = Vector2(0, 216)
+	_roster.custom_minimum_size = Vector2(580, 0)
 	scroll.add_child(_roster)
-	box.add_child(scroll)
+	left.add_child(scroll)
 
-	# БОТЫН ТОВЧ ЯГ ЭНД БАЙНА: хүн дутуу гэдгийг ЯГ энэ дэлгэц бичдэг
-	# («3 ХҮН ДУТУУ»). Засварыг гомдлын дэргэд нь тавина. Нэрийн дэлгэц
-	# дээр тавьбал өрөө үүсээгүй байхад шийдэх болно.
+	# БОТЫН ТОВЧ ЯГ ЭНД БАЙНА: хүн дутуу гэдгийг ЯГ энэ багана бичдэг
+	# («3 ХҮН ДУТУУ»). Засварыг гомдлын дэргэд нь тавина.
 	var bots := HBoxContainer.new()
-	bots.add_theme_constant_override("separation", 14)
+	bots.add_theme_constant_override("separation", 12)
 	_bot_del = _style(Button.new())
 	_bot_del.text = "− БОТ"
-	_bot_del.custom_minimum_size = Vector2(150, 58)
+	_bot_del.custom_minimum_size = Vector2(140, 54)
+	_bot_del.add_theme_font_size_override("font_size", 24)
 	_bot_del.pressed.connect(func() -> void: remove_bot_pressed.emit())
 	bots.add_child(_bot_del)
 	_bot_add = _style(Button.new())
 	_bot_add.text = "+ БОТ НЭМЭХ"
-	_bot_add.custom_minimum_size = Vector2(0, 58)
+	_bot_add.custom_minimum_size = Vector2(0, 54)
+	_bot_add.add_theme_font_size_override("font_size", 24)
 	_bot_add.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bot_add.pressed.connect(func() -> void: add_bots_pressed.emit(_bots_needed))
 	bots.add_child(_bot_add)
-	box.add_child(bots)
-	box.add_child(_small("Найз дутвал бот нэмээд ганцаараа туршиж болно", 20))
+	left.add_child(bots)
+	left.add_child(_small("Найз дутвал бот нэмээд ганцаараа туршиж болно", 19))
+	cols.add_child(left)
 
-	# --- Нэмэлт дүр ----------------------------------------------------------
+	# --- БАРУУН: нэмэлт дүр ----------------------------------------------
 	#
 	# БҮРЭЛДЭХҮҮН НЬ НИЙТИЙН. Ширээн дээр мафи тоглохдоо «өнөөдөр
 	# Ажиглагчтай» гэж чангаар зарладагтай яг адил — нуух ёстой нь
 	# ХЭН аль дүртэй гэдэг, ЯМАР дүрүүд байгаа гэдэг биш. Тиймээс энэ
-	# хайрцаг бүх хүнд харагдана, зөвхөн эзэн л дарж чадна.
+	# багана бүх хүнд харагдана, зөвхөн эзэн л дарж чадна.
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 4)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(_small("НЭМЭЛТ ДҮРҮҮД", 20))
+	right.add_child(_small("тус бүр нэг ИРГЭНИЙ суудлыг орлоно", 19))
 	for e in EXTRA_ROLES:
-		var opts := HBoxContainer.new()
-		opts.add_theme_constant_override("separation", 12)
 		var key: String = str(e["key"])
 		var b := _style(Button.new())
 		b.toggle_mode = true
-		b.custom_minimum_size = Vector2(330, 54)
+		b.custom_minimum_size = Vector2(0, 50)
+		b.add_theme_font_size_override("font_size", 23)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.text = "%s: ҮГҮЙ" % str(e["label"])
 		b.toggled.connect(func(v: bool) -> void: option_toggled.emit(key, v))
-		opts.add_child(b)
+		right.add_child(b)
+		var hint := _small(str(e["hint"]), 18)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.custom_minimum_size = Vector2(560, 0)
+		right.add_child(hint)
 		_opt_buttons[key] = b
-		var hint := _small(str(e["hint"]), 19)
-		hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		opts.add_child(hint)
-		box.add_child(opts)
+	cols.add_child(right)
+	box.add_child(cols)
 
+	# --- ХОЁР ГОЛ ТОВЧ, БҮХ ӨРГӨНӨӨР --------------------------------------
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	_ready_btn = _style(Button.new())
 	_ready_btn.text = "БЭЛЭН"
 	_ready_btn.toggle_mode = true
+	_ready_btn.custom_minimum_size = Vector2(0, 64)
 	_ready_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_ready_btn.toggled.connect(func(v: bool) -> void: ready_toggled.emit(v))
 	row.add_child(_ready_btn)
 
 	_start_btn = _style(Button.new(), true)
 	_start_btn.text = "ЭХЛҮҮЛЭХ"
+	_start_btn.custom_minimum_size = Vector2(0, 64)
 	_start_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_start_btn.pressed.connect(func() -> void: start_pressed.emit())
 	row.add_child(_start_btn)
@@ -416,13 +490,63 @@ func _spacer(h: int) -> Control:
 
 # --- Гаднаас ---------------------------------------------------------------
 
+## Төлөвөө БИЧВЭРЭЭР хэлдэг тохируулгын товч.
+##
+## `CheckBox` БИШ: Godot-ийн сэдвийн дөрвөлжин нь харанхуй дэвсгэр
+## дээр бараг харагдахгүй (зураг авч шалгасан — бичвэр л үлдсэн,
+## төлөв нь уншигдахгүй).
+func _toggle(label: String, on: bool) -> Button:
+	var b := _style(Button.new())
+	b.toggle_mode = true
+	b.button_pressed = on
+	b.custom_minimum_size = Vector2(0, 54)
+	b.add_theme_font_size_override("font_size", 21)
+	b.text = "%s: %s" % [label, "ТИЙМ" if on else "ҮГҮЙ"]
+	b.toggled.connect(func(v: bool) -> void:
+		b.text = "%s: %s" % [label, "ТИЙМ" if v else "ҮГҮЙ"])
+	return b
+
+
+## Лобби доторх БҮХ товчинд дуу холбоно.
+##
+## ЯАГААД НЭГ ДОР ВЭ: лоббид арваад товч байна (төрх, өнгө, өрөө,
+## тохиргоо, бот нэмэх). Товч бүрд гараар холбовол дараа нь нэмсэн
+## нэг товч чимээгүй үлдэж, «зөвхөн энэ товч ажиллахгүй байна» гэсэн
+## худал сэтгэгдэл өгнө.
+func _wire_sfx(n: Node) -> void:
+	if n is Button and not (n as Button).pressed.is_connected(_click):
+		(n as Button).pressed.connect(_click)
+	for c in n.get_children():
+		_wire_sfx(c)
+
+
+func _click() -> void:
+	if sfx != null:
+		sfx.play("tap", -9.0)
+
+
 func go(state: int) -> void:
 	_state = state
 	for k in _pages:
 		(_pages[k] as Control).visible = (k == state)
 	visible = true
+	# Хуудас солигдох бүрд ДАХИН холбоно: өрөөний хуудасны товчлуурууд
+	# (бот нэмэх, тохиргоо) хожим үүсдэг.
+	_wire_sfx(self)
 	# Автоматаар фокус АВАХГҮЙ: хөндлөн дэлгэцэнд Андройдын гар дэлгэц
 	# нээгдэж, «ӨРӨӨ ҮҮСГЭХ» товчийг бүрэн далдална.
+
+
+## Дууны сонголтыг СИГНАЛГҮЙГЭЭР тохируулна.
+##
+## `set_pressed_no_signal` нь чухал: эс бөгөөс сэргээх үед `toggled`
+## дуудагдаж, хадгалсан утгыг дахин бичнэ (одоо хор хөнөөлгүй ч
+## хожим «сүүлд хадгалсан» логик нэмэгдвэл тойрог үүснэ).
+func set_sound(on: bool) -> void:
+	if _sound_toggle == null:
+		return
+	_sound_toggle.set_pressed_no_signal(on)
+	_sound_toggle.text = "ДУУ: %s" % ("ТИЙМ" if on else "ҮГҮЙ")
 
 
 func hide_all() -> void:
@@ -568,14 +692,18 @@ func show_room(code: String, players: Array, is_host: bool,
 	for i in range(players.size()):
 		var d: Dictionary = players[i]
 		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(360, 0)
+		# 272: хоёр багана × 272 + 30 зай = 574, жагсаалтын 580 дотор
+		# багтана. Өмнө нь 360 байсан тул баруун багана хайрцгаас
+		# ХАЛЬЖ, «хүлээж байна» гэсэн бичиг нэмэлт дүрийн товчны цаана
+		# орж таслагдаж байв.
+		row.custom_minimum_size = Vector2(272, 0)
 		var nm := Label.new()
 		# СУУДЛЫН ДУГААР ҮРГЭЛЖ ХАРАГДАНА. Хоёр ижил төстэй нэр байвал
 		# «Бат мафи» гэдэг нь утгагүй, харин «3. Бат мафи» гэдэг тодорхой.
 		nm.text = "%d. %s" % [i + 1, str(d.get("name", "?"))]
 		if bool(d.get("isBot", false)):
 			bot_count += 1
-		nm.add_theme_font_size_override("font_size", 28)
+		nm.add_theme_font_size_override("font_size", 24)
 		nm.add_theme_color_override("font_color", INK)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nm)
@@ -586,7 +714,7 @@ func show_room(code: String, players: Array, is_host: bool,
 			# САНАМСАРГҮЙ тарагддаг.
 			var chip := Label.new()
 			chip.text = "бот"
-			chip.add_theme_font_size_override("font_size", 20)
+			chip.add_theme_font_size_override("font_size", 17)
 			chip.add_theme_color_override("font_color", Color(0.38, 0.62, 0.78))
 			row.add_child(chip)
 
@@ -595,7 +723,7 @@ func show_room(code: String, players: Array, is_host: bool,
 		if is_ready:
 			ready_count += 1
 		st.text = "бэлэн" if is_ready else "хүлээж байна"
-		st.add_theme_font_size_override("font_size", 24)
+		st.add_theme_font_size_override("font_size", 20)
 		st.add_theme_color_override("font_color",
 			Color(0.42, 0.78, 0.50) if is_ready else DIM)
 		row.add_child(st)

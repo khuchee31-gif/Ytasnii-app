@@ -25,6 +25,7 @@ const Actor := preload("res://scripts/actor.gd")
 const TableCamera := preload("res://scripts/table_camera.gd")
 const Hud := preload("res://scripts/hud.gd")
 const Session := preload("res://scripts/session.gd")
+const Sfx := preload("res://scripts/sfx.gd")
 
 # --- Хэмжээс (метр) ----------------------------------------------------------
 
@@ -163,6 +164,7 @@ var _heads: Dictionary = {}
 var _ring: MeshInstance3D = null
 var _selected := -1
 var _hud: CanvasLayer = null
+var _sfx: Node = null
 var _cam: Camera3D = null
 
 ## Суудлаас хамаардаг бүх зүйл (сандал, хүн, хөзөр, камер) ЭНД байна.
@@ -232,6 +234,19 @@ static func _arg_str(key: String, def: String) -> String:
 func _ready() -> void:
 	var t0 := Time.get_ticks_msec()
 	overview = _arg("overview", 0.0) > 0.5
+	# ДУУГ ХАМГИЙН ТҮРҮҮНД. Синтез нь ~40 мс авдаг тул тайз баригдахаас
+	# өмнө хийвэл тоглогч хүлээхгүй — эхний үе шатны дуу бэлэн байна.
+	_sfx = Sfx.new()
+	add_child(_sfx)
+	# СУУРЬ ЧИМЭЭГ ЛОББИД АСААНА, эхний үе шатанд биш.
+	#
+	# Лобби бол аль хэдийн тэр л өрөө. Чимээгүй лоббиос дуутай шөнө рүү
+	# орвол «дуу одоо л асав» гэж сонсогдоно; эхнээсээ бувтнаж байвал
+	# тоглогч түүнийг АНЗААРАХГҮЙ — яг тэр л зорилго.
+	#
+	# Урт чимээ өөр урсгал дээр баригддаг тул энэ дуудлага «хүсэл»
+	# болж тэмдэглэгдээд, бэлэн болмогц өөрөө эхэлнэ.
+	_sfx.room(true)
 	viewer_seat = int(_arg("viewer", float(viewer_seat)))
 	_build_room()
 	_build_table()
@@ -887,7 +902,17 @@ func _build_camera() -> Camera3D:
 ## бодит эд зүйл мэт: тэнд гэрэл тусав гэсэн үг.
 func select_seat(seat: int) -> void:
 	if seat >= 0 and not _candidates.is_empty() and not _candidates.has(seat):
+		# ХОРИГЛОСОН СУУДЛЫГ СОНСГОНО. Чимээгүй үл хариулах нь товч
+		# эвдэрсэн мэт — татгалзсан дуу нь «энэ хүн болохгүй» гэж
+		# хэлнэ (яагаад гэдгийг нь БИШ: дахин санал өгөх нөхцөл нь
+		# аль хэдийн дэлгэц дээр бичээстэй).
+		if _sfx != null and seat != _selected:
+			_sfx.play("deny", -12.0)
 		return
+	# Шинэ суудал сонгосон үед л тогшино — ижил суудлыг дахин
+	# дарахад чимээ гаргавал «юу ч болоогүй» гэдэг нь сонсогдохгүй.
+	if _sfx != null and seat >= 0 and seat != _selected:
+		_sfx.play("select", -7.0, 1.0 + 0.012 * float(seat))
 	_selected = seat
 	if _ring == null:
 		var t := TorusMesh.new()
@@ -948,6 +973,7 @@ func _build_hud() -> void:
 	if overview:
 		return
 	_hud = Hud.new()
+	_hud.sfx = _sfx
 	add_child(_hud)
 
 	# `demo=1` бол тайз ганцаараа ажиллана: дүр төрх, гэрэлтүүлгийг
@@ -970,10 +996,15 @@ func _build_hud() -> void:
 		return
 
 	var sess := Session.new()
+	sess.sfx = _sfx
 	add_child(sess)
 	var url := _arg_str("server", "")
 	sess.room_code = _arg_str("room", "")
 	sess.verbose = _arg("verbose", 0.0) > 0.5
+	# Чичиргээг ХАРАХ боломжгүй тул бүртгэлээр шалгана: ЯМАР үед
+	# дуудагдсаныг `BUZZ` мөрүүд хэлнэ.
+	if _sfx != null:
+		_sfx.verbose = sess.verbose
 	sess.solo_bots = int(_arg("solo", 0.0))
 	sess.solo_watcher = _arg("watcher", 0.0) > 0.5
 	sess.solo_mayor = _arg("mayor", 0.0) > 0.5

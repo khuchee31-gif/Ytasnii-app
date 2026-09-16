@@ -59,6 +59,29 @@ const PHASE_SUB := {
 	"gameOver": "",
 }
 
+## Үе шат бүрийн дуу ба өрөөний чимээний түвшин.
+##
+## `db` нь суурь чимээний ЧАНГА: шөнө нам (-34), өдөр арай илүү (-22).
+## Чимээгүй байдал нь ӨӨРӨӨ үе шатын дохио болно — тоглогч бичвэр
+## уншихаас өмнө шөнө болсныг МЭДРЭНЭ.
+## `buzz` нь ЧИЧИРГЭЭНИЙ урт (мс), 0 бол чичрэхгүй.
+##
+## ЗӨВХӨН ҮЕ ШАТ СОЛИГДОХОД. Үе шат нь бүх утсанд ЯГ НЭГ МӨЧИД,
+## сервереэс ирдэг тул чичиргээ нь юу ч илчлэхгүй (GDD-08 §4).
+## Шөнийн дотоод шатууд (мафи, эмч, харагчид) чичрэхгүй: тэднийг
+## мэдрэх нь «одоо хэн үйлдэж байна» гэсэн хуваарийг зааж өгнө.
+const PHASE_SFX := {
+	"nightFalls": {"cue": "night", "db": -34.0, "buzz": 90},
+	"nightMafia": {"cue": "", "db": -34.0, "buzz": 0},
+	"nightDoctor": {"cue": "", "db": -34.0, "buzz": 0},
+	"nightDetective": {"cue": "", "db": -34.0, "buzz": 0},
+	"dawn": {"cue": "dawn", "db": -26.0, "buzz": 60},
+	"day": {"cue": "", "db": -22.0, "buzz": 0},
+	"vote": {"cue": "", "db": -24.0, "buzz": 40},
+	"elimination": {"cue": "", "db": -26.0, "buzz": 0},
+	"gameOver": {"cue": "", "db": -30.0, "buzz": 180},
+}
+
 ## Дүрийн МОНГОЛ нэр, үүрэг, өнгө.
 ##
 ## ЗӨВХӨН ӨӨРИЙН дүрд хэрэглэгдэнэ — сервер бусдын дүрийг илгээдэггүй
@@ -168,6 +191,9 @@ const ERR_TEXT := {
 
 var net: Node = null
 var voice: Node = null
+
+## Дууны систем. `table_scene.gd` өгнө; байхгүй ч бүх зүйл ажиллана.
+var sfx: Node = null
 var lobby: CanvasLayer = null
 var table: Node3D = null
 var hud: CanvasLayer = null
@@ -213,6 +239,10 @@ var solo_mayor := false
 var solo_vigilante := false
 var solo_blocker := false
 var _solo_asked := false
+
+## Сүүлд дуугарсан тоолуурын секунд. -1 бол хараахан дуугараагүй.
+var _last_tick := -1
+var _beats := 0
 var _solo_done := false
 
 
@@ -270,7 +300,9 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 		hud.extra_acted.connect(_on_extra)
 
 	lobby = Lobby.new()
+	lobby.sfx = sfx
 	add_child(lobby)
+	lobby.sound_toggled.connect(_on_sound)
 	lobby.create_pressed.connect(_on_create)
 	lobby.join_pressed.connect(_on_join)
 	lobby.ready_toggled.connect(func(v: bool) -> void: net.set_ready(v))
@@ -288,6 +320,13 @@ func setup(table_v: Node3D, hud_v: CanvasLayer, url: String, name_v: String) -> 
 		net.avatar_id = v
 		_remember("avatar", v))
 	lobby.set_avatar_id(_remembered("avatar", "punk/0"))
+	# ХАДГАЛСАН ДУУНЫ СОНГОЛТ. Ангид тоглодог хүн дахин нээх бүрд
+	# унтраах шаардлагагүй.
+	var snd := _remembered("sound", "1") != "0"
+	lobby.set_sound(snd)
+	if sfx != null:
+		sfx.muted = not snd
+		sfx.room(snd)
 	lobby.set_name_text(_remembered_name(name_v))
 	lobby.set_server_text(_remembered("server", url))
 	# Лобби нээлттэй үед тоглоомын дэлгэц харагдах ёсгүй — хоёр давхар
@@ -386,6 +425,15 @@ func _run(kind: String, code: String) -> void:
 		net.create_room(_public)
 	else:
 		net.join_room(code)
+
+
+## Дуу асаах/унтраах. Сонголтыг УТСАНД хадгална — ангид тоглодог
+## хүн дахин нээх бүрд унтраах шаардлагагүй.
+func _on_sound(on: bool) -> void:
+	if sfx != null:
+		sfx.muted = not on
+		sfx.room(on)
+	_remember("sound", "1" if on else "0")
 
 
 func _on_create(name_v: String, is_public: bool) -> void:
@@ -535,6 +583,8 @@ func _show_role_card(d: Dictionary) -> void:
 		extra = "Хамтрагч: %s-р суудал" % ", ".join(names)
 	elif str(d.get("faction", "")) == "mafi":
 		extra = "Чи ГАНЦААРАА."
+	if sfx != null:
+		sfx.play("card", -5.0)
 	hud.show_role_card(str(card["name"]),
 		"%d-р суудал · %s" % [_my_seat, str(card["sub"])],
 		extra, Color(card["tone"]))
@@ -548,6 +598,7 @@ func _on_phase(d: Dictionary) -> void:
 	# өөрсдийн дэлгэцтэй.
 	if hud != null and _phase != "lobby" and _phase != "dealing":
 		hud.announce(str(PHASE_NAME.get(_phase, "")), PHASE_SUB.get(_phase, ""))
+	_phase_sound()
 	if _phase == "nightFalls":
 		_watch_seen.clear()
 		# Хөзрөө хаагаагүй хүн ч шөнө эхлэхэд ширээгээ харах ёстой.
@@ -585,9 +636,19 @@ func _on_night_result(d: Dictionary) -> void:
 	# уншдаг байсан тул хэн алагдсан ч ҮРГЭЛЖ «нам гүм өнгөрлөө» гэж
 	# бичигддэг байв.
 	var dead: Array = d.get("deaths", []) if d.get("deaths") is Array else []
+	# ШИВНЭЭ нь ҮХЛЭЭС ӨМНӨ. Нийтийн мэдээлэл тул хэн ч сонсож болно;
+	# үхлийн цохилтоос өмнө байрлуулбал хоёр дуу давхарлахгүй.
+	var wh: Array = d.get("whisper", []) if d.get("whisper") is Array else []
+	if sfx != null and not wh.is_empty():
+		sfx.play("whisper", -9.0)
 	if dead.is_empty():
 		_notify("Шөнө нам гүм өнгөрлөө.")
 		return
+	if sfx != null:
+		# Үхэл бүрд нэг цохилт, ЖААХАН зөрүүлж. Зэрэг дуугарвал нэг
+		# чанга цохилт болж, хэд нь үхсэн нь сонсогдохгүй.
+		for k in dead.size():
+			_beat_death(k)
 	# НЭГЭЭС ОЛОН байж болно: мафи нэгийг, Манаач нөгөөг, гэмшил
 	# гурав дахийг авч болно. Зөвхөн эхнийхийг нэрлэвэл бусад нь
 	# «яагаад унасан юм бэ» гэсэн асуулт болж үлдэнэ.
@@ -642,6 +703,12 @@ func _on_investigate(d: Dictionary) -> void:
 ## зогсдог байв.
 func _on_game_over(d: Dictionary) -> void:
 	var w := str(d.get("winner", ""))
+	if sfx != null:
+		# ХОЁР ӨӨР ХӨВЧ. Ижил дуугаар дуусгавал ялалт, ялагдал хоёр
+		# нэг мэдрэмж төрүүлнэ — тоглоомын хамгийн их хүлээгддэг
+		# хором нь ямар ч жингүй болно.
+		sfx.play("win_mafia" if w == "mafi" else "win_town", -4.0)
+		sfx.room_db(-30.0)
 	var reveal: Dictionary = d.get("reveal", {}) if d.get("reveal") is Dictionary else {}
 	var seats: Array = []
 	for k in reveal:
@@ -706,6 +773,11 @@ func _on_mafia_pick(d: Dictionary) -> void:
 func _on_emote(seat: int, kind: String, target_seat: int) -> void:
 	if table == null or seat <= 0:
 		return
+	# ӨӨРИЙН дохиог намуухан: өөрөө дарсан тул аль хэдийн мэднэ.
+	# Бусдынхыг илүү чанга — тэр бол ШИНЭ мэдээлэл.
+	if sfx != null:
+		sfx.play("emote", -16.0 if seat == _my_seat else -10.0,
+			1.14 if kind == "laugh" else 1.0)
 	table.emote(seat - 1, kind, target_seat - 1 if target_seat > 0 else -1)
 
 
@@ -809,6 +881,70 @@ func _notify(text: String) -> void:
 func _process(_delta: float) -> void:
 	if hud != null and _ends_at_ms > 0:
 		_refresh()
+	_countdown_sound()
+
+
+## --- Дуу ---------------------------------------------------------------------
+
+## Үе шат солигдоход: дохио тоглуулж, өрөөний чимээний түвшинг солино.
+func _phase_sound() -> void:
+	if sfx == null:
+		return
+	sfx.room(true)
+	var e: Dictionary = PHASE_SFX.get(_phase, {})
+	sfx.room_db(float(e.get("db", -26.0)))
+	var cue := str(e.get("cue", ""))
+	if not cue.is_empty():
+		sfx.play(cue, -6.0)
+	var bz := int(e.get("buzz", 0))
+	if bz > 0:
+		sfx.buzz(bz, 0.45)
+	_beats = 0
+	_last_tick = -1
+
+
+## Үхлийн цохилтуудыг ЗӨРҮҮЛЖ тоглуулна.
+##
+## ЯАГААД ТАЙМЕР ВЭ: гурван үхэл зэрэг дуугарвал нэг л чанга цохилт
+## сонсогдоно. 420 мс-ийн зай нь «нэг… хоёр…» гэж ТООЛУУЛНА — тэр
+## тоолол нь өөрөө мэдээлэл.
+func _beat_death(index: int) -> void:
+	if sfx == null:
+		return
+	if index == 0:
+		sfx.play("death", -3.0)
+		# ҮХЭЛ бол багцын хамгийн ХҮЧТЭЙ чичиргээ. Нийтийн зарлал тул
+		# бүх утас зэрэг чичирнэ — юу ч илчлэхгүй.
+		sfx.buzz(150, 0.9)
+		return
+	var t := get_tree().create_timer(0.42 * index)
+	t.timeout.connect(func() -> void:
+		if sfx != null:
+			# Дараагийн цохилт бүр БАГА ЗЭРЭГ намхан: анхныхыг
+			# онцлохын тулд.
+			sfx.play("death", -3.0 - 1.5 * index, 1.0 - 0.04 * index)
+			sfx.buzz(110, 0.7))
+
+
+## Санал хураалтын сүүлийн секундүүд.
+##
+## ЗӨВХӨН САНАЛ ХУРААЛТАД. Шөнийн үе шат бүрд зүрх цохивол хурцадмал
+## байдал утгаа алдаж, зүгээр л чимээ болно. Хурцадмал байдал нь
+## ХОВОР байж л ажиллана.
+func _countdown_sound() -> void:
+	if sfx == null or _phase != "vote" or _ends_at_ms <= 0:
+		return
+	var left := int(ceil(float(_ends_at_ms - Time.get_ticks_msec()) / 1000.0))
+	if left < 0 or left > 5 or left == _last_tick:
+		return
+	_last_tick = left
+	if left == 0:
+		return
+	sfx.play("heart", -8.0 + float(5 - left) * 0.9, 1.0 + float(5 - left) * 0.05)
+	# Секунд ойртох тусам ХҮЧТЭЙ. Тоолуур нь бүх утсанд нэг тул
+	# чичиргээ нь оролтын тухай юу ч хэлэхгүй.
+	sfx.buzz(45, 0.35 + 0.12 * float(5 - left))
+	_beats += 1
 
 
 func _refresh() -> void:

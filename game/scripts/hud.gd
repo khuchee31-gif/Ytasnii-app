@@ -45,6 +45,10 @@ var _act := Button.new()
 var _extra := Button.new()
 var _rule := ColorRect.new()
 
+## Дууны систем. `table_scene.gd` өгнө; байхгүй ч HUD ажиллана
+## (демо, зураг авах горим).
+var sfx: Node = null
+
 ## Дохионы товчлуурууд.
 ##
 ## БИЧВЭРЭЭР, зургаар БИШ. Шалтгаан нь: тэмдэгтийн (☞, 👍) фонтод
@@ -251,6 +255,7 @@ func _ready() -> void:
 		b.custom_minimum_size = Vector2(0, 80)
 		var kind: String = str(e["kind"])
 		b.pressed.connect(func() -> void: _on_emote(kind))
+		_click(b)
 		_style(b, 18, 14)
 		_emote_bar.add_child(b)
 		_emote_btns.append(b)
@@ -258,7 +263,13 @@ func _ready() -> void:
 	_act.text = ""
 	_act.add_theme_font_size_override("font_size", 30)
 	_band(_act, Control.PRESET_BOTTOM_RIGHT, -400, -112, -PAD, -24)
-	_act.pressed.connect(func() -> void: acted.emit())
+	# ГОЛ ТОВЧ нь бусдаас ӨӨР дуутай: энэ бол буцаах боломжгүй
+	# шийдвэр (санал, шөнийн бай). Бүх товч ижил «тк» гаргавал
+	# тоглогч ямар жинтэй зүйл дарснаа СОНСОХГҮЙ.
+	_act.pressed.connect(func() -> void:
+		if sfx != null:
+			sfx.play("lock", -4.0)
+		acted.emit())
 	root.add_child(_act)
 	_style_button()
 
@@ -266,7 +277,10 @@ func _ready() -> void:
 	_extra.add_theme_font_size_override("font_size", 24)
 	_extra.focus_mode = Control.FOCUS_NONE
 	_band(_extra, Control.PRESET_BOTTOM_RIGHT, -400, -184, -PAD, -124)
-	_extra.pressed.connect(func() -> void: extra_acted.emit())
+	_extra.pressed.connect(func() -> void:
+		if sfx != null:
+			sfx.play("lock", -6.0, 1.18)
+		extra_acted.emit())
 	_extra.visible = false
 	root.add_child(_extra)
 	_style(_extra, 10, 14)
@@ -283,6 +297,16 @@ func _band(c: Control, preset: int, l: float, t: float, r: float, b: float) -> v
 	c.offset_top = t
 	c.offset_right = r
 	c.offset_bottom = b
+
+
+## Товчинд «дарлаа» гэсэн дуу холбоно.
+##
+## ЯАГААД ТУСДАА ФУНКЦ ВЭ: товч бүрд гараар бичвэл нэгийг нь мартана.
+## Дуугүй товч бол эвдэрсэн товч — тоглогч дарсан эсэхээ мэдэхгүй.
+func _click(b: Button, db := -8.0, pitch := 1.0) -> void:
+	b.pressed.connect(func() -> void:
+		if sfx != null:
+			sfx.play("tap", db, pitch))
 
 
 func _style_button() -> void:
@@ -332,6 +356,10 @@ func _style(b: Button, pad_y: int, pad_x: int) -> void:
 ## «ажиллахгүй байна» гэж бодно — үнэндээ сервер хаяж байгаа.
 func _on_emote(kind: String) -> void:
 	if Time.get_ticks_msec() < _emote_cool_until:
+		# ХҮЛЭЭЛТИЙГ СОНСГОНО. Чимээгүй үл хариулах нь «эвдэрсэн» мэт;
+		# татгалзсан дуу нь «одоо биш» гэж хэлнэ.
+		if sfx != null:
+			sfx.play("deny", -12.0)
 		return
 	_emote_cool_until = Time.get_ticks_msec() + EMOTE_GAP_MS
 	_sync_emotes()
