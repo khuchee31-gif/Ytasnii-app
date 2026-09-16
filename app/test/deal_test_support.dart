@@ -4,7 +4,6 @@
 // dpr 2, өөрөөр хэлбэл 360 × 800 логик px. Доод талын товч, хоёр эрхийн
 // товгор хоёулаа тэр өндөрт л шалгагдана.
 
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Intent;
 import 'package:flutter/services.dart';

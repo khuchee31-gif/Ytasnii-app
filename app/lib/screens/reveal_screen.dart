@@ -166,10 +166,10 @@ class _RevealScreenState extends State<RevealScreen>
 
   String _banner = '';
 
-  late final AnimationController _flip =
-      AnimationController(vsync: this, duration: kCardFlip);
-  late final AnimationController _ring =
-      AnimationController(vsync: this, duration: kCardAutoHide);
+  // `late final ... = AnimationController(...)` БИШ: залхуу эхлэл нь хэзээ ч
+  // нээгээгүй дэлгэц хаагдахад `dispose()`-ийн дотор `Ticker` үүсгэж унана.
+  late final AnimationController _flip;
+  late final AnimationController _ring;
 
   Seat get _seat => _index + 1;
   int get _seatCount => widget.controller.seatCount;
@@ -184,6 +184,8 @@ class _RevealScreenState extends State<RevealScreen>
   @override
   void initState() {
     super.initState();
+    _flip = AnimationController(vsync: this, duration: kCardFlip);
+    _ring = AnimationController(vsync: this, duration: kCardAutoHide);
     WidgetsBinding.instance.addObserver(this);
     // `DealRoute` — FLAG_SECURE route-ын ТУРШ асаалттай (GDD-06 §0).
     PlatformGuard.setSecure(true);

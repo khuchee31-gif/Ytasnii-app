@@ -247,11 +247,18 @@ class _ScoreBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color c = b >= 2 ? kOk : (b == 1 ? kEmber : kDanger);
     // Утга нь ӨНГӨ БА ХЭЛБЭР БА КИРИЛЛ ШОШГО-оор — хэзээ ч зөвхөн өнгөөр биш.
-    final String line = switch (b) {
-      < 0 => 'Алдаж болох санал: ✕',
-      0 => 'Алдаж болох санал: ○ — дууслаа. Өнөөдөр онох ёстой.',
-      1 => 'Алдаж болох санал: ● — сүүлчийн нэг.',
-      _ => 'Алдаж болох санал: ${'● ' * b}'.trimRight(),
+    // Хөдөлгөөн багасгах горимд цэг нь ТОО болно (GDD-06 S03-ын хүртээмж).
+    final String mark = reduceMotion
+        ? '$b'
+        : switch (b) {
+            < 0 => '✕',
+            0 => '○',
+            _ => ('● ' * b).trimRight(),
+          };
+    final String tail = switch (b) {
+      0 => ' — дууслаа. Өнөөдөр онох ёстой.',
+      1 => ' — сүүлчийн нэг.',
+      _ => '',
     };
     return Semantics(
       label: 'Алдаж болох санал: ${b < 0 ? "боломжгүй" : mnNumber(b)}',
@@ -260,28 +267,12 @@ class _ScoreBoard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             // Хуваалцсан виджет — өдрийн дээд мөртэй ИЖИЛ харагдана.
-            if (reduceMotion)
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text('Алдаж болох санал',
-                        style: kBody.copyWith(color: kTextMuted)),
-                  ),
-                  const SizedBox(width: kGap),
-                  Flexible(
-                    child: Text('$b',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: c)),
-                  ),
-                ],
-              )
-            else
+            // Хөдөлгөөн багасгах горимд цэгэн зурвас ОГТ гарахгүй.
+            if (!reduceMotion) ...<Widget>[
               PipStrip(b),
-            const SizedBox(height: 6),
-            Text(line,
+              const SizedBox(height: 6),
+            ],
+            Text('Алдаж болох санал: $mark$tail',
                 style: TextStyle(
                     fontSize: 15,
                     height: 1.45,

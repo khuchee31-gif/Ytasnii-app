@@ -71,7 +71,9 @@ class _RosterScreenState extends State<RosterScreen> {
   }
 
   void _remove() {
-    if (_present <= 1) return;
+    // Тоон нэмэгчийн хүрээ нь 6..20 (GDD-06 S02). Зургаагаас доош унах
+    // цорын ганц зам бол «Байхгүй хүн» — тэр үед `tooFew` төлөв гарна.
+    if (_present <= kMinSeats) return;
     final int i = _rows.lastIndexWhere((_SeatRow r) => !r.absent);
     if (i < 0) return;
     setState(() {
@@ -126,6 +128,7 @@ class _RosterScreenState extends State<RosterScreen> {
             child: ExcludeSemantics(
               child: Center(
                 child: Text('$n',
+                    key: const ValueKey<String>('seat-count'),
                     style: kSeatNumber.copyWith(
                         color: tooFew
                             ? kDanger
@@ -178,7 +181,7 @@ class _RosterScreenState extends State<RosterScreen> {
               _BigStep(
                   glyph: '−',
                   semantic: 'Суудал хасах',
-                  onTap: _present > 1 ? _remove : null),
+                  onTap: _present > kMinSeats ? _remove : null),
               const SizedBox(width: kGap),
               _BigStep(
                   glyph: '+',
@@ -280,6 +283,7 @@ class _SeatLine extends StatelessWidget {
           ReorderableDragStartListener(
             index: index,
             child: Semantics(
+              container: true,
               label: 'Дараалал солих',
               child: const SizedBox(
                 width: kMinTouch,

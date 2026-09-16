@@ -131,12 +131,37 @@ class GameController extends ChangeNotifier {
       <({int dayNo, int elapsedMs, Seat speaker})>[];
   Seat? lastEliminated;
 
+  /// S18 «Бүжигт хүлэг» — тоглолтоос ХАМГИЙН ТҮРҮҮНД гарсан суудал(ууд).
+  /// Эхний шөнө хоёр хохирогч гарвал хоёулаа энд орно (GDD-06 S18 `tie`).
+  final List<Seat> firstOutSeats = <Seat>[];
+
+  /// «№7 · Шөнө 1» гэсэн мөрийн хоёр дахь хэсэг.
+  String firstOutWhenMn = '';
+
+  /// Нэг л удаа бичигдэнэ — хоёр дахь хасалт үүнийг дарж бичихгүй.
+  void _recordFirstOut(List<Seat> seats, String whenMn) {
+    if (firstOutSeats.isNotEmpty || seats.isEmpty) return;
+    firstOutSeats.addAll(seats);
+    firstOutWhenMn = whenMn;
+  }
+
   /// Эхний шөнийн хохирогч — «Шилдэг нүүдэл» түүнд л олдоно (GDD-01 §1, №10).
   Seat? firstVictim;
   bool bestMoveSpoken = false;
 
   /// «Алдаж болох санал» — дүрийг ХЭЗЭЭ Ч уншихгүй (GDD-05 §9.4).
   int get pips => pipsForDay(roster.n, roster.mafia, dayNo == 0 ? 1 : dayNo);
+
+  /// Үгийн тойргийн дараалал — GDD-01 §1, №11: суудлын дугаараар, Өдөр 1-д
+  /// №1-ээс, дараа нь СҮҮЛД ХАСАГДСАНЫ дараагийн суудлаас.
+  List<Seat> get speechOrder {
+    final List<Seat> live = alive.toList()..sort();
+    final Seat? last = lastEliminated;
+    if (live.isEmpty || last == null || dayNo <= 1) return live;
+    final int i = live.indexWhere((Seat s) => s > last);
+    if (i <= 0) return live;
+    return <Seat>[...live.sublist(i), ...live.sublist(0, i)];
+  }
 
   WinState get win =>
       _setup == null ? WinState.none : evaluateWin(alive, _setup!);
@@ -190,9 +215,12 @@ class GameController extends ChangeNotifier {
 
   /// `FAIRNESS` — `seed0` энд төрнө (GDD-10 §2, алхам 1).
   /// Хуваарилалт хараахан хийгдэхгүй: код эхлээд цаасан дээр бичигдэнэ.
-  void beginFairness({Seat holderSeat = 1}) {
+  /// [seed0] нь ЗӨВХӨН тестэд дамжуулагдана — жинхэнэ тоглолтод
+  /// `Random.secure()` ажиллана. Тогтоосон seed нь тоглолтыг бүрэн
+  /// давтагдахуйц болгоно (GDD-10 §10-ын golden вектортой ижил зарчим).
+  void beginFairness({Seat holderSeat = 1, Uint8List? seed0}) {
     final Random rnd = Random.secure();
-    _pendingSeed0 =
+    _pendingSeed0 = seed0 ??
         Uint8List.fromList(List<int>.generate(32, (_) => rnd.nextInt(256)));
     _pendingHolder = holderSeat;
     // Код нь `seed0`-оос л гарна, сэгсрэлтээс хамаарахгүй — тиймээс ЭНД мэдэгдэнэ.
@@ -256,6 +284,8 @@ class GameController extends ChangeNotifier {
     reviewCount.clear();
     dayNo = 0;
     firstVictim = null;
+    firstOutSeats.clear();
+    firstOutWhenMn = '';
     bestMoveSpoken = false;
     pins.clear();
     go(GamePhase.deal);
@@ -291,15 +321,31 @@ class GameController extends ChangeNotifier {
   void submitIntent(Seat actor, Ability ability, Seat? target) {
     final NightState s = _night!;
     final bool isAlive = s.alive.contains(actor);
-    final Intent i = Intent(
-      intentId: 'n${s.night}-s$actor',
-      night: s.night,
-      actor: actor,
-      ability: isAlive ? ability : Ability.noAction,
-      target: isAlive ? target : null,
-      clientSeq: 1,
-    );
-    if (isAlive) _intents.add(i);
+    if (isAlive) {
+      // Хүчингүй бай ирвэл `noAction` болгож буулгана. Хөдөлгүүр хүчингүй
+      // санааг ЧИМЭЭГҮЙ хаядаг тул шууд нэмбэл тэр суудал огт санаа
+      // илгээгээгүй болж, инвариант N22 унана («амьд суудал бүр шөнө бүр
+      // ЯГ НЭГ санаа»). Дэлгэцийн алдаа тоглоомыг унагааж болохгүй.
+      Intent candidate = Intent(
+        intentId: 'n${s.night}-s$actor',
+        night: s.night,
+        actor: actor,
+        ability: ability,
+        target: target,
+        clientSeq: 1,
+      );
+      if (ability != Ability.noAction && validate(candidate, s) != null) {
+        candidate = Intent(
+          intentId: 'n${s.night}-s$actor',
+          night: s.night,
+          actor: actor,
+          ability: Ability.noAction,
+          target: null,
+          clientSeq: 1,
+        );
+      }
+      _intents.add(candidate);
+    }
     _circuitIndex++;
     notifyListeners();
   }
@@ -346,6 +392,10 @@ class GameController extends ChangeNotifier {
     if (firstVictim == null && r.deaths.isNotEmpty) {
       firstVictim = r.deaths.first.victim;
     }
+    _recordFirstOut(
+      r.deaths.map((Death d) => d.victim).toList()..sort(),
+      'Шөнө ${s.night}',
+    );
     go(GamePhase.dawn);
   }
 
@@ -368,9 +418,29 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Оператор буруу товшив — нэр дэвшүүлэлтийг буцаана (GDD-06 S14 `full`
+  /// төлөвт гацахгүйн тулд). Санал хураалт эхэлсний дараа дуудагдахгүй.
+  void denominate(Seat s) {
+    if (nominations.remove(s)) notifyListeners();
+  }
+
   void recordHands(Seat s, int count) {
     hands[s] = count;
     notifyListeners();
+  }
+
+  /// Тэнцлийн дараагийн тойрог — тоолол шинээр эхэлнэ (GDD-06 S16).
+  void clearHands() {
+    if (hands.isEmpty) return;
+    hands.clear();
+    notifyListeners();
+  }
+
+  /// `tieRule = Санамсаргүй` — апп сонгоно (GDD-03 §4.5). Санамсаргүй тоо
+  /// ЗӨВХӨН энэ класст үүснэ, дэлгэцэд хэзээ ч биш.
+  Seat randomTieBreak(List<Seat> tied) {
+    if (tied.isEmpty) throw StateError('Тэнцсэн суудал байхгүй');
+    return tied[Random.secure().nextInt(tied.length)];
   }
 
   /// Plurality. Тэнцвэл `null` — тэнцлийн гинжийг дэлгэц шийднэ (GDD-03).
@@ -387,6 +457,17 @@ class GameController extends ChangeNotifier {
   void eliminate(Seat s) {
     alive.remove(s);
     lastEliminated = s;
+    _recordFirstOut(<Seat>[s], 'Өдөр $dayNo');
+    go(GamePhase.elimination);
+  }
+
+  /// «Бүгдийн хувь заяа» — тэнцсэн БҮГД гарна (GDD-01 §1, GDD-06 S16).
+  void eliminateAll(Iterable<Seat> seats) {
+    final List<Seat> out = seats.where(alive.contains).toList()..sort();
+    if (out.isEmpty) return;
+    alive.removeAll(out);
+    lastEliminated = out.last;
+    _recordFirstOut(out, 'Өдөр $dayNo');
     go(GamePhase.elimination);
   }
 
@@ -416,6 +497,8 @@ class GameController extends ChangeNotifier {
     dayNo = 0;
     _circuitIndex = 0;
     firstVictim = null;
+    firstOutSeats.clear();
+    firstOutWhenMn = '';
     bestMoveSpoken = false;
     lastEliminated = null;
     meetCutShort = false;
