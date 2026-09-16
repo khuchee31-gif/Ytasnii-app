@@ -1,0 +1,52 @@
+name: engine
+
+on:
+  push:
+    paths:
+      - 'packages/engine/**'
+      - '.github/workflows/engine.yml'
+  pull_request:
+    paths:
+      - 'packages/engine/**'
+      - '.github/workflows/engine.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - run: dart pub get
+
+      # GDD-05 §0 — хөдөлгүүр цэвэр байх ёстой. Эдгээрийн аль нэг нь `lib/`-д
+      # орвол детерминизм эвдэрч, дахин тоглуулалт зөрнө.
+      - name: Хатуу дүрэм — lib/ дотор IO, санамсаргүй, цаг байхгүй
+        run: |
+          if grep -rnE "dart:io|package:flutter|DateTime\.|Random\(" lib/ --include='*.dart' \
+             | grep -v '^\S*: *//' ; then
+            echo "::error::lib/ дотор хориотой бүтэц олдлоо (GDD-05 §0)"
+            exit 1
+          fi
+
+      - name: Хатуу дүрэм — «Цаазлах» гэсэн үг хэзээ ч нийлүүлэгдэхгүй
+        run: |
+          if grep -rn "Цаазлах\|цаазл" lib/ --include='*.dart'; then
+            echo "::error::«Хотоос хөөх» гэж бичнэ (GDD-13, GDD-16 §2)"
+            exit 1
+          fi
+
+      - run: dart analyze --fatal-infos
+
+      - run: dart test
+
+      # Хаалганы fuzz. `dart test` дотор 2,000 seed ажилладаг; энд 200,000
+      # (GDD-05 §10.3). Зөвхөн main руу нэгтгэхэд.
+      - name: Хаалганы fuzz (200,000 seed)
+        if: github.ref == 'refs/heads/main'
+        run: FUZZ_SEEDS=200000 dart run tool/fuzz.dart
