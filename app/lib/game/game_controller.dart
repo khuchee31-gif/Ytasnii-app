@@ -17,6 +17,7 @@ import 'package:engine/engine.dart';
 import 'package:flutter/foundation.dart';
 
 import 'phase.dart';
+import 'settings.dart';
 
 /// Цаг хэмжигчийг тарааж өгөх — тестэд жинхэнэ цаг хүлээхгүйн тулд.
 typedef TickerFactory = Timer Function(Duration, void Function(Timer));
@@ -39,7 +40,44 @@ class GameController extends ChangeNotifier {
 
   // --- Тохиргоо ------------------------------------------------------------
   int seatCount = 12;
-  Roster get roster => rosterFor(seatCount);
+
+  /// Дүрмийн тохиргоо — GDD-03. Дэлгэц энд байгаа утгыг УНШИНА (Бүлэг А).
+  final GameSettings settings = GameSettings();
+
+  /// S02-ын нэрс. Нэр ЗААВАЛ БИШ — хоосон бол `{n}-р тоглогч` (GDD-06 S02).
+  final Map<Seat, String> seatNames = <Seat, String>{};
+
+  /// Суудлын дэлгэцийн нэр. Хоосон нэрийг дэлгэц өөрөө бөглөнө.
+  String seatLabel(Seat s) {
+    final String? name = seatNames[s];
+    return (name == null || name.trim().isEmpty) ? '$s-р тоглогч' : name.trim();
+  }
+
+  /// S01-ийн `hasRoster` төлөв — суудлын жагсаалт хадгалагдсан эсэх.
+  bool hasSavedRoster = false;
+
+  /// GDD-11 §2: эхний гурван тоглолт зөөлөн, S03-ын хөтлөгчийн холбоос
+  /// `gamesPlayed == 0` үед л харагдана.
+  int gamesPlayed = 0;
+
+  /// S03-ын чипээр ГАРААР өөрчилсөн бүрэлдэхүүн. `null` бол GDD-04 §2-ын
+  /// анхдагч хүснэгт. (Бүлэг А-ийн нэмэлт — `roster` getter-ийн цорын ганц
+  /// өөрчлөлт.)
+  Roster? _customRoster;
+  Roster get roster => _customRoster ?? rosterFor(seatCount);
+
+  /// S03 «Тараая» дарахад чипүүдийн утгыг бүртгэнэ.
+  void setComposition(Roster r) {
+    _customRoster = r;
+    seatCount = r.n;
+    notifyListeners();
+  }
+
+  /// Анхдагч хүснэгт рүү буцаана (суудлын тоо солигдоход).
+  void clearComposition() {
+    _customRoster = null;
+    notifyListeners();
+  }
   SetupCheck get setupCheck => checkSetup(
         n: roster.n,
         mafia: roster.mafia,
@@ -166,6 +204,35 @@ class GameController extends ChangeNotifier {
   Seat _pendingHolder = 1;
   String? _previewCode;
   String get previewCode => _previewCode ?? '';
+
+  // --- Тараахаас ӨМНӨ мэдэгддэг зүйлс (GDD-10 §2, алхам 2) -----------------
+  //
+  // `_deal` хараахан БАЙХГҮЙ — S04 нь кодыг, уншигч суудлыг, `dealId`-г
+  // хуваарилалтаас ӨМНӨ гаргах ёстой. Тэр гурав нь бүгд `h0 = sha256(seed0)`
+  // -оос гарна, сэгсрэлтээс хамаарахгүй.
+
+  Uint8List? get _h0 => _pendingSeed0 == null ? null : sha256(_pendingSeed0!);
+
+  /// Утас барьсан суудал — уншигчийг сонгохоос ХАСАГДАНА.
+  Seat get holderSeat => _pendingHolder;
+
+  /// Кодыг чангаар уншиж, дэвтэрт бичих суудал — тараахаас ӨМНӨ мэдэгдэнэ.
+  /// Тараалтын дараа `readerSeat`-тай яг тэнцүү (нэг `h0`, нэг `holderSeat`).
+  Seat get previewReaderSeat {
+    final Uint8List? h = _h0;
+    if (h == null) return _pendingHolder == 1 ? 2 : 1;
+    return readerSeatOf(h, seatCount, holderSeat: _pendingHolder);
+  }
+
+  /// `dealId` — 8 hex, бүх дэлгэцийн доод мөрөнд (GDD-10 §2).
+  String get previewDealId {
+    final Uint8List? h = _h0;
+    return h == null ? '' : dealIdOf(h);
+  }
+
+  /// Танилцах шөнийг гурван товшилтоор таслав уу (GDD-06 S07).
+  /// Дэвтэрт бичигдэнэ — GDD-00 §13-ын 8-р асуулт яг үүнийг хэмжинэ.
+  bool meetCutShort = false;
 
   /// Сэгсрэлт ирсний дараа л хуваарилна (GDD-10 §2, алхам 6-7).
   void dealWithEntropy(Uint8List userEntropy) {
@@ -334,6 +401,7 @@ class GameController extends ChangeNotifier {
 
   void reset() {
     stopCountdown();
+    _customRoster = null;
     _deal = null;
     _setup = null;
     _night = null;
@@ -350,6 +418,7 @@ class GameController extends ChangeNotifier {
     firstVictim = null;
     bestMoveSpoken = false;
     lastEliminated = null;
+    meetCutShort = false;
     _phase = GamePhase.appOpen;
     notifyListeners();
   }
