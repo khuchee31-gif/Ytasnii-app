@@ -15,6 +15,12 @@ config/description="Ангийн мафи — онлайн"
 run/main_scene="res://scenes/table.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
+; ХУВИЛБАР НЬ ДЭЛГЭЦЭН ДЭЭР ГАРНА (ачаалалтын мөрөнд).
+;
+; Утсан дээр алдаа гарахад «чи аль угсралтыг ажиллуулж байна вэ»
+; гэдэг нь хамгийн эхний асуулт. Хэрэглэгч бүртгэл харах боломжгүй
+; тул хувилбарыг ХАРАГДАХ газар бичнэ. Угсрах бүрд шинэчилнэ.
+config/version="0.2"
 
 [audio]
 
@@ -37,5 +43,15 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=1
+; ГАР УТСАНД MSAA УНТРААЛТТАЙ.
+;
+; godotengine/godot#104351: «Gray Artifact on moving MeshInstance3D when
+; using 3D MSAA on Low End Android Device with Compatibility renderer» —
+; яг PowerVR Rogue дээр, Redmi 9C дээр бүртгэгдсэн. Манай зорилтот
+; төхөөрөмж нь Redmi 9A, ЯГ ТЭР GPU гэр бүл (GE8320).
+;
+; 720p дээр 2x MSAA нь бараг юу ч нэмэхгүй атлаа хавтангийн
+; архитектурт зурвасын өргөн иддэг. Ширээний хөгжүүлэлтэд хэвээр.
+anti_aliasing/quality/msaa_3d.mobile=0
 lights_and_shadows/positional_shadow/atlas_size=2048
 lights_and_shadows/positional_shadow/atlas_size.mobile=1024

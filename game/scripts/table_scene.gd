@@ -332,6 +332,20 @@ func _make_boot_overlay() -> void:
 	_boot_label.offset_bottom = 330
 	_boot_label.text = "ачаалж байна…"
 	_boot_layer.add_child(_boot_label)
+	# ХУВИЛБАР. Утсан дээр алдаа гарахад «чи аль угсралтыг ажиллуулж
+	# байна вэ» гэдэг нь хамгийн эхний асуулт бөгөөд хэрэглэгч
+	# бүртгэл харах боломжгүй. Тиймээс энд бичнэ.
+	var ver := Label.new()
+	ver.text = "v%s" % str(ProjectSettings.get_setting("application/config/version", "?"))
+	ver.add_theme_font_size_override("font_size", 18)
+	ver.add_theme_color_override("font_color", Color(0.38, 0.37, 0.36))
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ver.set_anchors_preset(Control.PRESET_CENTER_TOP, true)
+	ver.offset_left = -400
+	ver.offset_right = 400
+	ver.offset_top = 340
+	ver.offset_bottom = 370
+	_boot_layer.add_child(ver)
 
 
 ## Нэг кадрт НЭГ алхам. `false` буцвал ачаалалт дууссан.
@@ -1158,15 +1172,34 @@ func _build_post() -> void:
 	layer.layer = 100
 	add_child(layer)
 
+	var sh := load("res://shaders/grade.gdshader") if _arg("post", 1.0) > 0.5 else null
+	# ШЕЙДЕРГҮЙ БОЛ ТЭГШ ӨНЦӨГТИЙГ ОГТ НЭМЭХГҮЙ.
+	#
+	# `ColorRect`-ийн анхдагч өнгө нь Color(1,1,1,1) — БҮРЭН ЦАГААН.
+	# Энэ давхарга нь бүтэн дэлгэцийг хамардаг, 100-р давхарт (3D
+	# харагдац болон HUD-ийн ДЭЭР) байрладаг. Өөрөөр хэлбэл түүнийг
+	# цагаан болгохгүй байгаа ЦОРЫН ГАНЦ зүйл бол шейдер нь хүчинтэй
+	# байх явдал байв.
+	#
+	# Хоёр зам үүнийг эвдэнэ: (1) `post=0` гэсэн хөгжүүлэлтийн туг —
+	# тэр үед материал огт үүсдэггүй байсан; (2) шейдер УТСАН ДЭЭР
+	# хөрвүүлэгдэхгүй байх — хямд гар утасны GLSL хөрвүүлэгч энэ
+	# файлыг няцаавал Godot анхдагч материал руу унаж, дэлгэц бүхэлдээ
+	# цагаан болно. Тоглогч «цагаан дэлгэц» л харна, шалтгаан нь
+	# хаана ч бичигдэхгүй.
+	#
+	# Одоо: шейдер байхгүй бол давхарга ХООСОН үлдэнэ; байгаа бол ч
+	# өнгийг нь ТУНГАЛАГ болгож давхар хамгаална.
+	if sh == null:
+		return
 	var rect := ColorRect.new()
+	rect.color = Color(0, 0, 0, 0)
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sh := load("res://shaders/grade.gdshader") if _arg("post", 1.0) > 0.5 else null
-	if sh != null:
-		var m := ShaderMaterial.new()
-		m.shader = sh
-		rect.material = m
-		_grade = m
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	rect.material = m
+	_grade = m
 	layer.add_child(rect)
 
 
