@@ -45,6 +45,10 @@ var _mic: AudioStreamPlayer = null
 var _capture: AudioEffectCapture = null
 
 var _can_speak := false
+
+## Android-ын зөвшөөрлийг НЭГ Л УДАА асууна. Хоёр дахь удаад систем
+## цонх ч гаргахгүй тул давтах нь утгагүй.
+var _perm_asked := false
 var _seq := 0
 var _silent_for := 0
 
@@ -118,10 +122,23 @@ func _open_mic() -> void:
 	if not ProjectSettings.get_setting("audio/driver/enable_input", false):
 		push_warning("Микрофоны оролт унтраалттай (audio/driver/enable_input).")
 		return
-	# Android дээр зөвшөөрөл асууна. Хэрэглэгч татгалзвал дуу явахгүй ч
-	# тоглоом үргэлжилнэ — дүрмийн хувьд микрофон заавал биш.
-	if OS.get_name() == "Android":
-		OS.request_permission("RECORD_AUDIO")
+	# ANDROID-ЫН ЗӨВШӨӨРӨЛ АСИНХРОН.
+	#
+	# Өмнө нь `OS.request_permission("RECORD_AUDIO")` дуудаад ТЭР ДОР НЬ
+	# микрофоныг нээдэг байв. Тэр нь ажиллах БОЛОМЖГҮЙ: зөвшөөрөл асуух
+	# нь Android-ын харилцах цонх гаргаад ШУУД БУЦДАГ, хэрэглэгч
+	# «Зөвшөөрөх» дарахаас өмнө бид микрофоныг нээж оролдоно. Нээлт
+	# бүтэлгүйтээд ДАХИН ХЭЗЭЭ Ч оролддоггүй байсан тул утсан дээр
+	# ЯРИА ОГТ АЖИЛЛАХГҮЙ байв — тоглоомын гол боломжийн нэг.
+	#
+	# Одоо: зөвшөөрөл байхгүй бол асуугаад ЭНД ЗОГСОНО. Хариу ирэхэд
+	# (`on_request_permissions_result`) дахин энэ функц рүү орно.
+	if OS.get_name() == "Android" and not _mic_allowed():
+		if not _perm_asked:
+			_perm_asked = true
+			get_tree().on_request_permissions_result.connect(_on_perm)
+			OS.request_permission("RECORD_AUDIO")
+		return
 
 	if _bus < 0:
 		_bus = AudioServer.bus_count
@@ -147,6 +164,33 @@ func _open_mic() -> void:
 	_sum = 0.0
 	_cnt = 0
 	_pcm.clear()
+
+
+## Микрофоны зөвшөөрөл өгөгдсөн үү.
+##
+## Android-аас гадна ҮРГЭЛЖ үнэн: ширээний компьютер, толгойгүй орчинд
+## ийм зөвшөөрөл байхгүй.
+func _mic_allowed() -> bool:
+	if OS.get_name() != "Android":
+		return true
+	for p in OS.get_granted_permissions():
+		if str(p).ends_with("RECORD_AUDIO"):
+			return true
+	return false
+
+
+## Зөвшөөрлийн хариу ирэв. Зөвшөөрсөн БА одоо ч ярих эрхтэй бол нээнэ.
+func _on_perm(permission: String, granted: bool) -> void:
+	if not permission.ends_with("RECORD_AUDIO"):
+		return
+	if not granted:
+		# Татгалзсан бол тоглоом ҮРГЭЛЖИЛНЭ — дүрмийн хувьд микрофон
+		# заавал биш. Дахин асуухгүй: Android хоёр дахь удаад цонх ч
+		# гаргахгүй бөгөөд шаардах нь зүгээр л ядаргаатай.
+		push_warning("Микрофоны зөвшөөрөл өгөгдсөнгүй — дуугүй тоглоно.")
+		return
+	if _can_speak:
+		_open_mic()
 
 
 func _close_mic() -> void:
