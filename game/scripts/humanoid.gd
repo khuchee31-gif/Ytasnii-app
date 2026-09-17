@@ -198,6 +198,24 @@ static func body_axes(sk: Skeleton3D, rig: Dictionary = {}) -> Dictionary:
 
 # --- Ясыг эргүүлэх -----------------------------------------------------------
 
+## Гурван тоо нь БҮГД жинхэнэ тоо мөн үү (NaN, ±хязгааргүй биш үү).
+##
+## NaN нь НАМ ГҮМХЭН тархдаг. Нэг ясны эргэлт NaN болмогц түүний бүх
+## үр, улмаар бүх дүрсийн матриц NaN болно. Шалгалттай (debug) угсралтад
+## Godot «Basis … must be normalized» гэж хашхирдаг тул хөгжүүлэлтэд
+## анзаарагдана. ХЭРЭГЛЭЭНИЙ (release) угсралтад тэр шалгалт байхгүй:
+## `get_quaternion` нь `sqrt(сөрөг)` бодоод NaN буцаана, тэр нь чимээгүйхэн
+## GPU руу очно. Утсан дээр энэ нь хоосон дэлгэц эсвэл драйверын
+## унал болж хувирдаг. Тиймээс шалгалтыг ӨӨРСДӨӨ хийнэ — угсралтын
+## төрлөөс үл хамааран ажиллана.
+static func _finite3(v: Vector3) -> bool:
+	return is_finite(v.x) and is_finite(v.y) and is_finite(v.z)
+
+
+static func _finite_basis(b: Basis) -> bool:
+	return _finite3(b.x) and _finite3(b.y) and _finite3(b.z)
+
+
 static func _apply(sk: Skeleton3D, bi: int, g: Transform3D) -> void:
 	# Дэлхийн байрлалыг ЭЦГИЙН огторгуй руу буцаана. Godot-ийн хувилбар
 	# бүрт байдаг задарсан тохируулагчийг ашиглана — `set_bone_global_pose`
@@ -205,9 +223,24 @@ static func _apply(sk: Skeleton3D, bi: int, g: Transform3D) -> void:
 	var par := sk.get_bone_parent(bi)
 	var pg := sk.get_bone_global_pose(par) if par >= 0 else Transform3D.IDENTITY
 	var lt := pg.affine_inverse() * g
+	var b := lt.basis
+	# Доройтсон суурийг ХЭРЭГЛЭХГҮЙ.
+	#
+	# Хурууны яс нь 1 см орчим. Мөр → бугуй → алга → 15 хурууны үе гэсэн
+	# гинжин эргэлтийн дараа суурийн тэнхлэгүүд бараг зэрэгцээ болж,
+	# `orthonormalized()` нь тэгд хуваана. Уртыг нь ЭХЛЭЭД шалгавал тэр
+	# хуваалт хэзээ ч болохгүй.
+	if not _finite_basis(b) or not _finite3(lt.origin):
+		return
+	if b.x.length_squared() < 1e-12 or b.y.length_squared() < 1e-12 \
+			or b.z.length_squared() < 1e-12:
+		return
+	var rot := b.orthonormalized()
+	if not _finite_basis(rot) or absf(rot.determinant()) < 0.5:
+		return
 	sk.set_bone_pose_position(bi, lt.origin)
-	sk.set_bone_pose_rotation(bi, lt.basis.get_rotation_quaternion())
-	sk.set_bone_pose_scale(bi, lt.basis.get_scale())
+	sk.set_bone_pose_rotation(bi, rot.get_rotation_quaternion())
+	sk.set_bone_pose_scale(bi, b.get_scale())
 
 
 ## `bone`-оос `child` рүү чиглэсэн вектор нь `dir` болтол эргүүлнэ.
@@ -226,6 +259,10 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3,
 		return
 	var bg := sk.get_bone_global_pose(bi)
 	var cur := sk.get_bone_global_pose(ci).origin - bg.origin
+	# NaN нь энэ шалгалтыг ДАВЖ гардаг: `NaN < 1e-10` нь худал. Тиймээс
+	# уртыг шалгахын ӨМНӨ тоо мөн эсэхийг шалгана.
+	if not _finite3(cur) or not _finite3(dir) or not _finite_basis(bg.basis):
+		return
 	if cur.length_squared() < 1e-10 or dir.length_squared() < 1e-10:
 		return
 	cur = cur.normalized()
@@ -244,6 +281,9 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3,
 		axis = axis.normalized()
 	else:
 		axis = cur.cross(want).normalized()
+	if not _finite3(axis) or axis.length_squared() < 0.5:
+		# Нэгжид ойрхон биш тэнхлэг = эргэлт тодорхойлогдохгүй.
+		return
 	bg.basis = Basis(Quaternion(axis, acos(d) * w)) * bg.basis
 	_apply(sk, bi, bg)
 
@@ -256,9 +296,13 @@ static func aim(sk: Skeleton3D, bone: String, child: String, dir: Vector3,
 ## тогтооно.
 static func spin(sk: Skeleton3D, bone: String, axis: Vector3, angle: float) -> void:
 	var bi := sk.find_bone(bone)
-	if bi < 0 or absf(angle) < 0.0005:
+	if bi < 0 or not is_finite(angle) or absf(angle) < 0.0005:
+		return
+	if not _finite3(axis) or axis.length_squared() < 1e-12:
 		return
 	var bg := sk.get_bone_global_pose(bi)
+	if not _finite_basis(bg.basis):
+		return
 	bg.basis = Basis(Quaternion(axis.normalized(), angle)) * bg.basis
 	_apply(sk, bi, bg)
 

@@ -54,7 +54,65 @@ void main(List<String> args) async {
   );
 
   final HttpServer http = await io.serve(handler, InternetAddress.anyIPv4, port);
-  stdout.writeln('«Хот унтлаа» сервер: ws://${http.address.host}:${http.port}');
+  await _greet(http.port);
+}
+
+/// Серверийг асаасан хүнд ЮУ БИЧИХИЙГ нь хэлнэ.
+///
+/// Өмнө нь `ws://0.0.0.0:8080` гэж хэвлэдэг байв. Тэр хаягийг утсандаа
+/// бичвэл ХЭЗЭЭ Ч холбогдохгүй: `0.0.0.0` нь «бүх сүлжээний карт дээр
+/// сонс» гэсэн утгатай бөгөөд хаяг БИШ. Ангид тоглох гэж байгаа хүн
+/// компьютерийнхээ Wi-Fi хаягийг өөрөө олох ёстой болж байв — энэ нь
+/// тоглоом эхлэхээс өмнө зогсох хамгийн түгээмэл шалтгаан.
+///
+/// Тиймээс сүлжээний картуудыг жагсааж, бичих ёстой хаягийг НЬ ШУУД
+/// хэвлэнэ.
+Future<void> _greet(int port) async {
+  stdout.writeln('');
+  stdout.writeln('  «ХОТ УНТЛАА» — сервер аслаа.');
+  stdout.writeln('');
+  final List<String> addrs = <String>[];
+  try {
+    final List<NetworkInterface> nics = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+      includeLoopback: false,
+      includeLinkLocal: false,
+    );
+    for (final NetworkInterface ni in nics) {
+      for (final InternetAddress a in ni.addresses) {
+        addrs.add('${a.address}:$port');
+      }
+    }
+  } on Object {
+    // Сүлжээний карт уншиж чадсангүй — доорх зөвлөгөө хэвээр хэрэгтэй.
+  }
+  if (addrs.isEmpty) {
+    stdout.writeln('  Сүлжээний хаяг олдсонгүй. Wi-Fi-даа холбогдоод');
+    stdout.writeln('  серверээ дахин асаа.');
+  } else {
+    stdout.writeln('  Утсан дээрх «Серверийн хаяг» нүдэнд үүнийг бич:');
+    stdout.writeln('');
+    for (final String a in addrs) {
+      stdout.writeln('      $a');
+    }
+    stdout.writeln('');
+    stdout.writeln('  (Хоёр ба түүнээс олон бичигдсэн бол эхнийхийг нь');
+    stdout.writeln('   туршаад, болохгүй бол дараагийнхыг нь оролдоорой.)');
+  }
+  stdout.writeln('');
+  stdout.writeln('  Утас, компьютер хоёр НЭГ Wi-Fi дээр байх ёстой.');
+  stdout.writeln('  Зогсоох: Ctrl+C');
+  stdout.writeln('');
+  // СҮҮЛИЙН МӨР НЬ «БЭЛЭН БОЛЛОО» ДОХИО.
+  //
+  // `voice_socket_test.dart`, `integration_test.dart` хоёр серверийг
+  // дэд процессоор асааж, `ws://` гэсэн мөр гарахыг хүлээдэг. Дээрх
+  // мэндчилгээг нэмэхэд тэр мөр алга болж, хоёр тест 60 секунд хүлээгээд
+  // унав. Тиймээс энэ мөр нь ХЭРЭГЛЭГЧИД зориулсан мэдээлэл ба
+  // ТЕСТЭД зориулсан дохио хоёулаа: сүлжээний карт олдоогүй үед ч
+  // үргэлж хэвлэгдэнэ.
+  stdout.writeln('  Сонсож байна: ws://0.0.0.0:$port  (бүх сүлжээний карт)');
+  stdout.writeln('');
 }
 
 /// Нэг холбогдсон утас.

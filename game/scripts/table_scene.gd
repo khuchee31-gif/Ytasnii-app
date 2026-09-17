@@ -806,7 +806,13 @@ func _bone_world(root: Node3D, sk: Skeleton3D, bone: String) -> Vector3:
 	var b := sk.find_bone(bone)
 	if b < 0:
 		return Vector3.ZERO
-	return sk.global_transform * sk.get_bone_global_pose(b).origin
+	var p: Vector3 = sk.global_transform * sk.get_bone_global_pose(b).origin
+	# NaN-ыг ЦААШ ЯВУУЛАХГҮЙ. Энэ цэг нь камерын харц, дэлгэц дээрх нэр,
+	# санал тоолох тэмдэг гурвуулангийнх нь эх сурвалж — нэг NaN гурвуулыг
+	# нэг дор эвдэнэ.
+	if not (is_finite(p.x) and is_finite(p.y) and is_finite(p.z)):
+		return Vector3.ZERO
+	return p
 
 
 ## Харагчийн НҮДийг толгойн яснаас олно — тоглогч өөрийн биеэ мэдэрнэ:
@@ -1277,6 +1283,9 @@ func _build_hud() -> void:
 	if _sfx != null:
 		_sfx.verbose = sess.verbose
 	sess.solo_bots = int(_arg("solo", 0.0))
+	# Бичлэг авах, шалгалт хийхэд ашиглах автомат тоглогч. Утсан дээр
+	# тушаалын мөр байхгүй тул хэзээ ч асахгүй.
+	sess.auto_play = _arg("auto", 0.0) > 0.5
 	sess.solo_watcher = _arg("watcher", 0.0) > 0.5
 	sess.solo_mayor = _arg("mayor", 0.0) > 0.5
 	sess.solo_vigilante = _arg("vigilante", 0.0) > 0.5

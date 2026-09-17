@@ -364,6 +364,10 @@ func _do_point(env: float) -> void:
 	var ax := d.cross(up)
 	if ax.length_squared() < 1e-6:
 		ax = d.cross(Vector3.RIGHT)
+	if ax.length_squared() < 1e-6:
+		# Заах чиглэл нь хоёр лавлах тэнхлэгтэй ч зэрэгцээ — хурууг
+		# нугалах хавтгай тодорхойгүй. Гараа сунгасан хэвээр үлдээнэ.
+		return
 	ax = ax.normalized()
 	for f in _FINGER_NAMES:
 		var bend: Array = _CURL.get(f, _CURL["Middle"])

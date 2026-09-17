@@ -239,6 +239,25 @@ var _revealed: Array = []
 ## Дахин саналын нэрс (СЕРВЕРИЙН дугаар). Хоосон бол чөлөөт санал.
 var _candidates: Array = []
 var _players: Array = []                 # нийтийн мэдээлэл, ДҮРГҮЙ
+
+## Мафийн хамтрагчдын суудал. ЗӨВХӨН мафид ирнэ (`allySeats`).
+var _allies: Array = []
+
+## --- ХӨГЖҮҮЛЭЛТИЙН АВТОМАТ ТОГЛОГЧ (`auto=1`) -------------------------------
+##
+## Толгойгүй сервер дээр бичлэг авахад дэлгэц дарах хүн байхгүй. Энэ нь
+## ЯГ хүний замаар үйлддэг: суудал сонгоод гол товчийг дарна
+## (`select_seat` → `_on_act`). Шинэ дүрэм нэмэхгүй, шалгалт тойрохгүй —
+## сервер татгалзвал татгалзсан хэвээр, зүгээр л өөр суудал сонгоод
+## дахин оролдоно.
+##
+## ХЭРЭГЛЭЭНИЙ АППАД ЮУ Ч ӨӨРЧЛӨХГҮЙ: `auto=` тугийг зөвхөн тушаалын
+## мөрөөр өгнө, утсан дээр хэзээ ч өгөгдөхгүй.
+var auto_play := false
+var _auto_key := ""
+var _auto_wait := 0.0
+var _auto_try := 0
+var _auto_emote_key := ""
 var _votes: Dictionary = {}
 var _can_speak := false
 var _submitted := false
@@ -621,6 +640,9 @@ func _show_role_card(d: Dictionary) -> void:
 	})
 	var extra := ""
 	var allies: Array = d.get("allySeats", []) if d.get("allySeats") is Array else []
+	_allies.clear()
+	for x in allies:
+		_allies.append(int(x))
 	if not allies.is_empty():
 		var names: Array = []
 		for x in allies:
@@ -945,6 +967,12 @@ func _on_voice(d: Dictionary) -> void:
 func _on_error(code: String, _d: Dictionary) -> void:
 	if verbose:
 		print("NET error=", code)
+	if auto_play:
+		# Татгалзсан сонголт. Өөр суудал сонгоод дахин оролдоно —
+		# бичлэг «юу ч болоогүй» гэж зогсох ёсгүй.
+		_submitted = false
+		_auto_try += 1
+		_auto_wait = 0.8
 	var text: String = ERR_TEXT.get(code, "Алдаа: %s" % code)
 	if lobby != null and lobby.visible:
 		lobby.set_note(text)
@@ -1018,6 +1046,77 @@ func _process(_delta: float) -> void:
 	if hud != null and _ends_at_ms > 0:
 		_refresh()
 	_countdown_sound()
+	_auto_tick(_delta)
+
+
+## Автомат тоглогчийн нэг алхам. `auto_play` унтарсан үед ЮУ Ч хийхгүй.
+func _auto_tick(delta: float) -> void:
+	if not auto_play or table == null or net == null or not net.is_open():
+		return
+	if _phase == "lobby" or _phase.is_empty() or not _am_alive():
+		return
+	# Үе шат солигдох бүрд шинэ түлхүүр. Нэг үе шатанд НЭГ л удаа үйлдэнэ.
+	var key := "%s@%d" % [_phase, _ends_at_ms]
+	if key != _auto_key:
+		_auto_key = key
+		_auto_try = 0
+		# Хүн шиг ТҮР БОДНО. Шууд дарвал бичлэг дээр дэлгэц анивчаад
+		# өнгөрч, юу болсныг нь харах завгүй.
+		_auto_wait = 2.4 + float(absi(key.hash()) % 5) * 0.5
+	_auto_wait -= delta
+	if _auto_wait > 0.0:
+		return
+	if _phase == "day":
+		_auto_emote(key)
+		return
+	if _submitted:
+		return
+	if _phase != "vote" and ACTS_IN.get(_my_role, "") != _phase:
+		return
+	var seat := _auto_pick()
+	if seat < 0:
+		return
+	table.select_seat(seat - 1)
+	if table.selected_seat() != seat - 1:
+		# Ширээ татгалзав (дахин саналын нэр биш). Өөрийг нь сонгоно.
+		_auto_try += 1
+		_auto_wait = 0.6
+		return
+	_on_act()
+
+
+## Хэн рүү үйлдэх вэ. Амьд, өөрөө биш, хамтрагч биш.
+func _auto_pick() -> int:
+	var opts: Array = []
+	for p in _players:
+		var d: Dictionary = p
+		if not bool(d.get("alive", true)):
+			continue
+		var s := int(d.get("seat", 0))
+		if s <= 0 or s == _my_seat:
+			continue
+		# ХАМТРАГЧАА АЛАХГҮЙ. Сервер ч татгалзана; энд барьснаар
+		# бичлэг дээр улаан алдаа гарахгүй.
+		if _phase.begins_with("night") and _allies.has(s):
+			continue
+		if not _candidates.is_empty() and not _candidates.has(s):
+			continue
+		opts.append(s)
+	if opts.is_empty():
+		return -1
+	return int(opts[absi((_auto_key + "#%d" % _auto_try).hash()) % opts.size()])
+
+
+## Өдрийн хэлэлцүүлэгт нэг дохио. Ширээ амьд байх ёстой.
+func _auto_emote(key: String) -> void:
+	if key == _auto_emote_key or not _can_emote_now():
+		return
+	_auto_emote_key = key
+	var seat := _auto_pick()
+	if seat < 0:
+		return
+	table.select_seat(seat - 1)
+	_on_emoted("point")
 
 
 ## --- Дуу ---------------------------------------------------------------------

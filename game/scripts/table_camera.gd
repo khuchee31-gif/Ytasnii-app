@@ -65,11 +65,26 @@ func set_head(seat: int, world: Vector3) -> void:
 
 
 ## Тухайн суудал руу зөөлөн эргэнэ. Ээлж ирэхэд сервер дуудна.
+##
+## ХАРЦЫГ ХЭЗЭЭ Ч NaN болгохгүй.
+##
+## Толгойн цэг нь арагт яснаас уншигддаг. Ясны матриц нэг л удаа NaN
+## болбол (эмоци, унасан байрлал) энэ цэг NaN болж, `_yaw_to` NaN болж,
+## `lerpf` дараа нь `_yaw`-г ҮҮРД NaN болгоно — камерын матриц NaN болж,
+## дэлгэц бүхэлдээ гажна. Бичлэг авахад яг ингэж болсон: хасагдсаны
+## дараа тоглогч зөвхөн сунасан гурвалжнууд харна. Тиймээс энд ЗОГСООНО.
 func face_seat(seat: int) -> void:
 	if not _heads.has(seat):
 		return
-	var d: Vector3 = (_heads[seat] as Vector3) - global_position
+	var h: Vector3 = _heads[seat] as Vector3
+	if not (is_finite(h.x) and is_finite(h.y) and is_finite(h.z)):
+		return
+	var d: Vector3 = h - global_position
+	if d.length_squared() < 1e-8:
+		return
 	var want := atan2(-d.x, -d.z)
+	if not is_finite(want):
+		return
 	_yaw_to = clampf(wrapf(want - base_yaw, -PI, PI), -YAW_LIMIT, YAW_LIMIT)
 
 
@@ -81,6 +96,13 @@ func _process(delta: float) -> void:
 	var k := 1.0 - exp(-FOLLOW * delta)
 	_yaw = lerpf(_yaw, _yaw_to, k)
 	_pitch = lerpf(_pitch, _pitch_to, k)
+	# Хэрэв ямар нэг замаар NaN орж ирвэл ЭНД сэргээнэ. Нэг кадр
+	# буруу харах нь зүгээр; үүрд гажсан дэлгэц бол тоглоом дуусав.
+	if not (is_finite(_yaw) and is_finite(_pitch)):
+		_yaw = 0.0
+		_pitch = 0.0
+		_yaw_to = 0.0
+		_pitch_to = 0.0
 	_apply()
 
 

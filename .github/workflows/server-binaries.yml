@@ -1,0 +1,125 @@
+name: сервер — ажиллах файл
+
+# ЯАГААД ЭНЭ ХЭРЭГТЭЙ ВЭ
+#
+# Апп нь өөрөө сервер АГУУЛДАГГҮЙ: лоббид «Серверийн хаяг» гэсэн нүд гарч
+# ирдэг бөгөөд тэр нүд хоосон байвал тоглоом эхлэхгүй. Өөрөөр хэлбэл APK
+# суулгасан хүн ганцаараа юу ч хийж чадахгүй — хэн нэг нь серверийг
+# асаасан байх ёстой.
+#
+# Сервер нь Dart дээр бичигдсэн. Ангидаа тоглох гэж байгаа хүнээс Dart
+# SDK суулгуулах нь бодит саад: тэр алхам дээр л ихэнх нь зогсоно.
+# Тиймээс энд ЯМАР Ч ЗҮЙЛ СУУЛГАХГҮЙ ажиллах нэг файл болгож хөрвүүлнэ —
+# Windows дээр `hot-untlaa-server.exe` дээр давхар товшихоос өөр зүйл
+# хийхгүй.
+#
+# ЯАГААД CI ДЭЭР ВЭ: `dart compile exe` нь ЗӨВХӨН ажиллаж буй системдээ
+# зориулж хөрвүүлдэг (Linux дээрээс Windows-ын файл гаргаж БОЛОХГҮЙ —
+# «Unsupported target platform windows_x64» гэж хэлнэ). Тиймээс систем
+# бүрийг өөрийнх нь машин дээр хөрвүүлэх ёстой. GitHub-ын гүйгчид яг
+# үүнийг үнэгүй хийж өгнө.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'packages/server/**'
+      - 'packages/engine/**'
+      - 'packages/protocol/**'
+      - '.github/workflows/server-binaries.yml'
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows (x64)
+            out: hot-untlaa-server-windows-x64.exe
+          - os: ubuntu-latest
+            label: Linux (x64)
+            out: hot-untlaa-server-linux-x64
+          - os: macos-latest
+            label: macOS (Apple Silicon)
+            out: hot-untlaa-server-macos-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Хамаарлыг татах
+        working-directory: packages/server
+        run: dart pub get
+
+      # Хөрвүүлэхийн ӨМНӨ шалгана. Ажиллахгүй серверийг тараах нь
+      # сервергүй байснаас дор: хүн татаж аваад, ажиллуулж чадахгүй,
+      # яагаад гэдгийг нь мэдэхгүй.
+      - name: Шинжилгээ
+        working-directory: packages/server
+        run: dart analyze bin lib
+
+      - name: Нэг файл болгох
+        working-directory: packages/server
+        run: dart compile exe bin/server.dart -o "../../${{ matrix.out }}"
+
+      # Жинхэнэ ажиллаж байгааг нь шалгана: асаагаад, порт нь холболт
+      # хүлээж авч байгаа эсэхийг хараад унтраана.
+      #
+      # БИЧВЭРИЙГ БИШ, ПОРТЫГ шалгана. Сервер кирилл үсгээр мэндчилдэг
+      # бөгөөд Windows-ын консолын кодчилол түүнийг гажуудуулж мэднэ —
+      # тэр үед «сервер ажиллахгүй байна» гэсэн ХУДАЛ уналт гарна.
+      # Порт нээгдсэн эсэх нь хэлнээс хамаарахгүй.
+      - name: Асаж байгаа эсэхийг шалгах (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x "${{ matrix.out }}"
+          ./"${{ matrix.out }}" --port 8123 > boot.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 20); do
+            if (exec 3<>/dev/tcp/127.0.0.1/8123) 2>/dev/null; then
+              echo "порт нээгдлээ ($i)"
+              cat boot.log
+              kill $PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "--- сервер асаагүй ---"
+          cat boot.log
+          kill $PID || true
+          exit 1
+
+      - name: Асаж байгаа эсэхийг шалгах (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath ".\${{ matrix.out }}" `
+            -ArgumentList '--port','8123' -PassThru `
+            -RedirectStandardOutput boot.log -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 20; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              $c = New-Object System.Net.Sockets.TcpClient
+              $c.Connect('127.0.0.1', 8123)
+              $c.Close()
+              $ok = $true
+              break
+            } catch { }
+          }
+          Get-Content boot.log
+          Stop-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $ok) { throw 'Сервер портоо нээгээгүй байна' }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out }}
+          path: ${{ matrix.out }}
+          if-no-files-found: error
