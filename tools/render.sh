@@ -19,4 +19,12 @@ xvfb-run -a -s "-screen 0 1600x720x24" "$GODOT" \
   --path "$PROJ" \
   --rendering-driver opengl3 \
   --resolution 1600x720 \
-  "$@" 2>&1 | grep -vE "ALSA|audio|PagedAllocator|were leaked|never freed" || true
+  "$@" 2>&1 | grep -vE "PagedAllocator|were leaked|never freed" || true
+
+# ДУУНЫ МӨРИЙГ ШҮҮХГҮЙ.
+#
+# Өмнө нь `ALSA|audio` гэж шүүдэг байв. Тэр нь ALSA-гийн шуугианыг
+# дардаг ч ХАМТ Godot-ийн дууны алдааг бүгдийг нь дардаг байсан —
+# энэ серверт дуут төхөөрөмж байхгүй тул холигч ажиллахгүй, дээр нь
+# гарсан алдаа нь ч харагдахгүй. Утсан дээр унадаг дууны алдааг яг
+# ингэж хоёр давхар нуусан.

@@ -46,23 +46,34 @@ var _next := 0
 var _room: AudioStreamPlayer = null
 var _rng := RandomNumberGenerator.new()
 
-## Урт дууг барьж байгаа урсгал.
+## Хараахан баригдаагүй УРТ дуунуудын дараалал.
 ##
-## ЯАГААД УРСГАЛ ХЭРЭГТЭЙ ВЭ: бүх дууг синтезлэхэд энэ машин дээр
-## 587 мс зарцуулагдсан. Redmi 9A нь 4-6 дахин удаан тул эхлэлд
-## 2.5-3.5 секунд ХӨЛДӨНӨ — тоглоом эвдэрсэн мэт харагдана.
+## УРСГАЛ (Thread) БАЙХГҮЙ — ЗОРИУДААР.
 ##
-## Богино дуунууд (товшилт, тогшилт, татгалзал) нь ~47 мс тул ЭНД
-## ШУУД баригдана: лоббид тоглогч эхний секундэд л товч дардаг.
-## Урт дуунууд (өрөө, шөнө, үүр, үхэл) нь хамгийн эрт хэдэн секундын
-## дараа хэрэгтэй болно.
-var _thread: Thread = null
+## Эхний хувилбар нь урт дууг өөр урсгал дээр барьдаг байв: гол
+## урсгалыг 590 мс блоклохгүйн тулд. Тэр нь энэ машин дээр ажиллаж
+## байсан ч УТСАН ДЭЭР ХЭЗЭЭ Ч ШАЛГАГДААГҮЙ, бөгөөд тоглоом утсан
+## дээр нээгдмэгц унасан. Урсгал нь уналтын шалтгаан МӨН эсэхийг
+## батлах боломжгүй — яг тэр учраас хасав: батлах боломжгүй
+## эрсдэлийг барихын оронд АРИЛГАХ нь хямд. Godot-ийн урсгал дээр
+## Resource үүсгэх нь платформ бүр дээр өөр зан гаргадаг; кадр
+## тутмын жижиг ажил хаана ч ижил.
+##
+## Оронд нь: кадр тутам ЦАГИЙН ТӨСӨВ (`SLICE_MS`) дүүртэл барина.
+## Гол урсгал хэзээ ч 6 мс-ээс удаан блоклогдохгүй, лоббид байх
+## хэдэн секундын дотор бүгд бэлэн болно.
+var _todo: Array[String] = []
 var _slow_ready := false
+
+## Нэг кадрт зарцуулах дээд хугацаа (мс).
+##
+## 6 мс: 30 кадр/сек дээр нэг кадр 33 мс тул тав дахин зай үлдэнэ.
+const SLICE_MS := 6
 
 ## Дууг бүхэлд нь унтраах.
 var muted := false
 
-## Суурь чимээ асаалттай байх ёстой юу. Урсгал дуусахаас өмнө
+## Суурь чимээ асаалттай байх ёстой юу. Бэлэн болохоос өмнө
 ## `room(true)` дуудагдвал ЭНД тэмдэглээд, бэлэн болмогц эхлүүлнэ.
 var _room_on := false
 
@@ -92,64 +103,63 @@ func _ready() -> void:
 	_room.volume_db = ROOM_DB
 	add_child(_room)
 
+	_todo = SLOW.duplicate()
 	print("SFX хурдан ", _lib.size(), " дуу, ", ms, " мс")
 
-	var dump := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("sfxdump="):
-			dump = true
-
-	# ВЕБ дээр урсгал байхгүй (SharedArrayBuffer шаардлагатай, ихэнх
-	# хостинг түүнийг өгдөггүй). Тэнд ХӨЛДӨНӨ — дуугүй байснаас дээр.
-	if OS.get_name() == "Web":
-		_merge(_build_slow())
-	else:
-		_thread = Thread.new()
-		_thread.start(_build_slow)
-
-	if dump:
-		# ЗУРАГ АВАХ ГОРИМД БЛОКЛОНО. `_join()` нь урсгал амьд байвал
-		# шууд буцдаг тул энд дуудвал зөвхөн долоон богино дуу
-		# бичигдэнэ — «бүх дууг шалгалаа» гэсэн ХУДАЛ хариу.
-		if _thread != null:
-			_merge(_thread.wait_to_finish())
-			_thread = null
-		_dump()
+			# ЗУРАГ АВАХ ГОРИМД бүгдийг НЭГ ДОР барина — тэгэхгүй бол
+			# зөвхөн долоон богино дуу бичигдэж, «бүх дууг шалгалаа»
+			# гэсэн ХУДАЛ хариу гарна.
+			while not _todo.is_empty():
+				_build_one()
+			_finish_slow()
+			_dump()
 
 
 func _process(_delta: float) -> void:
-	_join()
-
-
-## Урсгал дууссан бол үр дүнг нь авна. Дуусаагүй бол ЮУ Ч ХИЙХГҮЙ —
-## `wait_to_finish` нь гол урсгалыг блоклоно.
-func _join() -> void:
-	if _slow_ready or _thread == null:
+	if _slow_ready:
 		return
-	if _thread.is_alive():
+	var until := Time.get_ticks_msec() + SLICE_MS
+	while not _todo.is_empty() and Time.get_ticks_msec() < until:
+		_build_one()
+	if _todo.is_empty():
+		_finish_slow()
+
+
+## Дараалалдаа байгаа НЭГ дууг барина.
+func _build_one() -> void:
+	if _todo.is_empty():
 		return
-	_merge(_thread.wait_to_finish())
-	_thread = null
-	set_process(false)
+	var k: String = _todo.pop_front()
+	match k:
+		"room":
+			_lib[k] = _room_tone()
+		"night":
+			_lib[k] = _night_fall()
+		"dawn":
+			_lib[k] = _dawn()
+		"death":
+			_lib[k] = _death()
+		"whisper":
+			_lib[k] = _whisper()
+		"heart":
+			_lib[k] = _heart()
+		"win_town":
+			_lib[k] = _chord([261.6, 329.6, 392.0], 1.7, 0.0)
+		"win_mafia":
+			_lib[k] = _chord([261.6, 311.1, 392.0], 2.0, 65.4)
 
 
-func _merge(d: Dictionary) -> void:
-	for k in d:
-		_lib[k] = d[k]
+func _finish_slow() -> void:
+	if _slow_ready:
+		return
 	_slow_ready = true
+	set_process(false)
 	print("SFX бүрэн ", _lib.size(), " дуу")
-	# Урсгал ажиллаж байхад «суурь чимээг асаа» гэсэн бол ОДОО асаана.
+	# Барьж байх үед «суурь чимээг асаа» гэсэн бол ОДОО асаана.
 	if _room_on:
 		room(true)
-
-
-func _exit_tree() -> void:
-	# Урсгалыг ХАЯЖ БОЛОХГҮЙ: Godot нь «Thread must be disposed» гэж
-	# алдаа хаяад, тоглоомыг хаахад чимээгүй унана.
-	if _thread != null:
-		if _thread.is_started():
-			_thread.wait_to_finish()
-		_thread = null
 
 
 # --- Нийтийн -----------------------------------------------------------------
@@ -253,21 +263,15 @@ func _build_fast() -> void:
 	_lib["lock"] = _lock()
 
 
-## Хожим хэрэгтэй, УРТ дуунууд. ӨӨР УРСГАЛ дээр ажиллана.
+## Хожим хэрэгтэй, УРТ дуунууд — кадр тутам НЭГЭЭР баригдана.
 ##
-## ЭНД `_lib`-Д ХҮРЭХГҮЙ: гол урсгал түүнийг уншиж байна. Оронд нь
-## шинэ толь буцааж, гол урсгал `_merge`-ээр нэгтгэнэ.
-func _build_slow() -> Dictionary:
-	return {
-		"room": _room_tone(),
-		"night": _night_fall(),
-		"dawn": _dawn(),
-		"death": _death(),
-		"whisper": _whisper(),
-		"heart": _heart(),
-		"win_town": _chord([261.6, 329.6, 392.0], 1.7, 0.0),
-		"win_mafia": _chord([261.6, 311.1, 392.0], 2.0, 65.4),
-	}
+## ДАРААЛАЛ НЬ ЧУХАЛ: эхлээд өрөөний суурь чимээ (лоббид тэр дороо
+## хэрэгтэй), дараа нь шөнө/үүр (эхний үе шатууд), эцэст нь
+## төгсгөлийн хөвчүүд (хамгийн эрт хэдэн минутын дараа).
+const SLOW: Array[String] = [
+	"room", "night", "dawn", "death", "whisper", "heart",
+	"win_town", "win_mafia",
+]
 
 
 # --- Суурь хэрэгслүүд --------------------------------------------------------
@@ -311,7 +315,23 @@ func _wav(buf: PackedFloat32Array, peak: float, loop := false) -> AudioStreamWAV
 	if loop:
 		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		w.loop_begin = 0
-		w.loop_end = n
+		# `n - 1`, `n` БИШ.
+		#
+		# Godot-ийн холигч `loop_end`-ийг СҮҮЛЧИЙН ДЭЭЖИЙН ИНДЕКС гэж
+		# үздэг, дээжийн ТОО гэж биш. `n` өгвөл давталт бүрт буферээс
+		# нэг int16 ГАДУУР уншина — өрөөний суурь чимээ нь лоббид шууд
+		# эхэлдэг, төгсгөлгүй давтдаг тул тэр уншилт СЕКУНД ТУТАМ
+		# давтагдана.
+		#
+		# ЯАГААД ЭНЭ АЛДАА ЭНЭ ХҮРТЭЛ ИЛРЭЭГҮЙ ВЭ: энэ серверт дуут
+		# төхөөрөмж байхгүй тул Godot «dummy» драйверт унадаг бөгөөд
+		# тэр нь холигчийг ОГТ АЖИЛЛУУЛДАГГҮЙ. Бүх зураг авалт, бүх
+		# жинхэнэ тоглолт энэ замаар явсан — дууны холигч нэг ч удаа
+		# ажиллаагүй. Утсан дээр л ажилладаг.
+		#
+		# Хэрэв `loop_end` үнэндээ «тоо» байсан ч энэ нь зөв хэвээр:
+		# дөрвөн секундын давталтаас нэг дээж хасагдана — сонсогдохгүй.
+		w.loop_end = maxi(n - 1, 0)
 	return w
 
 
@@ -655,6 +675,19 @@ func _dump() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
 	for k in names():
 		var w: AudioStreamWAV = _lib[k]
+		# ДАВТАЛТЫН ХИЛИЙГ ШАЛГАНА.
+		#
+		# `loop_end` нь дээжийн ТОО биш, СҮҮЛЧИЙН ИНДЕКС. Хилээс хэтэрвэл
+		# холигч буферээс гадуур уншина — энэ серверт холигч ажилладаггүй
+		# тул чимээгүй өнгөрч, зөвхөн утсан дээр илэрнэ. Тиймээс энд
+		# ТООГООР шалгаж, `tools/sfx_check.py` уншина.
+		var frames: int = w.data.size() / 2
+		print("SFXLOOP %s mode=%d begin=%d end=%d frames=%d" %
+			[k, w.loop_mode, w.loop_begin, w.loop_end, frames])
+		if w.loop_mode != AudioStreamWAV.LOOP_DISABLED:
+			assert(w.loop_end < frames,
+				"%s: loop_end %d нь %d дээжийн хилээс хэтэрлээ" %
+				[k, w.loop_end, frames])
 		var path := ProjectSettings.globalize_path("%s/%s.wav" % [dir, k])
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		if f == null:

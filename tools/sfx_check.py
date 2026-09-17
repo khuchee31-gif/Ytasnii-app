@@ -54,6 +54,35 @@ def centroid(x, rate):
     return float((w * f).sum() / s) if s > 0 else 0.0
 
 
+def loops(report: pathlib.Path):
+    """`SFXLOOP` мөрүүдийг уншиж давталтын хилийг шалгана.
+
+    ЯАГААД ЭНД ХЭРЭГТЭЙ ВЭ: .wav файл нь давталтын мэдээллийг авч
+    явдаггүй тул долгионоос үүнийг мэдэх боломжгүй. Godot-ийн
+    `loop_end` нь дээжийн ТОО биш, СҮҮЛЧИЙН ИНДЕКС — хэтэрвэл холигч
+    буферээс гадуур уншина. Энэ серверт дуут төхөөрөмж байхгүй тул
+    холигч ажилладаггүй бөгөөд алдаа нь ЗӨВХӨН УТСАН дээр илэрнэ.
+    Нэг удаа ингэж хохирсон.
+    """
+    bad = []
+    seen = 0
+    if not report.is_file():
+        return ["SFXLOOP бүртгэл алга: %s" % report], 0
+    for line in report.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith("SFXLOOP "):
+            continue
+        seen += 1
+        parts = dict(p.split("=", 1) for p in line.split()[2:] if "=" in p)
+        name = line.split()[1]
+        mode = int(parts.get("mode", 0))
+        end = int(parts.get("end", 0))
+        frames = int(parts.get("frames", 0))
+        if mode != 0 and end >= frames:
+            bad.append("%s: loop_end %d нь %d дээжийн хилээс хэтэрсэн"
+                       % (name, end, frames))
+    return bad, seen
+
+
 def main() -> int:
     if not DIR.is_dir():
         print("sfx хавтас алга: эхлээд sfxdump=1-ээр гаргана уу")
@@ -89,6 +118,13 @@ def main() -> int:
             bad.append(f"{name}: {clip*100:.1f}% хазсан — гажилт сонсогдоно")
         if not (lo_c <= c <= hi_c):
             bad.append(f"{name}: төв {c:.0f}Гц нь [{lo_c},{hi_c}] дотор биш")
+
+    loop_bad, loop_seen = loops(pathlib.Path("/tmp/sfxdump.log"))
+    print("\nдавталтын шалгалт: %d дуу" % loop_seen)
+    bad.extend(loop_bad)
+    if loop_seen == 0:
+        bad.append("SFXLOOP мөр олдсонгүй — гаралтыг /tmp/sfxdump.log руу "
+                   "чиглүүлсэн эсэхээ шалгана уу")
 
     missing = set(WANT) - {p.stem for p in DIR.glob("*.wav")}
     for m in sorted(missing):

@@ -253,10 +253,28 @@ static func _arg_str(key: String, def: String) -> String:
 	return def
 
 
+## ЭХЛЭЛИЙГ КАДРТ ХУВААНА — нэг блок болгож БОЛОХГҮЙ.
+##
+## ЯАГААД: тайз баригдахад энэ машин дээр 730 мс, Redmi 9A дээр хэдэн
+## секунд. Тэр бүх хугацаанд `_ready()` буцдаггүй тул НЭГ Ч КАДР
+## зурагдахгүй — тоглогч хар дэлгэц хараад «эвдэрсэн» гэж боддог.
+## Хэрэв тэр дунд ямар нэг зүйл унавал ХААНА унасныг мэдэх ямар ч
+## арга байхгүй: бүртгэл утсан дээр харагдахгүй, дэлгэц дээр юу ч
+## бичигдээгүй.
+##
+## Одоо алхам бүр НЭГ КАДРТ хийгдэж, нэр нь дэлгэц дээр бичигдэнэ.
+## Хоёр ашиг: эхлэл амьд харагдана, мөн унавал хэрэглэгч хамгийн
+## сүүлд юу бичигдсэнийг хэлж чадна — тэр нь алдааны байрлал.
+var _boot: Array = []
+var _boot_t0 := 0
+var _boot_layer: CanvasLayer = null
+var _boot_label: Label = null
+
+
 func _ready() -> void:
-	var t0 := Time.get_ticks_msec()
+	_boot_t0 = Time.get_ticks_msec()
 	overview = _arg("overview", 0.0) > 0.5
-	# ДУУГ ХАМГИЙН ТҮРҮҮНД. Синтез нь ~40 мс авдаг тул тайз баригдахаас
+	# ДУУГ ХАМГИЙН ТҮРҮҮНД. Синтез нь ~45 мс авдаг тул тайз баригдахаас
 	# өмнө хийвэл тоглогч хүлээхгүй — эхний үе шатны дуу бэлэн байна.
 	_sfx = Sfx.new()
 	add_child(_sfx)
@@ -265,19 +283,77 @@ func _ready() -> void:
 	# Лобби бол аль хэдийн тэр л өрөө. Чимээгүй лоббиос дуутай шөнө рүү
 	# орвол «дуу одоо л асав» гэж сонсогдоно; эхнээсээ бувтнаж байвал
 	# тоглогч түүнийг АНЗААРАХГҮЙ — яг тэр л зорилго.
-	#
-	# Урт чимээ өөр урсгал дээр баригддаг тул энэ дуудлага «хүсэл»
-	# болж тэмдэглэгдээд, бэлэн болмогц өөрөө эхэлнэ.
 	_sfx.room(true)
 	viewer_seat = int(_arg("viewer", float(viewer_seat)))
-	_build_room()
-	_build_table()
-	_build_props()
-	_build_lamp()
-	_build_env()
-	_build_post()
-	_build_hud()
-	_rebuild_stage()
+
+	_make_boot_overlay()
+	_boot = [
+		["өрөө", _build_room],
+		["ширээ", _build_table],
+		["эд зүйлс", _build_props],
+		["чийдэн", _build_lamp],
+		["орчин", _build_env],
+		["өнгө", _build_post],
+		["дэлгэц", _build_hud],
+		["хүмүүс", _rebuild_stage],
+	]
+
+
+## Ачаалалтын мөр. ТУСДАА `CanvasLayer` дээр, HUD-аас ӨМНӨ үүснэ —
+## HUD өөрөө ачаалалтын нэг алхам тул түүнийг хүлээж болохгүй.
+func _make_boot_overlay() -> void:
+	_boot_layer = CanvasLayer.new()
+	_boot_layer.layer = 200
+	add_child(_boot_layer)
+	var bg := ColorRect.new()
+	bg.color = Color(0.02, 0.02, 0.03)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boot_layer.add_child(bg)
+	var title := Label.new()
+	title.text = "ХОТ УНТЛАА"
+	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_color_override("font_color", Color(0.90, 0.88, 0.85))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.set_anchors_preset(Control.PRESET_CENTER_TOP, true)
+	title.offset_left = -400
+	title.offset_right = 400
+	title.offset_top = 210
+	title.offset_bottom = 280
+	_boot_layer.add_child(title)
+	_boot_label = Label.new()
+	_boot_label.add_theme_font_size_override("font_size", 24)
+	_boot_label.add_theme_color_override("font_color", Color(0.62, 0.60, 0.58))
+	_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boot_label.set_anchors_preset(Control.PRESET_CENTER_TOP, true)
+	_boot_label.offset_left = -400
+	_boot_label.offset_right = 400
+	_boot_label.offset_top = 290
+	_boot_label.offset_bottom = 330
+	_boot_label.text = "ачаалж байна…"
+	_boot_layer.add_child(_boot_label)
+
+
+## Нэг кадрт НЭГ алхам. `false` буцвал ачаалалт дууссан.
+func _boot_step() -> bool:
+	if _boot.is_empty():
+		return false
+	var step: Array = _boot.pop_front()
+	# Нэрийг УРЬДЧИЛЖ бичнэ, алхмыг гүйцэтгэхээс ӨМНӨ. Энэ нь чухал:
+	# алхам өөрөө унавал дэлгэцэн дээр ЯГ ТЭР нэр үлдэнэ.
+	if _boot_label != null:
+		_boot_label.text = "%s…" % str(step[0])
+	(step[1] as Callable).call()
+	if _boot.is_empty():
+		_boot_finish()
+	return true
+
+
+func _boot_finish() -> void:
+	if _boot_layer != null:
+		_boot_layer.queue_free()
+		_boot_layer = null
+		_boot_label = null
 	# Хөгжүүлэлтийн шалгалт: тухайн суудлыг үхсэн болгож харна.
 	var dead_seat := int(_arg("dead", -1.0))
 	if dead_seat >= 0:
@@ -351,7 +427,7 @@ func _ready() -> void:
 		_dev_emote = [int(_arg("from", 0.0)), em, int(_arg("at", -1.0))]
 		emote(_dev_emote[0], em, _dev_emote[2])
 		focus_seat(int(_arg("focus", -1.0)))
-	print("BUILD ms=", Time.get_ticks_msec() - t0)
+	print("BUILD ms=", Time.get_ticks_msec() - _boot_t0)
 	await get_tree().process_frame
 	_report_framing(_cam)
 
@@ -1179,6 +1255,18 @@ func _build_hud() -> void:
 
 
 func _process(delta: float) -> void:
+	# АЧААЛАЛТ ЭХЛЭЭД. Алхам бүр нэг кадрт — тайз бүрэн баригдтал
+	# доорх ердийн ажил ажиллуулах юм байхгүй (тайз, камер, HUD нь
+	# хараахан оршин байхгүй).
+	if not _boot.is_empty():
+		# Хөгжүүлэлтийн шалгалт: ачаалалтыг тодорхой алхам дээр зогсоож
+		# мөрийг нь зураг дээр харах.
+		#   tools/render.sh -- bootstop=3 hold=1 out=b.png
+		var stop := int(_arg("bootstop", -1.0))
+		if stop >= 0 and _boot.size() <= 8 - stop:
+			return
+		_boot_step()
+		return
 	_clock += delta
 	_drive_room(_clock)
 	_drive_mood(delta)
